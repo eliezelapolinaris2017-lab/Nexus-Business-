@@ -193,3 +193,27 @@
     grid-template-columns:repeat(4,minmax(160px,1fr));
   }
 }
+
+/* V13: partidas múltiples por visita/factura */
+.service-lines-card{
+  border:1px solid var(--line, #dbe3ef);
+  background:linear-gradient(180deg,#fff,#f8fbff);
+  border-radius:16px;
+  padding:16px;
+}
+.line-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}
+.line-head small{display:block;margin-top:4px}
+.service-line{
+  display:grid;
+  grid-template-columns:42px minmax(260px,1fr) 110px 140px 44px;
+  gap:10px;
+  align-items:center;
+  margin-bottom:10px;
+}
+.line-number{width:34px;height:34px;border-radius:10px;background:#eef4ff;color:var(--brand,#2563eb);display:grid;place-items:center;font-weight:800}
+.service-line input{width:100%}
+button.mini{padding:8px 10px;min-height:38px}
+@media(max-width:800px){
+  .service-line{grid-template-columns:34px 1fr;}
+  .service-line .svc-qty,.service-line .svc-price,.service-line [data-remove-line]{grid-column:2;}
+}
