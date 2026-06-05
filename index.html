@@ -8,63 +8,231 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
-  <div id="toast" class="toast"></div>
-  <section id="authView" class="auth-page">
+  <div id="authScreen" class="auth-screen">
     <div class="auth-card">
-      <div class="mark">NX</div>
-      <h1>Nexus Business PR</h1>
-      <p>Plataforma SaaS para negocios de servicios en Puerto Rico.</p>
-      <div class="grid2">
-        <input id="authName" placeholder="Nombre del negocio" />
-        <select id="authIndustry">
-          <option value="general">Servicios Generales</option>
-          <option value="transport">Transporte</option>
-          <option value="hvac">HVAC</option>
-          <option value="salon">Salón / Barbería</option>
-          <option value="handyman">Handyman</option>
-          <option value="cleaning">Limpieza</option>
-          <option value="construction">Construcción</option>
-          <option value="mechanic">Mecánica Móvil</option>
-        </select>
+      <div class="brand-block">
+        <div class="brand-mark">NX</div>
+        <div>
+          <h1>Nexus Business PR</h1>
+          <p>SaaS para negocios de servicios en Puerto Rico</p>
+        </div>
       </div>
-      <input id="authEmail" type="email" placeholder="Email" />
-      <input id="authPass" type="password" placeholder="Contraseña" />
-      <div class="auth-actions">
-        <button id="btnLogin" class="btn primary">Entrar</button>
-        <button id="btnRegister" class="btn ghost">Crear cuenta</button>
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-auth="login">Entrar</button>
+        <button class="auth-tab" data-auth="register">Crear cuenta</button>
       </div>
-      <button id="btnResetPass" class="linkbtn">Recuperar contraseña</button>
-      <small>Datos privados por usuario. Firebase Auth + Firestore Rules por UID.</small>
+      <form id="loginForm" class="auth-form">
+        <label>Email<input id="loginEmail" type="email" required placeholder="tu@email.com" /></label>
+        <label>Contraseña<input id="loginPassword" type="password" required placeholder="••••••••" /></label>
+        <button type="submit" class="primary full">Entrar</button>
+        <button id="resetPasswordBtn" type="button" class="ghost full">Recuperar contraseña</button>
+      </form>
+      <form id="registerForm" class="auth-form hidden">
+        <label>Nombre del negocio<input id="regBusiness" required placeholder="Ej. Oasis Services PR" /></label>
+        <label>Tipo de negocio<select id="regIndustry"></select></label>
+        <label>Email<input id="regEmail" type="email" required placeholder="admin@negocio.com" /></label>
+        <label>Contraseña<input id="regPassword" type="password" required minlength="6" placeholder="Mínimo 6 caracteres" /></label>
+        <button type="submit" class="primary full">Crear cuenta</button>
+      </form>
+      <p id="authMsg" class="status-text"></p>
     </div>
-  </section>
+  </div>
 
-  <section id="appView" class="app hidden">
+  <div id="appShell" class="app-shell hidden">
     <aside class="sidebar">
-      <div class="side-brand"><div class="mark small">NX</div><div><b id="sideBiz">Nexus Business</b><span id="sidePlan">Plan Starter</span></div></div>
-      <nav id="nav"></nav>
-      <div class="side-footer">
-        <button id="btnSync" class="btn tiny">Sincronizar</button>
-        <button id="btnLogout" class="btn tiny ghost">Salir</button>
+      <div class="sidebar-brand">
+        <div class="brand-mark small">NX</div>
+        <div>
+          <strong id="sideBusinessName">Nexus Business</strong>
+          <span id="sidePlan">Plan Free</span>
+        </div>
+      </div>
+      <nav id="navMenu" class="nav-menu">
+        <button data-tab="dashboard" class="active">Dashboard</button>
+        <button data-tab="clients">Clientes</button>
+        <button data-tab="services">Servicios</button>
+        <button data-tab="team">Equipo</button>
+        <button data-tab="assets">Activos / Flota</button>
+        <button data-tab="invoices">Facturación</button>
+        <button data-tab="payments">Cobros</button>
+        <button data-tab="cashflow">Caja</button>
+        <button data-tab="reports">Reportes PDF</button>
+        <button data-tab="plans">Planes</button>
+        <button data-tab="settings">Configuración</button>
+      </nav>
+      <div class="sidebar-footer">
+        <span id="syncStatus">Preparando...</span>
+        <button id="logoutBtn" class="ghost full">Salir</button>
       </div>
     </aside>
+
     <main class="main">
-      <header class="topline">
-        <div><h2 id="pageTitle">Dashboard</h2><p id="pageHint">Operación centralizada.</p></div>
-        <div class="status"><span id="cloudDot"></span><span id="cloudText">Conectando</span></div>
+      <header class="topbar">
+        <div>
+          <h2 id="pageTitle">Dashboard</h2>
+          <p id="industryLabel">Operación multi-servicios</p>
+        </div>
+        <div class="top-actions">
+          <button id="syncBtn" class="ghost">Sincronizar</button>
+          <button id="quickInvoiceBtn" class="primary">Nueva factura</button>
+        </div>
       </header>
 
-      <section id="dashboard" class="page"></section>
-      <section id="clients" class="page hidden"></section>
-      <section id="services" class="page hidden"></section>
-      <section id="team" class="page hidden"></section>
-      <section id="invoices" class="page hidden"></section>
-      <section id="payments" class="page hidden"></section>
-      <section id="cashflow" class="page hidden"></section>
-      <section id="reports" class="page hidden"></section>
-      <section id="plans" class="page hidden"></section>
-      <section id="settings" class="page hidden"></section>
+      <section id="dashboard" class="tab active">
+        <div class="plan-banner" id="planBanner"></div>
+        <div class="kpi-grid">
+          <div class="kpi"><span>Ingresos</span><strong id="kIncome">$0.00</strong></div>
+          <div class="kpi"><span>Facturado</span><strong id="kBilled">$0.00</strong></div>
+          <div class="kpi"><span>Pendiente</span><strong id="kPending">$0.00</strong></div>
+          <div class="kpi"><span>Servicios</span><strong id="kServices">0</strong></div>
+          <div class="kpi"><span>Clientes</span><strong id="kClients">0</strong></div>
+          <div class="kpi"><span>Caja neta</span><strong id="kNet">$0.00</strong></div>
+        </div>
+        <div class="grid two">
+          <div class="panel"><h3>Actividad reciente</h3><div id="recentActivity" class="list"></div></div>
+          <div class="panel"><h3>Resumen por industria</h3><div id="industrySummary" class="muted-box"></div></div>
+        </div>
+      </section>
+
+      <section id="clients" class="tab">
+        <div class="section-head"><h3>Clientes</h3><button id="clientSave" class="primary">Guardar cliente</button></div>
+        <form class="form-grid" id="clientForm">
+          <input type="hidden" id="clientId" />
+          <label>Nombre / Empresa<input id="clientName" required /></label>
+          <label>Teléfono<input id="clientPhone" /></label>
+          <label>Email<input id="clientEmail" type="email" /></label>
+          <label>Municipio<input id="clientCity" /></label>
+          <label>Dirección<textarea id="clientAddress"></textarea></label>
+          <label>Notas<textarea id="clientNotes"></textarea></label>
+        </form>
+        <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Contacto</th><th>Municipio</th><th>Balance</th><th></th></tr></thead><tbody id="clientsTable"></tbody></table></div>
+      </section>
+
+      <section id="services" class="tab">
+        <div class="section-head"><h3 id="serviceTitle">Servicios</h3><button id="serviceSave" class="primary">Guardar servicio</button></div>
+        <form class="form-grid wide" id="serviceForm">
+          <input type="hidden" id="serviceId" />
+          <label>Cliente<select id="serviceClient" required></select></label>
+          <label>Asignado a<select id="serviceWorker"></select></label>
+          <label>Fecha<input id="serviceDate" type="date" required /></label>
+          <label>Estado<select id="serviceStatus"><option>Pendiente</option><option>En proceso</option><option>Completado</option><option>Cancelado</option></select></label>
+          <label id="originLabel">Origen / Ubicación<input id="serviceOrigin" /></label>
+          <label id="destLabel">Destino / Área<input id="serviceDestination" /></label>
+          <label>Millas / Cantidad<input id="serviceQty" type="number" step="0.01" value="1" /></label>
+          <label>Precio<input id="servicePrice" type="number" step="0.01" value="0" /></label>
+          <div id="dynamicServiceFields" class="dynamic-fields"></div>
+          <label class="span2">Descripción<textarea id="serviceDescription" placeholder="Detalle profesional del servicio, materiales, alcance, observaciones..."></textarea></label>
+          <label class="span2">Evidencias / notas<textarea id="serviceEvidence" placeholder="Fotos, firma, documentos o enlaces relacionados"></textarea></label>
+        </form>
+        <div class="actions-row">
+          <button id="openMapBtn" class="ghost">Abrir ruta / ubicación</button>
+          <button id="invoiceFromServiceBtn" class="accent">Generar factura del servicio</button>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>ID</th><th>Cliente</th><th>Servicio</th><th>Asignado</th><th>Total</th><th>Estado</th><th></th></tr></thead><tbody id="servicesTable"></tbody></table></div>
+      </section>
+
+      <section id="team" class="tab">
+        <div class="section-head"><h3>Equipo / Profesionales</h3><button id="workerSave" class="primary">Guardar</button></div>
+        <form class="form-grid" id="workerForm">
+          <input type="hidden" id="workerId" />
+          <label>Nombre<input id="workerName" required /></label>
+          <label>Rol<input id="workerRole" placeholder="Técnico, chofer, estilista..." /></label>
+          <label>Teléfono<input id="workerPhone" /></label>
+          <label>% Comisión<input id="workerCommission" type="number" step="0.01" value="0" /></label>
+          <label>% Retención<input id="workerRetention" type="number" step="0.01" value="0" /></label>
+          <label>Estado<select id="workerStatus"><option>Activo</option><option>Inactivo</option></select></label>
+        </form>
+        <div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Rol</th><th>Comisión</th><th>Retención</th><th>Balance</th><th></th></tr></thead><tbody id="workersTable"></tbody></table></div>
+      </section>
+
+      <section id="assets" class="tab">
+        <div class="section-head"><h3>Activos / Flota / Equipos</h3><button id="assetSave" class="primary">Guardar activo</button></div>
+        <form class="form-grid" id="assetForm">
+          <input type="hidden" id="assetId" />
+          <label>Nombre / Unidad<input id="assetName" required /></label>
+          <label>Tipo<input id="assetType" placeholder="Vehículo, equipo, herramienta..." /></label>
+          <label>Identificador<input id="assetTag" placeholder="Tablilla, serie, código interno" /></label>
+          <label>Vencimiento<input id="assetDue" type="date" /></label>
+          <label>Notas<textarea id="assetNotes"></textarea></label>
+        </form>
+        <div class="table-wrap"><table><thead><tr><th>Activo</th><th>Tipo</th><th>ID</th><th>Vence</th><th></th></tr></thead><tbody id="assetsTable"></tbody></table></div>
+      </section>
+
+      <section id="invoices" class="tab">
+        <div class="section-head"><h3>Facturación</h3><button id="invoiceSave" class="primary">Crear factura manual</button></div>
+        <form class="form-grid" id="invoiceForm">
+          <input type="hidden" id="invoiceId" />
+          <label>Cliente<select id="invoiceClient" required></select></label>
+          <label>Servicio vinculado<select id="invoiceService"><option value="">Factura manual</option></select></label>
+          <label>Fecha<input id="invoiceDate" type="date" required /></label>
+          <label>Subtotal<input id="invoiceSubtotal" type="number" step="0.01" value="0" /></label>
+          <label>IVU %<input id="invoiceTaxRate" type="number" step="0.01" value="0" /></label>
+          <label>Notas<textarea id="invoiceNotes"></textarea></label>
+        </form>
+        <div class="table-wrap"><table><thead><tr><th>Factura</th><th>Cliente</th><th>Total</th><th>Pagado</th><th>Balance</th><th>Estado</th><th></th></tr></thead><tbody id="invoicesTable"></tbody></table></div>
+      </section>
+
+      <section id="payments" class="tab">
+        <div class="section-head"><h3>Cobros</h3><button id="paymentSave" class="primary">Registrar cobro</button></div>
+        <form class="form-grid" id="paymentForm">
+          <input type="hidden" id="paymentId" />
+          <label>Factura<select id="paymentInvoice" required></select></label>
+          <label>Fecha<input id="paymentDate" type="date" required /></label>
+          <label>Monto<input id="paymentAmount" type="number" step="0.01" required /></label>
+          <label>Método<select id="paymentMethod"><option>ATH Móvil</option><option>Tarjeta</option><option>Stripe</option><option>Transferencia</option><option>Efectivo</option><option>Cheque</option></select></label>
+          <label>Referencia<input id="paymentRef" /></label>
+        </form>
+        <div class="table-wrap"><table><thead><tr><th>Factura</th><th>Monto</th><th>Método</th><th>Fecha</th><th></th></tr></thead><tbody id="paymentsTable"></tbody></table></div>
+      </section>
+
+      <section id="cashflow" class="tab">
+        <div class="section-head"><h3>Flujo de Caja</h3><button id="cashSave" class="primary">Guardar movimiento</button></div>
+        <form class="form-grid" id="cashForm">
+          <input type="hidden" id="cashId" />
+          <label>Tipo<select id="cashType"><option>Ingreso</option><option>Gasto</option><option>Pago profesional</option><option>Retención liberada</option></select></label>
+          <label>Fecha<input id="cashDate" type="date" required /></label>
+          <label>Monto<input id="cashAmount" type="number" step="0.01" required /></label>
+          <label>Categoría<input id="cashCategory" /></label>
+          <label>Nota<textarea id="cashNote"></textarea></label>
+        </form>
+        <div class="table-wrap"><table><thead><tr><th>Tipo</th><th>Fecha</th><th>Categoría</th><th>Monto</th><th></th></tr></thead><tbody id="cashTable"></tbody></table></div>
+      </section>
+
+      <section id="reports" class="tab">
+        <div class="panel"><h3>Reportes profesionales</h3><p>Genera documentos corporativos con logo, datos de empresa, resumen ejecutivo y detalle operacional.</p>
+          <div class="actions-row"><button id="pdfExecutive" class="primary">Reporte ejecutivo</button><button id="pdfInvoices" class="ghost">Reporte facturas</button><button id="pdfWorkers" class="ghost">Reporte equipo</button></div>
+        </div>
+      </section>
+
+      <section id="plans" class="tab">
+        <div class="section-head"><h3>Planes y monetización</h3><button id="savePlanLinks" class="primary">Guardar enlaces</button></div>
+        <div id="plansGrid" class="plans-grid"></div>
+        <div class="panel">
+          <h3>Enlaces de pago</h3>
+          <form class="form-grid" id="planLinksForm">
+            <label>Checkout Starter<input id="linkStarter" placeholder="Stripe Payment Link o enlace ATH/checkout" /></label>
+            <label>Checkout Pro<input id="linkPro" placeholder="Stripe Payment Link" /></label>
+            <label>Checkout Business<input id="linkBusiness" placeholder="Stripe Payment Link" /></label>
+          </form>
+        </div>
+      </section>
+
+      <section id="settings" class="tab">
+        <div class="section-head"><h3>Configuración empresa</h3><button id="settingsSave" class="primary">Guardar configuración</button></div>
+        <form class="form-grid" id="settingsForm">
+          <label>Nombre empresa<input id="setBusiness" /></label>
+          <label>Industria<select id="setIndustry"></select></label>
+          <label>Teléfono<input id="setPhone" /></label>
+          <label>Email<input id="setEmail" /></label>
+          <label>Dirección<textarea id="setAddress"></textarea></label>
+          <label>Website<input id="setWebsite" /></label>
+          <label>Logo<input id="setLogo" type="file" accept="image/*" /></label>
+          <label>Plan actual<select id="setPlan"><option>free</option><option>starter</option><option>pro</option><option>business</option></select></label>
+        </form>
+        <div class="danger-zone"><h3>Zona crítica</h3><button id="resetTenant" class="danger">Reset de datos de esta empresa</button></div>
+      </section>
     </main>
-  </section>
+  </div>
   <script type="module" src="app.js"></script>
 </body>
 </html>
