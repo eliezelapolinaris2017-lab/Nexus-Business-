@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Nexus Business PR SaaS</title>
   <link id="faviconLink" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f172a'/%3E%3Ctext x='32' y='41' text-anchor='middle' font-size='30' fill='white' font-family='Arial'%3EN%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=14" />
+  <link rel="stylesheet" href="styles.css?v=19" />
 
   <style id="criticalModuleLayout">
     /* V12 CRITICAL: un módulo visible a la vez. No más módulos apilados. */
@@ -19,7 +19,7 @@
     <div class="auth-card">
       <div class="auth-mark" id="authLogo">N</div>
       <h1>Nexus Business PR</h1>
-      <p>Plataforma SaaS white-label para negocios de servicios en Puerto Rico.</p>
+      
       <div class="auth-switch"><button id="showLogin" class="active" type="button">Entrar</button><button id="showRegister" type="button">Crear cuenta</button></div>
       <form id="authForm">
         <input id="authBusiness" class="register-only hidden" placeholder="Nombre del negocio" />
@@ -56,7 +56,7 @@
       <section id="dashboard" class="view active">
         <div class="hero card">
           <div class="hero-logo" id="dashboardLogo">N</div>
-          <div><span id="planBadge" class="pill">Free</span><h2 id="dashboardTitle">Dashboard</h2><p id="dashboardText">Control operacional completo.</p></div>
+          <div><span id="planBadge" class="pill">Free</span><h2 id="dashboardTitle">Dashboard</h2><p id="dashboardText"></p></div>
         </div>
         <div id="kpis" class="kpis"></div>
         <div class="grid two"><div class="card"><h3>Experiencia del plan</h3><div id="planExperience"></div></div><div class="card"><h3>Actividad reciente</h3><div id="recentList" class="list"></div></div></div>
@@ -72,13 +72,13 @@
       <section id="billing" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2>Facturación</h2><span id="invoicesLimit" class="limit-chip"></span></div><div class="toolbar"><button id="invoiceFromService" type="button">Facturar próximo servicio sin factura</button></div><div id="invoiceTable"></div></div></section>
       <section id="payments" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2>Cobros</h2><span id="paymentsLimit" class="limit-chip"></span></div><form id="paymentForm" class="form-grid"></form><div id="paymentsTable"></div></div></section>
       <section id="cashflow" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2>Flujo de caja</h2><span id="cashflowLimit" class="limit-chip"></span></div><form id="cashForm" class="form-grid"></form><div id="cashTable"></div></div></section>
-      <section id="reports" class="view" hidden aria-hidden="true"><div class="card"><h2>Reportes y documentos</h2><div class="report-actions"><button data-preview="executive" type="button">Preview Ejecutivo</button><button data-preview="invoices" type="button">Preview Facturas</button><button data-preview="services" type="button">Preview Servicios</button><button data-preview="payments" type="button">Preview Cobros</button><button data-preview="payroll" type="button">Preview Nómina</button><button data-preview="suppliers" type="button">Preview Suplidores</button></div><div id="reportPreview" class="paper"><p class="muted">Selecciona un documento para previsualizar antes de imprimir o descargar.</p></div><div class="report-actions"><button id="printPreview" type="button">Imprimir</button><button id="downloadPreview" type="button">Descargar PDF</button></div></div></section>
-      <section id="plans" class="view" hidden aria-hidden="true"><div class="card"><h2>Planes y suscripción</h2><p class="muted">Los enlaces de pago viven en <b>payment-links.js</b>. El cliente no edita esos enlaces dentro del SaaS.</p><div id="plansGrid" class="plans"></div></div></section>
-      <section id="settings" class="view" hidden aria-hidden="true"><div class="card"><h2>Configuración corporativa</h2><p class="muted">Todo lo que pongas aquí alimenta Dashboard, facturas, reportes y previews.</p><form id="settingsForm" class="form-grid"></form><button id="saveSettings" class="primary" type="button">Guardar configuración</button></div></section>
+      <section id="reports" class="view" hidden aria-hidden="true"><div class="card"><h2>Reportes</h2><div class="report-actions"><button data-preview="executive" type="button">Preview Ejecutivo</button><button data-preview="invoices" type="button">Preview Facturas</button><button data-preview="services" type="button">Preview Servicios</button><button data-preview="payments" type="button">Preview Cobros</button><button data-preview="payroll" type="button">Preview Nómina</button><button data-preview="suppliers" type="button">Preview Suplidores</button></div><div id="reportPreview" class="paper"></div><div class="report-actions"><button id="printPreview" type="button">Imprimir</button><button id="downloadPreview" type="button">Descargar PDF</button></div></div></section>
+      <section id="plans" class="view" hidden aria-hidden="true"><div class="card"><h2>Planes</h2><div id="plansGrid" class="plans"></div></div></section>
+      <section id="settings" class="view" hidden aria-hidden="true"><div class="card"><h2>Configuración</h2><form id="settingsForm" class="form-grid"></form><button id="saveSettings" class="primary" type="button">Guardar</button></div></section>
     </main>
   </div>
 
-  <script type="module" src="payment-links.js?v=12"></script>
-  <script type="module" src="app.js?v=14"></script>
+  <script type="module" src="payment-links.js?v=19"></script>
+  <script type="module" src="app.js?v=19"></script>
 </body>
 </html>

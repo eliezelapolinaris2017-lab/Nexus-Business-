@@ -36,9 +36,40 @@ function statusClass(status){ return status === 'active' ? 'ok' : status === 'pa
 
 async function loadRequests(){
   $('adminStatus').textContent = 'Buscando solicitudes...';
-  const q = query(collectionGroup(db,'planRequests'), where('status','==','pending'));
-  const snap = await getDocs(q);
-  pendingRows = snap.docs.map(d => ({ id:d.id, ref:d.ref, userId:parentUserId(d.ref), ...d.data() }));
+  const found = new Map();
+  try{
+    const q = query(collectionGroup(db,'planRequests'), where('status','==','pending'));
+    const snap = await getDocs(q);
+    snap.docs.forEach(d => {
+      const row = { id:d.id, ref:d.ref, userId:parentUserId(d.ref), source:'request', ...d.data() };
+      found.set(`${row.userId}:${normalizePlanId(row.planId)}:request`, row);
+    });
+  }catch(err){
+    console.warn('CollectionGroup planRequests no disponible; usando respaldo por perfil.', err);
+  }
+  try{
+    const usersSnap = await getDocs(query(collection(db,'users'), where('pendingPlanStatus','==','pending')));
+    usersSnap.docs.forEach(d => {
+      const u = d.data();
+      const row = {
+        id:'__profile_pending__',
+        userId:d.id,
+        source:'profile',
+        businessName:u.businessName || 'Cliente sin nombre',
+        userEmail:u.email || u.ownerEmail || '',
+        fromPlan:u.plan || 'free',
+        fromPlanName:planName(u.plan || 'free'),
+        planId:u.pendingPlan || 'free',
+        planName:u.pendingPlanName || planName(u.pendingPlan || 'free'),
+        status:'pending',
+        paymentUrl:u.pendingPaymentUrl || ''
+      };
+      found.set(`${row.userId}:${normalizePlanId(row.planId)}:profile`, row);
+    });
+  }catch(err){
+    console.warn('Respaldo por perfil no disponible.', err);
+  }
+  pendingRows = [...found.values()].filter(r => normalizePlanId(r.planId) !== normalizePlanId(r.fromPlan));
   renderRequests();
   renderKpis();
 }
@@ -131,6 +162,8 @@ async function activatePlan(userId, requestId, planId){
     plan:planId,
     planStatus:'active',
     pendingPlan:'',
+    pendingPlanName:'',
+    pendingPaymentUrl:'',
     pendingPlanStatus:'approved',
     planExpiresAt:expires,
     lastPaymentMethod:method,
@@ -138,7 +171,9 @@ async function activatePlan(userId, requestId, planId){
     lastPaymentDate:todayIso(),
     planUpdatedAt:serverTimestamp()
   });
-  await updateDoc(doc(db,'users',userId,'planRequests',requestId), { status:'activated', activatedAt:serverTimestamp(), updatedAt:serverTimestamp(), paymentMethod:method, paymentAmount:Number(amount||0), planExpiresAt:expires });
+  if(requestId !== '__profile_pending__'){
+    await updateDoc(doc(db,'users',userId,'planRequests',requestId), { status:'activated', activatedAt:serverTimestamp(), updatedAt:serverTimestamp(), paymentMethod:method, paymentAmount:Number(amount||0), planExpiresAt:expires });
+  }
   await closePendingRequests(userId, requestId, 'replaced');
   await Promise.all([loadRequests(), loadSubscribers()]);
 }
@@ -155,6 +190,10 @@ async function manualEditPlan(userId){
   await updateDoc(doc(db,'users',userId), {
     plan:nextPlan,
     planStatus:status,
+    pendingPlan:'',
+    pendingPlanName:'',
+    pendingPaymentUrl:'',
+    pendingPlanStatus:'admin_closed',
     planExpiresAt:expires,
     lastPaymentMethod:method,
     lastPaymentAmount:Number(amount||0),
@@ -173,14 +212,17 @@ async function markPastDue(userId){
 
 async function cancelPlan(userId){
   if(!confirm('¿Cancelar plan y devolverlo a Gratis?')) return;
-  await updateDoc(doc(db,'users',userId), { plan:'free', planStatus:'cancelled', pendingPlan:'', pendingPlanStatus:'none', planUpdatedAt:serverTimestamp() });
+  await updateDoc(doc(db,'users',userId), { plan:'free', planStatus:'cancelled', pendingPlan:'', pendingPlanName:'', pendingPaymentUrl:'', pendingPlanStatus:'none', planUpdatedAt:serverTimestamp() });
   await closePendingRequests(userId, '', 'cancelled');
   await Promise.all([loadRequests(), loadSubscribers()]);
 }
 
 async function rejectRequest(userId, requestId){
-  if(!confirm('¿Marcar esta solicitud como rechazada?')) return;
-  await updateDoc(doc(db,'users',userId,'planRequests',requestId), { status:'rejected', updatedAt:serverTimestamp() });
+  if(!confirm('¿Rechazar esta solicitud?')) return;
+  await updateDoc(doc(db,'users',userId), { pendingPlan:'', pendingPlanName:'', pendingPaymentUrl:'', pendingPlanStatus:'rejected', planUpdatedAt:serverTimestamp() });
+  if(requestId !== '__profile_pending__'){
+    await updateDoc(doc(db,'users',userId,'planRequests',requestId), { status:'rejected', updatedAt:serverTimestamp() });
+  }
   await loadRequests();
 }
 

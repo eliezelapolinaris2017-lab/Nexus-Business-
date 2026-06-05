@@ -316,3 +316,33 @@ button.mini{padding:8px 10px;min-height:38px}
 .status-chip.muted{background:#f1f5f9;color:#64748b;}
 @media(max-width:760px){.admin-search{min-width:0;width:100%;}.admin-shell .topbar{align-items:flex-start;}.admin-shell .section-head{align-items:flex-start;flex-direction:column;}.admin-shell .toolbar{width:100%;}.admin-shell .toolbar button{flex:1;}}
 .ok-chip{display:inline-flex;align-items:center;margin:8px 0 12px;padding:6px 10px;border-radius:999px;background:#ecfdf5;color:#047857;font-weight:700;font-size:.82rem;border:1px solid #bbf7d0}
+
+/* V19 limpieza visual, logos transparentes y servicios por industria */
+.brand-img.has-logo,
+.hero-logo.has-logo{
+  background: transparent !important;
+  color: transparent !important;
+  box-shadow: none !important;
+}
+.brand-img.has-logo img,
+.hero-logo.has-logo img,
+.logo-img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  display:block;
+}
+.brand-img.has-logo{border-radius:10px; overflow:visible;}
+.hero-logo.has-logo{border-radius:18px; overflow:visible;}
+.topbar p:empty,
+#dashboardText:empty{display:none;}
+#settingsForm textarea{
+  width:100%;
+  padding:12px 13px;
+  border:1px solid var(--line);
+  border-radius:13px;
+  background:#fff;
+  resize:vertical;
+}
+.plan.full{grid-column:1/-1;}
+.auth-card p:empty{display:none;}

@@ -4,14 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Nexus Admin · Suscripciones</title>
-  <link rel="stylesheet" href="styles.css?v=16" />
+  <link rel="stylesheet" href="styles.css?v=19" />
 </head>
 <body>
   <section class="auth-screen" id="adminLogin">
     <div class="auth-card">
       <div class="auth-mark">A</div>
       <h1>Nexus Admin</h1>
-      <p>Panel privado para aprobar pagos, activar planes y ver suscriptores.</p>
+      
       <form id="adminForm">
         <input id="adminEmail" type="email" placeholder="Email administrador" required />
         <input id="adminPassword" type="password" minlength="6" placeholder="Contraseña" required />
@@ -25,7 +25,7 @@
     <header class="topbar">
       <div>
         <h1>Suscripciones</h1>
-        <p>Solicitudes pendientes, activación manual y control de clientes activos.</p>
+        
       </div>
       <div class="top-actions"><span id="adminStatus">Conectando...</span><button id="adminLogout" type="button">Salir</button></div>
     </header>
@@ -35,7 +35,7 @@
     <section class="view active">
       <div class="card">
         <div class="section-head">
-          <div><h2>Solicitudes pendientes</h2><p class="muted">Aquí apruebas manualmente después de confirmar pago por ATH, transferencia, PayPal o efectivo.</p></div>
+          <div><h2>Solicitudes pendientes</h2></div>
           <button id="refreshRequests" type="button">Actualizar</button>
         </div>
         <div id="requestList" class="list"><p class="muted">Sin cargar.</p></div>
@@ -43,7 +43,7 @@
 
       <div class="card">
         <div class="section-head">
-          <div><h2>Suscriptores</h2><p class="muted">Este es el módulo central para ver clientes, plan actual, estado, vencimiento y último pago.</p></div>
+          <div><h2>Suscriptores</h2></div>
           <div class="toolbar">
             <input id="subscriberSearch" class="admin-search" type="search" placeholder="Buscar cliente o email..." />
             <button id="refreshSubscribers" type="button">Actualizar</button>
@@ -69,6 +69,6 @@
     </section>
   </main>
 
-  <script type="module" src="admin.js?v=16"></script>
+  <script type="module" src="admin.js?v=19"></script>
 </body>
 </html>
