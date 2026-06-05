@@ -353,3 +353,8 @@ button.mini{padding:8px 10px;min-height:38px}
 /* V23 Datos Demo dentro de Configuración */
 .demo-settings{border:1px dashed rgba(148,163,184,.45);border-radius:18px;padding:16px;background:rgba(15,23,42,.03)}
 .demo-settings h3{margin:0 0 6px 0}.demo-buttons{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.check-row{display:flex!important;align-items:center;gap:8px;margin:10px 0;color:#334155}.check-row input{width:auto!important}
+.route-box{border:1px solid var(--line);border-radius:18px;padding:14px;background:rgba(255,255,255,.03)}
+.route-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end}
+.route-link{display:inline-block;margin-top:4px;font-weight:800;color:var(--brand);text-decoration:none}
+.route-link:hover{text-decoration:underline}
+@media(max-width:800px){.route-grid{grid-template-columns:1fr}}
