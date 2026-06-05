@@ -289,15 +289,23 @@ function limitText(c){const l=limit(c);return unlimited(l)?`${(state[c]||[]).len
 function limits(){['clients','services','team','assets','suppliers','supplierPayments','payroll','invoices','payments','cashflow'].forEach(c=>{const el=$(c+'Limit');if(el)el.textContent=`Uso: ${limitText(c)}`;});}
 
 
+let currentDemoIndustry='';
 async function addDemoRecord(col, data){
-  return await addDoc(colPath(col), {...data, demo:true, createdAt:serverTimestamp(), updatedAt:serverTimestamp()});
+  return await addDoc(colPath(col), {...data, demo:true, demoIndustry:currentDemoIndustry, createdAt:serverTimestamp(), updatedAt:serverTimestamp()});
 }
-async function clearDemoData(){
+async function clearDemoData(industryId=''){
   if(!uid()) return;
   const demoCols = ['clients','services','team','assets','suppliers','supplierPayments','payroll','invoices','payments','cashflow','planRequests'];
+  const id=String(industryId||'').toLowerCase();
   for(const c of demoCols){
     const snap = await getDocs(colPath(c));
-    await Promise.all(snap.docs.filter(d=>d.data()?.demo === true || String(d.data()?.number||'').includes('DEMO')).map(d=>deleteDoc(d.ref)));
+    await Promise.all(snap.docs.filter(d=>{
+      const x=d.data()||{};
+      const docIndustry=String(x.demoIndustry||x.industry||'').toLowerCase();
+      const num=String(x.number||'').toLowerCase();
+      if(!id) return x.demo===true || num.includes('demo');
+      return (x.demo===true && docIndustry===id) || num.includes(`demo-${id}`);
+    }).map(d=>deleteDoc(d.ref)));
   }
 }
 function demoTotals(items){
@@ -308,7 +316,8 @@ function demoTotals(items){
 async function loadIndustryDemo(industryId){
   const demo = DEMOS[industryId];
   if(!demo) return alert('Demo no disponible.');
-  const selectedPlan = $('demoPlanSelect')?.value || currentPlanId();
+  currentDemoIndustry=industryId;
+  const selectedPlan = currentPlanId();
   await setDoc(profRef(),{
     businessName:demo.business,
     slogan:demo.slogan,
@@ -372,24 +381,23 @@ async function loadIndustryDemo(industryId){
       await addDemoRecord('cashflow',{date:daysAgo(5+i),type:'Gasto',concept:`Nómina ${team[i].name}`,amount:net});
     }
   }
-  alert(`Demo ${INDUSTRIES[industryId]?.name || industryId} cargado en Configuración.`);
+  currentDemoIndustry='';
+  alert('Demo cargado.');
   show('dashboard');
 }
-async function loadAllDemos(){
-  alert('Para mantener la cuenta limpia, carga una industria a la vez. Cambia de demo desde Configuración cuando quieras probar otra industria.');
-}
 async function cleanDemoFromSettings(){
-  if(!confirm('Esto eliminará solamente registros marcados como demo. ¿Continuar?')) return;
-  await clearDemoData();
+  const id=profile().industry||'hvac';
+  if(!confirm('¿Borrar demo?')) return;
+  await clearDemoData(id);
   await setDoc(profRef(),{demoIndustryLoaded:'',demoLoadedAt:null,updatedAt:serverTimestamp()},{merge:true});
-  alert('Datos demo eliminados.');
+  alert('Demo borrado.');
 }
 function bindDemoSettings(){
-  document.querySelectorAll('[data-load-demo]').forEach(btn=>btn.onclick=async()=>{
-    if($('demoCleanBefore')?.checked) await clearDemoData();
-    await loadIndustryDemo(btn.dataset.loadDemo);
-  });
-  const all=$('loadAllDemosBtn'); if(all) all.onclick=loadAllDemos;
+  const load=$('loadDemoBtn'); if(load) load.onclick=async()=>{
+    const id=profile().industry||'hvac';
+    await clearDemoData(id);
+    await loadIndustryDemo(id);
+  };
   const clean=$('cleanDemoBtn'); if(clean) clean.onclick=cleanDemoFromSettings;
 }
 
@@ -404,7 +412,7 @@ function forms(){const i=industry();
   $('payrollForm').innerHTML=select(i.team,'prTeam',state.team.map(t=>({value:t.id,label:`${t.name} · balance ${money(teamBalance(t.id))}`})))+input('Fecha','prDate','date',today())+input('Periodo','prPeriod','text')+input('Bruto','prGross','number')+input('Deducciones adicionales','prDeductions','number','0')+input('Método','prMethod','text','Transferencia')+input('Nota','prNote','text','','wide')+'<button class="primary" type="submit">Registrar pago de nómina</button>';
   $('paymentForm').innerHTML=select('Factura','pInvoice',state.invoices.map(inv=>({value:inv.id,label:`${inv.number} · ${inv.clientName} · balance ${money(invoiceBalance(inv))}`})))+input('Fecha','pDate','date',today())+input('Método','pMethod','text','ATH / Efectivo / Tarjeta')+input('Monto','pAmount','number')+input('Nota','pNote','text','','wide')+'<button class="primary" type="submit">Registrar cobro</button>';
   $('cashForm').innerHTML=input('Fecha','xDate','date',today())+select('Tipo','xType',[{value:'Ingreso',label:'Ingreso'},{value:'Gasto',label:'Gasto'}])+input('Concepto','xConcept')+input('Monto','xAmount','number')+'<button class="primary" type="submit">Guardar movimiento</button>';
-  const p=profile();$('settingsForm').innerHTML=`<div><label>Industria</label><select id="set_industry">${Object.entries(INDUSTRIES).map(([id,x])=>`<option value="${id}" ${p.industry===id?'selected':''}>${x.name}</option>`).join('')}</select></div><div><label>Plan activo</label><input value="${esc(activePlanName())}" disabled></div><div><label>Estado</label><input value="${esc(planRequestStatusText())}" disabled></div><div class="wide"><label>Servicios de esta industria</label><textarea id="set_services" rows="5" placeholder="Un servicio por línea">${esc(serviceOptions().join('\n'))}</textarea></div>`+input('Nombre comercial','set_businessName','text',p.businessName)+input('Eslogan','set_slogan','text',p.slogan)+input('Teléfono','set_phone','text',p.phone)+input('WhatsApp','set_whatsapp','text',p.whatsapp)+input('Email','set_email','text',p.email)+input('Website','set_web','text',p.web)+input('Dirección','set_address','text',p.address,'wide')+input('Registro comerciante','set_merchant','text',p.merchant)+input('Representante','set_representative','text',p.representative)+input('IVU %','set_tax','number',p.tax)+input('Color primario','set_primaryColor','color',p.primaryColor)+input('Color secundario','set_secondaryColor','color',p.secondaryColor)+`<div><label>Logo Dashboard</label><input id="set_logoDashboard" type="file" accept="image/*"><small class="muted">Actual: ${p.logoDashboard?'cargado':'sin logo'}</small></div><div><label>Logo PDF</label><input id="set_logoPdf" type="file" accept="image/*"><small class="muted">Actual: ${p.logoPdf?'cargado':'sin logo'}</small></div><div><label>Favicon</label><input id="set_favicon" type="file" accept="image/*"><small class="muted">Actual: ${p.favicon?'cargado':'sin favicon'}</small></div><div><label>Firma digital</label><input id="set_signature" type="file" accept="image/*"><small class="muted">Actual: ${p.signature?'cargada':'sin firma'}</small></div><div class="wide demo-settings"><h3>Datos Demo</h3><p class="muted">Carga datos de prueba por industria desde aquí. Úsalo solo para demostraciones o pruebas internas.</p><div><label>Plan para la prueba</label><select id="demoPlanSelect">${Object.entries(PLANS).map(([id,x])=>`<option value="${id}" ${currentPlanId()===id?'selected':''}>${x.name}</option>`).join('')}</select></div><label class="check-row"><input id="demoCleanBefore" type="checkbox" checked> Limpiar datos demo antes de cargar</label><div class="demo-buttons">${Object.entries(INDUSTRIES).map(([id,x])=>`<button type="button" class="ghost" data-load-demo="${id}">Cargar ${x.name}</button>`).join('')}<button id="cleanDemoBtn" type="button" class="danger">Eliminar datos demo</button></div><small class="muted">Los datos reales no se eliminan; solo registros marcados como demo.</small></div>`;
+  const p=profile();$('settingsForm').innerHTML=`<div><label>Industria</label><select id="set_industry">${Object.entries(INDUSTRIES).map(([id,x])=>`<option value="${id}" ${p.industry===id?'selected':''}>${x.name}</option>`).join('')}</select></div><div><label>Plan activo</label><input value="${esc(activePlanName())}" disabled></div><div><label>Estado</label><input value="${esc(planRequestStatusText())}" disabled></div><div class="wide"><label>Servicios de esta industria</label><textarea id="set_services" rows="5" placeholder="Un servicio por línea">${esc(serviceOptions().join('\n'))}</textarea></div>`+input('Nombre comercial','set_businessName','text',p.businessName)+input('Eslogan','set_slogan','text',p.slogan)+input('Teléfono','set_phone','text',p.phone)+input('WhatsApp','set_whatsapp','text',p.whatsapp)+input('Email','set_email','text',p.email)+input('Website','set_web','text',p.web)+input('Dirección','set_address','text',p.address,'wide')+input('Registro comerciante','set_merchant','text',p.merchant)+input('Representante','set_representative','text',p.representative)+input('IVU %','set_tax','number',p.tax)+input('Color primario','set_primaryColor','color',p.primaryColor)+input('Color secundario','set_secondaryColor','color',p.secondaryColor)+`<div><label>Logo Dashboard</label><input id="set_logoDashboard" type="file" accept="image/*"><small class="muted">Actual: ${p.logoDashboard?'cargado':'sin logo'}</small></div><div><label>Logo PDF</label><input id="set_logoPdf" type="file" accept="image/*"><small class="muted">Actual: ${p.logoPdf?'cargado':'sin logo'}</small></div><div><label>Favicon</label><input id="set_favicon" type="file" accept="image/*"><small class="muted">Actual: ${p.favicon?'cargado':'sin favicon'}</small></div><div><label>Firma digital</label><input id="set_signature" type="file" accept="image/*"><small class="muted">Actual: ${p.signature?'cargada':'sin firma'}</small></div><div class="wide demo-settings"><h3>Demo</h3><div class="demo-buttons"><button id="loadDemoBtn" type="button" class="primary">Cargar demo</button><button id="cleanDemoBtn" type="button" class="danger">Borrar demo</button></div></div>`;
   limits();
   bindDemoSettings();
 }
