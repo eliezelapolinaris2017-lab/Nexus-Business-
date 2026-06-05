@@ -1,75 +1,71 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Nexus Business PR SaaS Enterprise</title>
-  <link id="faviconLink" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f172a'/%3E%3Ctext x='32' y='41' font-size='30' text-anchor='middle' fill='white' font-family='Arial'%3EN%3C/text%3E%3C/svg%3E"/>
-  <link rel="stylesheet" href="styles.css"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Nexus Business PR SaaS</title>
+  <link id="faviconLink" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f172a'/%3E%3Ctext x='32' y='41' text-anchor='middle' font-size='30' fill='white' font-family='Arial'%3EN%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
-  <div id="authScreen" class="auth-screen">
-    <section class="auth-card">
+  <section id="authScreen" class="auth-screen">
+    <div class="auth-card">
       <div class="auth-mark" id="authLogo">N</div>
       <h1>Nexus Business PR</h1>
-      <p>SaaS white-label para negocios de servicios en Puerto Rico.</p>
-      <div class="switch"><button id="showLogin" class="active" type="button">Entrar</button><button id="showRegister" type="button">Crear cuenta</button></div>
+      <p>Plataforma SaaS white-label para negocios de servicios en Puerto Rico.</p>
+      <div class="auth-switch"><button id="showLogin" class="active" type="button">Entrar</button><button id="showRegister" type="button">Crear cuenta</button></div>
       <form id="authForm">
-        <input id="authName" placeholder="Nombre del negocio" class="register-only hidden"/>
+        <input id="authBusiness" class="register-only hidden" placeholder="Nombre del negocio" />
         <select id="authIndustry" class="register-only hidden"></select>
-        <input id="authEmail" type="email" placeholder="Email" required/>
-        <input id="authPassword" type="password" placeholder="Contraseña" required minlength="6"/>
-        <button id="authSubmit" class="primary" type="submit">Entrar</button>
+        <input id="authEmail" type="email" placeholder="Email" required />
+        <input id="authPassword" type="password" minlength="6" placeholder="Contraseña" required />
+        <button class="primary" id="authSubmit" type="submit">Entrar</button>
       </form>
       <small id="authMsg"></small>
-    </section>
-  </div>
+    </div>
+  </section>
 
-  <div id="appShell" class="shell hidden">
+  <div id="appShell" class="app hidden">
     <aside class="sidebar">
-      <div class="brand-block">
-        <div class="brand-logo" id="brandLogo">N</div>
-        <div class="brand-text">
-          <strong id="brandName">Nexus</strong>
-          <span id="brandIndustry">Servicios</span>
-        </div>
+      <div class="brand">
+        <div class="brand-img" id="sideLogo">N</div>
+        <div><strong id="sideName">Nexus</strong><span id="sideIndustry">Servicios</span></div>
       </div>
       <nav id="sideNav"></nav>
-      <div class="plan-card">
-        <span>Plan activo</span>
-        <strong id="planName">Free</strong>
-        <small id="planUsage">0 / 0</small>
-        <button id="upgradeBtn" type="button">Mejorar plan</button>
+      <div class="side-plan">
+        <span>Plan</span><strong id="sidePlan">Free</strong>
+        <small id="sideQuota">0 registros</small>
+        <button id="sideUpgrade" type="button">Mejorar</button>
       </div>
     </aside>
 
-    <main class="content">
+    <main class="main">
       <header class="topbar">
-        <div><h1 id="pageTitle">Dashboard</h1><p id="pageSubtitle">Resumen operacional</p></div>
+        <button id="mobileMenu" class="icon-btn" type="button">☰</button>
+        <div><h1 id="pageTitle">Dashboard</h1><p id="pageSubtitle">Resumen ejecutivo</p></div>
         <div class="top-actions"><span id="syncStatus">Conectando...</span><button id="logoutBtn" type="button">Salir</button></div>
       </header>
 
       <section id="dashboard" class="view active">
-        <div class="hero">
+        <div class="hero card">
           <div class="hero-logo" id="dashboardLogo">N</div>
-          <div><h2 id="dashboardTitle">Dashboard</h2><p id="dashboardText">Control total del negocio.</p></div>
-          <div class="hero-plan" id="heroPlan"></div>
+          <div><span id="planBadge" class="pill">Free</span><h2 id="dashboardTitle">Dashboard</h2><p id="dashboardText">Control operacional completo.</p></div>
         </div>
-        <div class="kpis" id="kpis"></div>
-        <div class="grid two"><div class="panel"><h3>Actividad reciente</h3><div id="recentList" class="list"></div></div><div class="panel"><h3>Acciones rápidas</h3><div id="quickActions" class="quick"></div></div></div>
+        <div id="kpis" class="kpis"></div>
+        <div class="grid two"><div class="card"><h3>Experiencia del plan</h3><div id="planExperience"></div></div><div class="card"><h3>Actividad reciente</h3><div id="recentList" class="list"></div></div></div>
       </section>
 
-      <section id="clients" class="view"><div class="panel"><h2 id="clientsTitle">Clientes</h2><form id="clientForm" class="form-grid"></form><div id="clientsTable"></div></div></section>
-      <section id="services" class="view"><div class="panel"><h2 id="servicesTitle">Servicios</h2><form id="serviceForm" class="form-grid"></form><div id="servicesTable"></div></div></section>
-      <section id="team" class="view"><div class="panel"><h2 id="teamTitle">Equipo</h2><form id="teamForm" class="form-grid"></form><div id="teamTable"></div></div></section>
-      <section id="assets" class="view"><div class="panel"><h2 id="assetsTitle">Recursos</h2><form id="assetForm" class="form-grid"></form><div id="assetsTable"></div></div></section>
-      <section id="billing" class="view"><div class="panel"><h2>Facturación</h2><div class="toolbar"><button id="invoiceFromService" type="button">Generar factura desde servicio completado</button></div><div id="invoiceTable"></div></div></section>
-      <section id="payments" class="view"><div class="panel"><h2>Cobros</h2><form id="paymentForm" class="form-grid"></form><div id="paymentsTable"></div></div></section>
-      <section id="cashflow" class="view"><div class="panel"><h2>Flujo de caja</h2><form id="cashForm" class="form-grid"></form><div id="cashTable"></div></div></section>
-      <section id="reports" class="view"><div class="panel"><h2>Reportes y documentos</h2><div class="report-actions"><button data-preview="executive" type="button">Preview ejecutivo</button><button data-preview="invoices" type="button">Preview facturas</button><button data-preview="services" type="button">Preview servicios</button><button data-preview="team" type="button">Preview equipo</button></div><div id="reportPreview" class="paper-preview"><p class="muted">Selecciona un reporte para ver preview antes de descargar o imprimir.</p></div><div class="report-actions"><button id="printPreview" type="button">Imprimir preview</button><button id="downloadPreview" type="button">Descargar PDF</button></div></div></section>
-      <section id="plans" class="view"><div class="panel"><h2>Planes y suscripción</h2><p class="muted">Los enlaces de pago viven en <b>payment-links.js</b>, fuera del panel del SaaS.</p><div id="plansGrid" class="plans"></div></div></section>
-      <section id="settings" class="view"><div class="panel"><h2>Configuración corporativa</h2><form id="settingsForm" class="form-grid"></form><div class="toolbar"><button id="saveSettings" class="primary" type="button">Guardar configuración</button><button id="resetBranding" type="button">Limpiar branding</button></div></div></section>
+      <section id="clients" class="view"><div class="card"><div class="section-head"><h2 id="clientsTitle">Clientes</h2><span id="clientsLimit" class="limit-chip"></span></div><form id="clientForm" class="form-grid"></form><div id="clientsTable"></div></div></section>
+      <section id="services" class="view"><div class="card"><div class="section-head"><h2 id="servicesTitle">Servicios</h2><span id="servicesLimit" class="limit-chip"></span></div><form id="serviceForm" class="form-grid"></form><div id="servicesTable"></div></div></section>
+      <section id="team" class="view"><div class="card"><div class="section-head"><h2 id="teamTitle">Equipo</h2><span id="teamLimit" class="limit-chip"></span></div><form id="teamForm" class="form-grid"></form><div id="teamTable"></div></div></section>
+      <section id="assets" class="view"><div class="card"><div class="section-head"><h2 id="assetsTitle">Recursos</h2><span id="assetsLimit" class="limit-chip"></span></div><form id="assetForm" class="form-grid"></form><div id="assetsTable"></div></div></section>
+      <section id="billing" class="view"><div class="card"><div class="section-head"><h2>Facturación</h2><span id="invoicesLimit" class="limit-chip"></span></div><div class="toolbar"><button id="invoiceFromService" type="button">Facturar próximo servicio sin factura</button></div><div id="invoiceTable"></div></div></section>
+      <section id="payments" class="view"><div class="card"><div class="section-head"><h2>Cobros</h2><span id="paymentsLimit" class="limit-chip"></span></div><form id="paymentForm" class="form-grid"></form><div id="paymentsTable"></div></div></section>
+      <section id="cashflow" class="view"><div class="card"><div class="section-head"><h2>Flujo de caja</h2><span id="cashflowLimit" class="limit-chip"></span></div><form id="cashForm" class="form-grid"></form><div id="cashTable"></div></div></section>
+      <section id="reports" class="view"><div class="card"><h2>Reportes y documentos</h2><div class="report-actions"><button data-preview="executive" type="button">Preview Ejecutivo</button><button data-preview="invoices" type="button">Preview Facturas</button><button data-preview="services" type="button">Preview Servicios</button><button data-preview="payments" type="button">Preview Cobros</button></div><div id="reportPreview" class="paper"><p class="muted">Selecciona un documento para previsualizar antes de imprimir o descargar.</p></div><div class="report-actions"><button id="printPreview" type="button">Imprimir</button><button id="downloadPreview" type="button">Descargar PDF</button></div></div></section>
+      <section id="plans" class="view"><div class="card"><h2>Planes y suscripción</h2><p class="muted">Los enlaces de pago viven en <b>payment-links.js</b>. El cliente no edita esos enlaces dentro del SaaS.</p><div id="plansGrid" class="plans"></div></div></section>
+      <section id="settings" class="view"><div class="card"><h2>Configuración corporativa</h2><p class="muted">Todo lo que pongas aquí alimenta Dashboard, facturas, reportes y previews.</p><form id="settingsForm" class="form-grid"></form><button id="saveSettings" class="primary" type="button">Guardar configuración</button></div></section>
     </main>
   </div>
 

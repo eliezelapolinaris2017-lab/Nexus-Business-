@@ -1,19 +1,17 @@
-# Nexus Business PR SaaS V4 Industry Locked
+# Nexus Business PR SaaS V8 Serio Real
 
-Versión enfocada en SaaS multiindustria real.
+Versión acumulativa sobre V5 con cambios reales en HTML, CSS, JS, payment-links y reglas.
 
-## Cambios clave
-- El panel lateral cambia por industria.
-- Dashboard, logo, títulos, formularios y reportes cambian según industria.
-- No se muestran rastros de otros servicios si se selecciona una industria.
-- Reportes y facturas tienen preview antes de imprimir o descargar.
-- Planes usan enlaces de pago definidos en `payment-links.js`, no editables desde el SaaS.
-- Firestore separado por usuario: `/users/{uid}/...`.
+## Incluye
+- White-label real por usuario/empresa
+- Logo Dashboard, Logo PDF, Favicon, Firma Digital
+- Menú, textos, formularios y reportes bloqueados por industria
+- Planes con límites reales
+- Bloqueo de módulos por plan
+- Preview antes de imprimir/descargar
+- Facturas y reportes con branding corporativo
+- Enlaces de pago privados en `payment-links.js`
+- Firestore seguro por UID
 
 ## Firebase
-Activa Authentication Email/Password.
-Copia `firestore.rules` en Firestore Rules.
-
-## Pago
-Edita `payment-links.js` con tus links reales de Stripe Payment Links, ATH/checkout externo o página de contacto.
-Nota: en GitHub Pages el frontend es público. Para ocultar lógica sensible de pagos usa Firebase Functions o backend.
+Activa Email/Password en Authentication. Copia `firestore.rules` en Firestore Rules.
