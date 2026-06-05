@@ -6,6 +6,14 @@ const firebaseConfig = { apiKey:"AIzaSyDGoSNKi1wapE1SpHxTc8wNZGGkJ2nQj7s", authD
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+const ADMIN_EMAILS = [
+  "nexustoolspr@gmail.com"
+];
+
+function isAdmin(email){
+  return ADMIN_EMAILS.includes(String(email || '').toLowerCase().trim());
+}
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const money = n => new Intl.NumberFormat('es-PR',{style:'currency',currency:'USD'}).format(Number(n||0));
@@ -170,12 +178,23 @@ $('refreshSubscribers').onclick = loadSubscribers;
 $('subscriberSearch').oninput = renderSubscribers;
 
 onAuthStateChanged(auth, async user => {
-  if(user){
-    $('adminLogin').classList.add('hidden');
-    $('adminPanel').classList.remove('hidden');
-    await Promise.all([loadRequests(), loadSubscribers()]);
-  } else {
+  if(!user){
     $('adminLogin').classList.remove('hidden');
     $('adminPanel').classList.add('hidden');
+    return;
   }
+
+  if(!isAdmin(user.email)){
+    $('adminLogin').classList.remove('hidden');
+    $('adminPanel').classList.add('hidden');
+    $('adminMsg').textContent = 'Acceso denegado. Solo nexustoolspr@gmail.com puede entrar al panel administrativo.';
+    alert('Acceso denegado. Este panel es solo para el administrador autorizado.');
+    await signOut(auth);
+    return;
+  }
+
+  $('adminLogin').classList.add('hidden');
+  $('adminPanel').classList.remove('hidden');
+  $('adminStatus').textContent = `Administrador: ${user.email}`;
+  await Promise.all([loadRequests(), loadSubscribers()]);
 });

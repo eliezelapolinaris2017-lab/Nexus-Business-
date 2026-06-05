@@ -46,13 +46,7 @@ window.NEXUS_PAYMENT_LINKS = {
 
 Publica las reglas nuevas de `firestore.rules`.
 
-Importante: para usar `admin.html`, tu usuario debe tener custom claim:
-
-```js
-admin.auth().setCustomUserClaims('UID_DEL_DUEÑO', { admin: true })
-```
-
-Ese paso se ejecuta desde un entorno admin de Firebase, no desde el navegador.
+Importante: para usar `admin.html`, tu usuario debe tener correo exacto `nexustoolspr@gmail.com` en Firebase Authentication. Ya no depende de custom claims.
 
 ## Activación automática con Stripe
 

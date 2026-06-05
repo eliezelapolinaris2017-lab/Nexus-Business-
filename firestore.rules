@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signed() { return request.auth != null; }
     function owner(userId) { return signed() && request.auth.uid == userId; }
-    function admin() { return signed() && request.auth.token.admin == true; }
+    function admin() { return signed() && request.auth.token.email == "nexustoolspr@gmail.com"; }
     function planKeys() { return ['plan','planStatus','pendingPlan','pendingPlanStatus','stripeCustomerId','stripeSubscriptionId','planUpdatedAt']; }
     function normalCollections() { return ['clients','services','team','assets','suppliers','supplierPayments','payroll','invoices','payments','cashflow']; }
 

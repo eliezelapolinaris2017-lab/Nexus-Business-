@@ -45,7 +45,7 @@ Acciones disponibles:
 
 ## Importante sobre permisos Firebase
 
-Para que admin.html pueda ver todos los usuarios, el email administrador debe tener custom claim admin=true.
+Para que admin.html pueda ver todos los usuarios, el email administrador debe tener email administrador nexustoolspr@gmail.com.
 
 Esto se asigna desde Firebase Admin SDK o Cloud Functions. Si no lo configuras, Firebase bloqueará el acceso aunque puedas iniciar sesión.
 
