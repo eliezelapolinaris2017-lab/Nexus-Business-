@@ -109,3 +109,61 @@
     width: 100%;
   }
 }
+
+
+/* =========================================================
+   FIX V10 — NAVEGACIÓN REAL POR MÓDULO
+   Evita que Dashboard, Clientes, Servicios, Facturación, etc.
+   se muestren todos apilados en la misma pantalla.
+========================================================= */
+.view{
+  display:none !important;
+}
+.view.active{
+  display:block !important;
+  animation: moduleFade .18s ease-out;
+}
+@keyframes moduleFade{
+  from{opacity:.0; transform:translateY(6px)}
+  to{opacity:1; transform:none}
+}
+
+/* Mejor separación visual cuando se cambia de módulo */
+.main > .view{
+  width:100%;
+}
+
+/* El Dashboard sí mantiene su propio grid interno sin arrastrar otros módulos */
+#dashboard.view.active{
+  display:block !important;
+}
+
+
+/* =====================================================
+   V11 FIX DEFINITIVO — MÓDULOS FIJOS, NO APILADOS
+   Solo el módulo activo se muestra. Los demás quedan fuera
+   del flujo visual aunque el navegador mantenga HTML cargado.
+===================================================== */
+.main > section.view{
+  display:none !important;
+  visibility:hidden !important;
+  height:0 !important;
+  min-height:0 !important;
+  overflow:hidden !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+}
+.main > section.view.active{
+  display:block !important;
+  visibility:visible !important;
+  height:auto !important;
+  min-height:auto !important;
+  overflow:visible !important;
+  margin:0 0 18px 0 !important;
+  padding:0 !important;
+  border:0 !important;
+}
+.main > section.view[hidden]{
+  display:none !important;
+}
