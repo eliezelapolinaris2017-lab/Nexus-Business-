@@ -3,196 +3,68 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Nexus Business PR</title>
+  <title>Nexus Business PR SaaS</title>
   <link rel="stylesheet" href="styles.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
-  <section id="authScreen" class="auth-screen">
+  <div id="toast" class="toast"></div>
+  <section id="authView" class="auth-page">
     <div class="auth-card">
-      <div class="auth-logo">NB</div>
+      <div class="mark">NX</div>
       <h1>Nexus Business PR</h1>
-      <p>Acceso privado. Tu plataforma privada para operar servicios, clientes, cobros, comisiones y reportes en la nube.</p>
-      <label>Nombre de empresa o usuario<input id="authName" placeholder="Opcional"></label>
-      <label>Email<input id="authEmail" type="email" autocomplete="email" placeholder="usuario@empresa.com"></label>
-      <label>Contraseña<input id="authPassword" type="password" autocomplete="current-password" placeholder="Mínimo 6 caracteres"></label>
-      <div class="auth-actions">
-        <button id="btnLogin" class="btn primary" type="button">Entrar</button>
-        <button id="btnRegister" class="btn secondary" type="button">Crear cuenta</button>
+      <p>Plataforma SaaS para negocios de servicios en Puerto Rico.</p>
+      <div class="grid2">
+        <input id="authName" placeholder="Nombre del negocio" />
+        <select id="authIndustry">
+          <option value="general">Servicios Generales</option>
+          <option value="transport">Transporte</option>
+          <option value="hvac">HVAC</option>
+          <option value="salon">Salón / Barbería</option>
+          <option value="handyman">Handyman</option>
+          <option value="cleaning">Limpieza</option>
+          <option value="construction">Construcción</option>
+          <option value="mechanic">Mecánica Móvil</option>
+        </select>
       </div>
-      <button id="btnResetPass" class="link-btn" type="button">Recuperar contraseña</button>
-      <div id="authMsg" class="auth-msg"></div>
+      <input id="authEmail" type="email" placeholder="Email" />
+      <input id="authPass" type="password" placeholder="Contraseña" />
+      <div class="auth-actions">
+        <button id="btnLogin" class="btn primary">Entrar</button>
+        <button id="btnRegister" class="btn ghost">Crear cuenta</button>
+      </div>
+      <button id="btnResetPass" class="linkbtn">Recuperar contraseña</button>
+      <small>Datos privados por usuario. Firebase Auth + Firestore Rules por UID.</small>
     </div>
   </section>
 
-  <div id="appShell" class="app-shell hidden">
-    <aside id="sidebar" class="sidebar" aria-label="Menú principal">
-      <div class="side-brand">
-        <div class="mark">NB</div>
-        <div>
-          <strong>Nexus Business PR</strong>
-          <span>Centro multi-servicios</span>
-        </div>
-      </div>
-
-      <nav id="tabs" class="side-nav">
-        <button class="active" data-view="dashboard"><span>Panel</span><small>Dashboard ejecutivo</small></button>
-        <button data-view="clientes"><span>Clientes</span><small>Cuentas y contactos</small></button>
-        <button data-view="choferes"><span>Personal</span><small>Comisiones y retenciones</small></button>
-        <button data-view="proveedores"><span>Suplidores</span><small>Deducciones y costos</small></button>
-        <button data-view="flota"><span>Recursos</span><small>Vehículos, equipos o áreas</small></button>
-        <button data-view="servicios"><span>Servicios</span><small>Órdenes, rutas y trabajos</small></button>
-        <button data-view="facturacion"><span>Facturación</span><small>Crear y descargar</small></button>
-        <button data-view="cobros"><span>Cobros</span><small>ATH, cash y bancos</small></button>
-        <button data-view="pagos"><span>Pagos</span><small>Caja y choferes</small></button>
-        <button data-view="reportes"><span>Reportes</span><small>PDF, CSV y backup</small></button>
-        <button data-view="config"><span>Config</span><small>Empresa y sistema</small></button>
-      </nav>
-
+  <section id="appView" class="app hidden">
+    <aside class="sidebar">
+      <div class="side-brand"><div class="mark small">NX</div><div><b id="sideBiz">Nexus Business</b><span id="sidePlan">Plan Starter</span></div></div>
+      <nav id="nav"></nav>
       <div class="side-footer">
-        <span id="syncBadge" class="badge warn">Conectando...</span>
-        <small id="sideUserEmail" class="side-user">—</small>
-        <button id="btnSync" class="btn secondary full">Sincronizar</button>
+        <button id="btnSync" class="btn tiny">Sincronizar</button>
+        <button id="btnLogout" class="btn tiny ghost">Salir</button>
       </div>
     </aside>
-
-    <div id="sidebarOverlay" class="sidebar-overlay"></div>
-
-    <div class="workspace">
-      <header class="topbar">
-        <div class="top-left">
-          <button id="menuToggle" class="icon-btn" aria-label="Abrir menú">☰</button>
-          <div>
-            <strong id="pageTitle">Dashboard</strong>
-            <span>Operación · servicios · cobros · personal</span>
-          </div>
-        </div>
-        <div class="top-actions">
-          <button class="btn ghost" data-go="servicios">Nuevo Servicio</button>
-          <span id="userEmail" class="user-pill">—</span>
-          <button id="btnLogout" class="btn ghost">Salir</button>
-          <button id="btnPdfExec" class="btn primary">PDF Ejecutivo</button>
-        </div>
+    <main class="main">
+      <header class="topline">
+        <div><h2 id="pageTitle">Dashboard</h2><p id="pageHint">Operación centralizada.</p></div>
+        <div class="status"><span id="cloudDot"></span><span id="cloudText">Conectando</span></div>
       </header>
 
-      <section class="filters">
-        <input id="q" placeholder="Buscar cliente, chofer, factura, ruta..." />
-        <input id="from" type="date" />
-        <input id="to" type="date" />
-        <select id="statusFilter"><option value="">Todos los estados</option><option>Pendiente</option><option>Facturado</option><option>Parcial</option><option>Cobrado</option><option>Cancelado</option></select>
-        <button id="btnFilter" class="btn secondary">Aplicar</button>
-        <button id="btnClear" class="btn ghost">Limpiar</button>
-      </section>
-
-      <main>
-
-    <section id="dashboard" class="view">
-      <div class="hero">
-        <div><p class="eyebrow">Centro ejecutivo</p><h1>Tu operación de servicios lista para cobrar, pagar y cerrar semana.</h1><p class="muted">Flujo completo: servicio → factura → cobro → caja → comisión → retención → reporte.</p></div>
-        <div class="hero-card"><span>Balance por cobrar</span><strong id="heroBalance">$0.00</strong><small id="heroOpen">0 facturas abiertas</small></div>
-      </div>
-      <div class="quick-actions"><button class="soft-action" data-go="servicios">+ Nuevo servicio</button><button class="soft-action" data-go="facturacion">Generar factura</button><button class="soft-action" data-go="cobros">Registrar cobro</button><button class="soft-action" data-go="pagos">Ver pagos</button></div>
-      <div id="kpis" class="kpis"></div>
-      <div class="grid2">
-        <article class="panel"><h2>Servicios recientes</h2><div class="table-wrap"><table id="tblRecent"></table></div></article>
-        <article class="panel"><h2>Resumen personal</h2><div id="driverSummary" class="list"></div></article>
-      </div>
-    </section>
-
-    <section id="clientes" class="view hidden">
-      <div class="head"><h2>Clientes</h2><button form="formClient" class="btn primary">Guardar</button></div>
-      <form id="formClient" class="form"><input type="hidden" id="cId"><label>Nombre<input id="cName" required></label><label>Teléfono<input id="cPhone"></label><label>Email<input id="cEmail" type="email"></label><label>Municipio<input id="cCity"></label><label class="wide">Dirección<input id="cAddress"></label></form>
-      <div class="panel"><div class="table-wrap"><table id="tblClients"></table></div></div>
-    </section>
-
-    <section id="choferes" class="view hidden">
-      <div class="head"><h2>Personal / Técnicos / Choferes</h2><button form="formDriver" class="btn primary">Guardar</button></div>
-      <form id="formDriver" class="form"><input type="hidden" id="dId"><label>Nombre<input id="dName" required></label><label>Teléfono<input id="dPhone"></label><label>% Comisión<input id="dPct" type="number" step="0.01" value="70"></label><label>% Retención<input id="dRet" type="number" step="0.01" value="10"></label><label>Licencia / Certificación<input id="dLic"></label><label>Estado<select id="dStatus"><option>Activo</option><option>Inactivo</option></select></label></form>
-      <div class="panel"><div class="table-wrap"><table id="tblDrivers"></table></div></div>
-    </section>
-
-    <section id="proveedores" class="view hidden">
-      <div class="head"><h2>Suplidores / Proveedores</h2><button form="formProvider" class="btn primary">Guardar</button></div>
-      <form id="formProvider" class="form"><input type="hidden" id="pId"><label>Nombre<input id="pName" required></label><label>% Deducción<input id="pPct" type="number" step="0.01" value="10"></label><label>Teléfono<input id="pPhone"></label><label>Estado<select id="pStatus"><option>Activo</option><option>Inactivo</option></select></label></form>
-      <div class="panel"><div class="table-wrap"><table id="tblProviders"></table></div></div>
-    </section>
-
-    <section id="flota" class="view hidden">
-      <div class="head"><h2>Recursos / Flota / Equipos</h2><button form="formVehicle" class="btn primary">Guardar</button></div>
-      <form id="formVehicle" class="form"><input type="hidden" id="vId"><label>Recurso / Unidad<input id="vUnit" required></label><label>Tablilla / Código<input id="vPlate"></label><label>VIN / Serial<input id="vVin"></label><label>Vencimiento / Mantenimiento<input id="vExp" type="date"></label><label>Estado<select id="vStatus"><option>Activo</option><option>Mantenimiento</option><option>Inactivo</option></select></label></form>
-      <div class="panel"><div class="table-wrap"><table id="tblVehicles"></table></div></div>
-    </section>
-
-    <section id="servicios" class="view hidden">
-      <div class="head"><h2>Servicios</h2><button form="formService" class="btn primary">Guardar Servicio</button></div>
-      <form id="formService" class="form">
-        <input type="hidden" id="sId"><label>Fecha<input id="sDate" type="date" required></label><label>Cliente<select id="sClient" required></select></label><label>Personal asignado<select id="sDriver" required></select></label><label>Suplidor<select id="sProvider"></select></label><label>Recurso<select id="sVehicle"></select></label><label>Origen<input id="sOrigin" list="prPlaces" required placeholder="Ej. San Juan"></label><label>Destino<input id="sDest" list="prPlaces" required placeholder="Ej. Ponce"></label><label>Tipo<select id="sType"><option>Servicio General</option><option>Transporte</option><option>HVAC</option><option>Handyman</option><option>Limpieza</option><option>Construcción</option><option>Salón / Barbería</option><option>Mecánica</option><option>Delivery</option><option>Otro</option></select></label><label>Base $<input id="sBase" type="number" step="0.01" value="0"></label><label>Millas<input id="sMiles" type="number" step="0.01" value="0"></label><label>Peajes<input id="sTolls" type="number" step="0.01" value="0"></label><label>Gastos<input id="sExpenses" type="number" step="0.01" value="0"></label><label>Estado<select id="sStatus"><option>Pendiente</option><option>Facturado</option><option>Parcial</option><option>Cobrado</option><option>Cancelado</option></select></label><label class="wide">Notas<textarea id="sNotes"></textarea></label>
-        <datalist id="prPlaces"></datalist>
-        <div class="route-helper wide" id="routeHelper">Escribe origen y destino para calcular millas estimadas automáticamente.</div><div class="wide route-actions"><button id="btnOpenCurrentRoute" type="button" class="miniBtn">Ver ruta en Google Maps</button><button id="btnConfirmCurrentMiles" type="button" class="miniBtn">Confirmar millas reales</button></div>
-      </form>
-      <div class="panel"><div class="table-wrap"><table id="tblServices"></table></div></div>
-    </section>
-
-    <section id="facturacion" class="view hidden">
-      <div class="head"><h2>Facturación</h2><button id="btnCreateInvoice" class="btn primary">Generar Factura</button></div>
-      <div class="form mini"><label>Servicio para facturar<select id="invoiceService"></select></label></div>
-      <div class="panel"><div class="table-wrap"><table id="tblInvoices"></table></div></div>
-    </section>
-
-    <section id="cobros" class="view hidden">
-      <div class="head"><h2>Cobros</h2><button form="formPayment" class="btn primary">Registrar Cobro</button></div>
-      <form id="formPayment" class="form mini"><label>Fecha<input id="payDate" type="date"></label><label>Factura<select id="payInvoice"></select></label><label>Método<select id="payMethod"><option>ATH Móvil</option><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option><option>Cheque</option></select></label><label>Monto<input id="payAmount" type="number" step="0.01" required></label></form>
-      <div class="panel"><div class="table-wrap"><table id="tblPayments"></table></div></div>
-    </section>
-
-    <section id="pagos" class="view hidden">
-      <div class="grid2">
-        <article class="panel"><h2>Pagos al Personal</h2><div id="driverPayments"></div></article>
-        <article class="panel"><h2>Pago / Liberación de Retenciones</h2><form id="formRetention" class="stack"><select id="retDriver"></select><input id="retDate" type="date"><input id="retAmount" type="number" step="0.01" placeholder="Monto"><button class="btn primary">Pagar retención</button></form></article>
-      </div>
-      <article class="panel"><h2>Flujo de Caja</h2>
-        <form id="formCashflow" class="form mini">
-          <input type="hidden" id="cfId">
-          <label>Fecha<input id="cfDate" type="date"></label>
-          <label>Tipo<select id="cfType"><option>Ingreso</option><option>Gasto</option></select></label>
-          <label>Categoría<input id="cfCategory" placeholder="Ej. Peaje, combustible, ajuste"></label>
-          <label>Método<select id="cfMethod"><option>ATH Móvil</option><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option><option>Cheque</option><option>Operacional</option></select></label>
-          <label>Monto<input id="cfAmount" type="number" step="0.01" value="0"></label>
-          <label class="wide">Detalle<input id="cfDetail" placeholder="Nota interna"></label>
-          <button class="btn primary">Guardar Movimiento</button>
-          <button id="btnClearCashflow" type="button" class="btn ghost">Limpiar</button>
-        </form>
-        <div class="table-wrap"><table id="tblCashflow"></table></div>
-      </article>
-    </section>
-
-    <section id="reportes" class="view hidden">
-      <div class="report-grid"><button id="pdfInvoices" class="report">PDF Reporte de Facturas</button><button id="pdfDrivers" class="report">PDF Reporte de Personal</button><button id="exportCsv" class="report">Exportar CSV Servicios</button><button id="btnBackup" class="report">Backup JSON</button><label class="report file">Importar Backup<input id="fileImport" type="file" accept="application/json"></label><button id="btnDemo" class="report">Cargar Demo</button></div>
-    </section>
-
-    <section id="config" class="view hidden">
-      <div class="head"><h2>Configuración</h2><button form="formConfig" class="btn primary">Guardar</button></div>
-      <form id="formConfig" class="form">
-        <label>Logo de la empresa<input id="cfgLogo" type="file" accept="image/png,image/jpeg"></label>
-        <div id="logoPreview" class="logo-preview">Sin logo cargado</div>
-        <label>Tipo de negocio<select id="cfgBizType"><option>Servicios Generales</option><option>Transporte</option><option>HVAC</option><option>Handyman</option><option>Construcción</option><option>Limpieza</option><option>Salón / Barbería</option><option>Delivery</option><option>Mecánica</option><option>Landscaping</option></select></label><label>Nombre de empresa<input id="cfgName" placeholder="Nexus Business PR"></label>
-        <label class="wide">Dirección<input id="cfgAddress" placeholder="Dirección física o postal"></label>
-        <label>Teléfono<input id="cfgPhone" placeholder="787-000-0000"></label>
-        <label>Email<input id="cfgEmail" type="email"></label>
-        <label>Web<input id="cfgWeb" placeholder="www.tuempresa.com"></label>
-        <label>Registro / ID<input id="cfgTaxId" placeholder="Opcional"></label>
-        <label>Representante<input id="cfgRep" placeholder="Nombre autorizado"></label>
-        <label>IVU %<input id="cfgTaxRate" type="number" step="0.01" value="0"></label>
-        <label>Tarifa por milla<input id="cfgMile" type="number" step="0.01"></label>
-        <button id="btnRemoveLogo" type="button" class="btn ghost">Quitar Logo</button>
-      </form>
-      <div class="panel muted"><p>Estado del sistema: <strong id="systemState">Inicializando</strong></p></div>
-      <div class="panel danger-zone"><h2>Zona de Reset</h2><p class="muted">Borra datos locales y en Firebase para comenzar limpio. Haz backup antes.</p><button id="btnResetSystem" type="button" class="btn danger">Reset Total del Sistema</button></div>
-    </section>
-  
-      </main>
-    </div>
-  </div>
+      <section id="dashboard" class="page"></section>
+      <section id="clients" class="page hidden"></section>
+      <section id="services" class="page hidden"></section>
+      <section id="team" class="page hidden"></section>
+      <section id="invoices" class="page hidden"></section>
+      <section id="payments" class="page hidden"></section>
+      <section id="cashflow" class="page hidden"></section>
+      <section id="reports" class="page hidden"></section>
+      <section id="plans" class="page hidden"></section>
+      <section id="settings" class="page hidden"></section>
+    </main>
+  </section>
   <script type="module" src="app.js"></script>
 </body>
 </html>
