@@ -315,3 +315,4 @@ button.mini{padding:8px 10px;min-height:38px}
 .status-chip.danger{background:#fee2e2;color:#991b1b;}
 .status-chip.muted{background:#f1f5f9;color:#64748b;}
 @media(max-width:760px){.admin-search{min-width:0;width:100%;}.admin-shell .topbar{align-items:flex-start;}.admin-shell .section-head{align-items:flex-start;flex-direction:column;}.admin-shell .toolbar{width:100%;}.admin-shell .toolbar button{flex:1;}}
+.ok-chip{display:inline-flex;align-items:center;margin:8px 0 12px;padding:6px 10px;border-radius:999px;background:#ecfdf5;color:#047857;font-weight:700;font-size:.82rem;border:1px solid #bbf7d0}

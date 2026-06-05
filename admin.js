@@ -20,12 +20,17 @@ const money = n => new Intl.NumberFormat('es-PR',{style:'currency',currency:'USD
 const todayIso = () => new Date().toISOString().slice(0,10);
 const plusMonthIso = () => { const d = new Date(); d.setMonth(d.getMonth()+1); return d.toISOString().slice(0,10); };
 
-const PLAN_NAMES = { free:'Gratis', basic:'Básico', pro:'Pro', premium:'Premium', enterprise:'Enterprise' };
+const PLAN_NAMES = { free:'Gratis', pro:'Pro', business:'Business', enterprise:'Enterprise' };
 let pendingRows = [];
 let subscriberRows = [];
 
 function parentUserId(ref){ return ref.parent.parent.id; }
-function planName(plan){ return PLAN_NAMES[plan] || plan || 'Gratis'; }
+function normalizePlanId(value){
+  const v = String(value || 'free').toLowerCase().trim();
+  const map = { gratis:'free', basico:'free', básico:'free', basic:'free', premium:'business' };
+  return PLAN_NAMES[v] ? v : (map[v] || 'free');
+}
+function planName(plan){ return PLAN_NAMES[normalizePlanId(plan)] || 'Gratis'; }
 function statusLabel(status){ return ({ active:'Activo', pending:'Pendiente', past_due:'Pago vencido', cancelled:'Cancelado', inactive:'Inactivo' }[status] || status || 'Activo'); }
 function statusClass(status){ return status === 'active' ? 'ok' : status === 'past_due' ? 'warn' : status === 'cancelled' ? 'danger' : 'muted'; }
 
@@ -108,7 +113,16 @@ function renderSubscribers(){
   document.querySelectorAll('[data-cancel]').forEach(btn => btn.onclick = () => cancelPlan(btn.dataset.cancel));
 }
 
+async function closePendingRequests(userId, keepRequestId='', status='replaced') {
+  const snap = await getDocs(query(collection(db,'users',userId,'planRequests'), where('status','==','pending')));
+  await Promise.all(snap.docs.map(d => updateDoc(d.ref, {
+    status: d.id === keepRequestId ? 'activated' : status,
+    updatedAt: serverTimestamp()
+  })));
+}
+
 async function activatePlan(userId, requestId, planId){
+  planId = normalizePlanId(planId);
   const method = prompt('Método de pago confirmado:', 'ATH Móvil') || 'Manual';
   const amount = prompt('Cantidad pagada:', '49.99') || '';
   const expires = prompt('Fecha de vencimiento del plan YYYY-MM-DD:', plusMonthIso()) || plusMonthIso();
@@ -125,13 +139,15 @@ async function activatePlan(userId, requestId, planId){
     planUpdatedAt:serverTimestamp()
   });
   await updateDoc(doc(db,'users',userId,'planRequests',requestId), { status:'activated', activatedAt:serverTimestamp(), updatedAt:serverTimestamp(), paymentMethod:method, paymentAmount:Number(amount||0), planExpiresAt:expires });
+  await closePendingRequests(userId, requestId, 'replaced');
   await Promise.all([loadRequests(), loadSubscribers()]);
 }
 
 async function manualEditPlan(userId){
   const current = subscriberRows.find(x => x.id === userId) || {};
-  const nextPlan = prompt('Plan a asignar: free, basic, pro, premium, enterprise', current.plan || 'free');
-  if(!nextPlan) return;
+  const nextPlanRaw = prompt('Plan a asignar: free, pro, business, enterprise', normalizePlanId(current.plan || 'free'));
+  if(!nextPlanRaw) return;
+  const nextPlan = normalizePlanId(nextPlanRaw);
   const status = prompt('Estado: active, past_due, cancelled, inactive', current.planStatus || 'active') || 'active';
   const expires = prompt('Fecha de vencimiento YYYY-MM-DD:', current.planExpiresAt || plusMonthIso()) || '';
   const method = prompt('Método de pago:', current.lastPaymentMethod || 'Manual') || 'Manual';
@@ -145,7 +161,8 @@ async function manualEditPlan(userId){
     lastPaymentDate:todayIso(),
     planUpdatedAt:serverTimestamp()
   });
-  await loadSubscribers();
+  await closePendingRequests(userId, '', 'admin_closed');
+  await Promise.all([loadRequests(), loadSubscribers()]);
 }
 
 async function markPastDue(userId){
@@ -157,7 +174,8 @@ async function markPastDue(userId){
 async function cancelPlan(userId){
   if(!confirm('¿Cancelar plan y devolverlo a Gratis?')) return;
   await updateDoc(doc(db,'users',userId), { plan:'free', planStatus:'cancelled', pendingPlan:'', pendingPlanStatus:'none', planUpdatedAt:serverTimestamp() });
-  await loadSubscribers();
+  await closePendingRequests(userId, '', 'cancelled');
+  await Promise.all([loadRequests(), loadSubscribers()]);
 }
 
 async function rejectRequest(userId, requestId){

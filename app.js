@@ -40,7 +40,13 @@ let state = {profile:null,clients:[],services:[],team:[],assets:[],suppliers:[],
 function defaultProfile(){return {businessName:'Mi Negocio',industry:'hvac',plan:'free',planStatus:'active',planChangeMode:'manual',pendingPlan:'',pendingPlanStatus:'none',phone:'',whatsapp:'',email:auth.currentUser?.email||'',address:'',web:'',tax:'11.5',merchant:'',representative:'',slogan:'',logoDashboard:'',logoPdf:'',favicon:'',signature:'',primaryColor:'#2563eb',secondaryColor:'#0f172a',createdAt:new Date().toISOString()};}
 function profile(){return state.profile || defaultProfile();}
 function industry(){return INDUSTRIES[profile().industry] || INDUSTRIES.hvac;}
-function plan(){return PLANS[profile().plan] || PLANS.free;}
+function normalizePlanId(value){
+  const v = String(value || 'free').toLowerCase().trim();
+  const map = { gratis:'free', basico:'free', básico:'free', basic:'free', premium:'business' };
+  return PLANS[v] ? v : (map[v] || 'free');
+}
+function currentPlanId(){ return normalizePlanId(profile().plan); }
+function plan(){return PLANS[currentPlanId()] || PLANS.free;}
 function colPath(c){return collection(db,'users',uid(),c);}
 function docPath(c,id){return doc(db,'users',uid(),c,id);}
 function profRef(){return doc(db,'users',uid());}
@@ -62,10 +68,19 @@ function imgOrText(data,text){return data?`<img src="${data}" alt="Logo">`:esc(t
 
 function enforceModuleView(){const active=state.activeView||'dashboard';document.querySelectorAll('.main > section.view').forEach(view=>{const ok=view.id===active;view.classList.toggle('active',ok);view.hidden=!ok;view.setAttribute('aria-hidden',ok?'false':'true');view.style.display=ok?'block':'none';view.style.visibility=ok?'visible':'hidden';view.style.height=ok?'auto':'0px';view.style.overflow=ok?'visible':'hidden';});}
 function show(v){state.activeView=lockedModule(v)?'plans':(v||'dashboard');render();if(innerWidth<921)document.querySelector('.sidebar')?.classList.remove('open');}
-function latestPlanRequest(){return [...(state.planRequests||[])].sort((a,b)=>String(b.createdAt?.seconds||b.createdAt||'').localeCompare(String(a.createdAt?.seconds||a.createdAt||'')))[0]||null;}
-function pendingPlanRequest(planId){return (state.planRequests||[]).find(r=>r.planId===planId && r.status==='pending');}
+function latestPlanRequest(){
+  return [...(state.planRequests||[])]
+    .filter(r => r.status === 'pending' && normalizePlanId(r.planId) !== currentPlanId())
+    .sort((a,b)=>String(b.createdAt?.seconds||b.createdAt||'').localeCompare(String(a.createdAt?.seconds||a.createdAt||'')))[0]||null;
+}
+function pendingPlanRequest(planId){
+  const target = normalizePlanId(planId);
+  if(target === currentPlanId()) return null;
+  return (state.planRequests||[]).find(r=>normalizePlanId(r.planId)===target && r.status==='pending') || null;
+}
+function hasAnyPendingPlanRequest(){return !!latestPlanRequest();}
 function activePlanName(){return plan().name;}
-function planRequestStatusText(){const r=latestPlanRequest();if(!r||r.status==='approved'||r.status==='activated')return 'Sin solicitudes pendientes';return `Solicitud ${r.status==='pending'?'pendiente':r.status}: ${PLANS[r.planId]?.name||r.planName||r.planId}`;}
+function planRequestStatusText(){const r=latestPlanRequest();if(!r)return 'Sin solicitudes pendientes';return `Solicitud pendiente: ${PLANS[normalizePlanId(r.planId)]?.name||r.planName||r.planId}`;}
 function notifyOwnerByEmail(req){const subject=encodeURIComponent(`Solicitud de plan ${req.planName} - ${profile().businessName||'Cliente Nexus'}`);const body=encodeURIComponent(`Nueva solicitud de cambio de plan.
 
 Negocio: ${profile().businessName||''}
@@ -76,9 +91,39 @@ Modo: ${req.paymentMode}
 UID: ${uid()}
 
 Acción requerida: confirma el pago y activa el plan desde admin.html.`);window.open(`mailto:${ownerEmail()}?subject=${subject}&body=${body}`,'_blank');}
-async function requestPlanChange(planId){const target=PLANS[planId];if(!target)return;if(profile().plan===planId){alert('Ese plan ya está activo.');return;}if(pendingPlanRequest(planId)){alert('Ya existe una solicitud pendiente para ese plan.');return;}const paymentUrl=links()[planId]||'';const req={planId,planName:target.name,fromPlan:profile().plan||'free',fromPlanName:activePlanName(),businessName:profile().businessName||'',userEmail:auth.currentUser?.email||profile().email||'',uid:uid(),status:'pending',paymentMode:paymentUrl?'stripe_or_manual':'manual_review',paymentUrl,createdAt:serverTimestamp(),updatedAt:serverTimestamp()};await addDoc(colPath('planRequests'),req);if(paymentUrl){window.open(paymentUrl,'_blank');}
-notifyOwnerByEmail({...req, planName:target.name});alert(paymentUrl?'Solicitud registrada. Se abrió el enlace de pago. El plan se activa después de confirmarse el pago.':'Solicitud registrada. El dueño activará el plan después de confirmar el pago.');}
-function setVisuals(){const p=profile(), ind=industry();document.documentElement.style.setProperty('--brand',p.primaryColor||ind.color);document.documentElement.style.setProperty('--brand2',p.secondaryColor||'#0f172a');$('sideLogo').innerHTML=imgOrText(p.logoDashboard,ind.logo);$('dashboardLogo').innerHTML=imgOrText(p.logoDashboard,ind.logo);$('authLogo').textContent=ind.logo;$('sideName').textContent=p.businessName||'Nexus Business';$('sideIndustry').textContent=ind.name;$('dashboardTitle').textContent=p.businessName||ind.name;$('dashboardText').textContent=p.slogan||ind.hero;$('faviconLink').href=p.favicon||$('faviconLink').href;$('planBadge').textContent=plan().name;$('sidePlan').innerHTML=plan().name;$('sideQuota').textContent=`${state.clients.length}/${unlimited(limit('clients'))?'∞':limit('clients')} clientes`;}
+async function requestPlanChange(planId){
+  const targetId = normalizePlanId(planId);
+  const target = PLANS[targetId];
+  if(!target) return;
+  if(targetId === currentPlanId()){
+    alert('Ese plan ya está activo.');
+    return;
+  }
+  if(hasAnyPendingPlanRequest()){
+    alert('Ya existe una solicitud pendiente. Espera aprobación o rechazo antes de solicitar otro plan.');
+    return;
+  }
+  const paymentUrl = links()[targetId] || '';
+  const req = {
+    planId:targetId,
+    planName:target.name,
+    fromPlan:currentPlanId(),
+    fromPlanName:activePlanName(),
+    businessName:profile().businessName||'',
+    userEmail:auth.currentUser?.email||profile().email||'',
+    uid:uid(),
+    status:'pending',
+    paymentMode:paymentUrl?'stripe_or_manual':'manual_review',
+    paymentUrl,
+    createdAt:serverTimestamp(),
+    updatedAt:serverTimestamp()
+  };
+  await addDoc(colPath('planRequests'),req);
+  if(paymentUrl){window.open(paymentUrl,'_blank');}
+  notifyOwnerByEmail({...req, planName:target.name});
+  alert(paymentUrl?'Solicitud registrada. Se abrió el enlace de pago. El plan se activa después de confirmarse el pago.':'Solicitud registrada. El dueño activará el plan después de confirmar el pago.');
+}
+function setVisuals(){const p=profile(), ind=industry(); if(p.plan!==currentPlanId()) p.plan=currentPlanId(); document.documentElement.style.setProperty('--brand',p.primaryColor||ind.color);document.documentElement.style.setProperty('--brand2',p.secondaryColor||'#0f172a');$('sideLogo').innerHTML=imgOrText(p.logoDashboard,ind.logo);$('dashboardLogo').innerHTML=imgOrText(p.logoDashboard,ind.logo);$('authLogo').textContent=ind.logo;$('sideName').textContent=p.businessName||'Nexus Business';$('sideIndustry').textContent=ind.name;$('dashboardTitle').textContent=p.businessName||ind.name;$('dashboardText').textContent=p.slogan||ind.hero;$('faviconLink').href=p.favicon||$('faviconLink').href;$('planBadge').textContent=plan().name;$('sidePlan').innerHTML=plan().name;$('sideQuota').textContent=`${state.clients.length}/${unlimited(limit('clients'))?'∞':limit('clients')} clientes`;}
 function nav(){const ind=industry();$('sideNav').innerHTML=ind.nav.map(v=>`<button type="button" data-view="${v}" class="${state.activeView===v?'active':''} ${lockedModule(v)?'locked':''}">${TITLES[v]||v}<span>${lockedModule(v)?'🔒':''}</span></button>`).join('');document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>show(b.dataset.view));}
 function input(label,id,type='text',val='',cls=''){return `<div class="${cls}"><label>${esc(label)}</label><input id="${id}" type="${type}" value="${esc(val)}" placeholder="${esc(label)}"></div>`;}
 function select(label,id,opts,val='',cls=''){return `<div class="${cls}"><label>${esc(label)}</label><select id="${id}">${opts.map(o=>`<option value="${esc(o.value)}" ${String(o.value)===String(val)?'selected':''}>${esc(o.label)}</option>`).join('')}</select></div>`;}
@@ -199,7 +244,19 @@ function tables(){const i=industry();
   document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editRecord(...b.dataset.edit.split(':')));
 }
 
-function plans(){const last=latestPlanRequest();$('plansGrid').innerHTML=`<div class="plan full"><h3>Control de activación</h3><p>El cliente puede solicitar un plan, pero el plan no cambia hasta que el dueño confirme pago o Stripe lo active por webhook.</p><small class="muted">Estado: ${esc(planRequestStatusText())}</small></div>`+Object.entries(PLANS).map(([id,p])=>{const active=profile().plan===id;const pending=pendingPlanRequest(id);const label=active?'Plan activo':pending?'Solicitud pendiente':(links()[id]?'Solicitar / pagar':'Solicitar revisión');return `<div class="plan ${active?'featured':''}"><h3>${p.name}</h3><div class="price">${p.price}</div><p>${p.features.join('<br>')}</p>${pending?`<small class="pending-chip">Pendiente de activación</small>`:''}<button type="button" data-plan="${id}" class="${active?'ghost':'primary'}" ${active||pending?'disabled':''}>${label}</button></div>`}).join('');document.querySelectorAll('[data-plan]').forEach(b=>b.onclick=()=>requestPlanChange(b.dataset.plan));}
+function plans(){
+  const pendingAny = latestPlanRequest();
+  $('plansGrid').innerHTML=`<div class="plan full"><h3>Control de activación</h3><p>El cliente puede solicitar un plan, pero el plan no cambia hasta que el dueño confirme pago o Stripe lo active por webhook.</p><small class="muted">Estado: ${esc(planRequestStatusText())}</small></div>`+
+  Object.entries(PLANS).map(([id,p])=>{
+    const active=currentPlanId()===id;
+    const pending=pendingPlanRequest(id);
+    const blockedByOtherPending=!!pendingAny && !pending && !active;
+    const label=active?'Plan actual':pending?'Solicitud pendiente':blockedByOtherPending?'Solicitud en revisión':(links()[id]?'Solicitar / pagar':'Solicitar revisión');
+    const chip=active?`<small class="ok-chip">Plan actual</small>`:(pending?`<small class="pending-chip">Pendiente de activación</small>`:'');
+    return `<div class="plan ${active?'featured':''}"><h3>${p.name}</h3><div class="price">${p.price}</div><p>${p.features.join('<br>')}</p>${chip}<button type="button" data-plan="${id}" class="${active?'ghost':'primary'}" ${active||pending||blockedByOtherPending?'disabled':''}>${label}</button></div>`
+  }).join('');
+  document.querySelectorAll('[data-plan]').forEach(b=>b.onclick=()=>requestPlanChange(b.dataset.plan));
+}
 function render(){setVisuals();nav();forms();bindServiceItems();kpis();tables();plans();enforceModuleView();$('pageTitle').textContent=TITLES[state.activeView]||state.activeView;$('pageSubtitle').textContent=industry().hero;}
 async function add(c,data){if(!canCreate(c)){alert(`Límite alcanzado en plan ${plan().name}. Mejora tu plan.`);show('plans');return null;}return await addDoc(colPath(c),{...data,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});}
 async function remove(c,id){if(confirm('¿Borrar registro?'))await deleteDoc(docPath(c,id));}
