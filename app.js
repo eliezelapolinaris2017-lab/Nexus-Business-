@@ -276,9 +276,10 @@ function plans(){
     const active=currentPlanId()===id;
     const pending=pendingPlanRequest(id);
     const blockedByOtherPending=!!pendingAny && !pending && !active;
-    const label=active?'Plan actual':pending?'Solicitud pendiente':blockedByOtherPending?'Solicitud en revisión':(links()[id]?'Solicitar / pagar':'Solicitar revisión');
-    const chip=active?`<small class="ok-chip">Plan actual</small>`:(pending?`<small class="pending-chip">Pendiente de activación</small>`:'');
-    return `<div class="plan ${active?'featured':''}"><h3>${p.name}</h3><div class="price">${p.price}</div><p>${p.features.join('<br>')}</p>${chip}<button type="button" data-plan="${id}" class="${active?'ghost':'primary'}" ${active||pending||blockedByOtherPending?'disabled':''}>${label}</button></div>`
+    const isEnterprise=id==='enterprise';
+    const label=isEnterprise&&active?'PLAN MÁXIMO':active?'Plan actual':pending?'Solicitud pendiente':blockedByOtherPending?'Solicitud en revisión':(links()[id]?'Solicitar / pagar':'Solicitar revisión');
+    const chip=isEnterprise?`<small class="ok-chip">👑 PLAN EMPRESARIAL</small>`:(active?`<small class="ok-chip">Plan actual</small>`:(pending?`<small class="pending-chip">Pendiente de activación</small>`:''));
+    return `<div class="plan ${active?'featured':''} ${isEnterprise?'enterprise-plan':''}"><h3>${isEnterprise?'👑 '+p.name:p.name}</h3><div class="price">${p.price}</div><p>${p.features.join('<br>')}</p>${chip}<button type="button" data-plan="${id}" class="${active?'ghost':'primary'}" ${(active&&isEnterprise)||active||pending||blockedByOtherPending?'disabled':''}>${label}</button></div>`
   }).join('');
   document.querySelectorAll('[data-plan]').forEach(b=>b.onclick=()=>requestPlanChange(b.dataset.plan));
 }

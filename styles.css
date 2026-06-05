@@ -346,3 +346,5 @@ button.mini{padding:8px 10px;min-height:38px}
 }
 .plan.full{grid-column:1/-1;}
 .auth-card p:empty{display:none;}
+
+.enterprise-plan{border:2px solid #d4af37}.enterprise-plan .price{font-weight:700}
