@@ -3,10 +3,29 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signed() { return request.auth != null; }
     function owner(userId) { return signed() && request.auth.uid == userId; }
+    function admin() { return signed() && request.auth.token.admin == true; }
+    function planKeys() { return ['plan','planStatus','pendingPlan','pendingPlanStatus','stripeCustomerId','stripeSubscriptionId','planUpdatedAt']; }
+    function normalCollections() { return ['clients','services','team','assets','suppliers','supplierPayments','payroll','invoices','payments','cashflow']; }
+
     match /users/{userId} {
-      allow read, write: if owner(userId);
-      match /{document=**} { allow read, write: if owner(userId); }
+      allow create: if owner(userId);
+      allow read: if owner(userId) || admin();
+      allow update: if admin() || (owner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(planKeys()));
+      allow delete: if admin();
+
+      match /planRequests/{requestId} {
+        allow create: if owner(userId)
+          && request.resource.data.status == 'pending'
+          && request.resource.data.uid == userId;
+        allow read: if owner(userId) || admin();
+        allow update, delete: if admin();
+      }
+
+      match /{collectionId}/{documentId} {
+        allow read, write: if (owner(userId) || admin()) && collectionId in normalCollections();
+      }
     }
+
     match /{document=**} { allow read, write: if false; }
   }
 }

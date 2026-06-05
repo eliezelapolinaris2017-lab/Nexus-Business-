@@ -298,3 +298,20 @@ button.mini{padding:8px 10px;min-height:38px}
   .doc-logo{width:.72in!important;height:.72in!important;}
   h2{margin:.18in 0!important;}
 }
+
+/* V15 Plan requests / admin activation */
+.plan.full{grid-column:1/-1;border-style:dashed;background:rgba(15,23,42,.035)}
+.pending-chip{display:inline-flex;align-items:center;margin:8px 0 12px;padding:6px 10px;border-radius:999px;background:#fff7ed;color:#9a3412;font-weight:700;font-size:.82rem;border:1px solid #fed7aa}
+.plan button:disabled{opacity:.55;cursor:not-allowed;filter:grayscale(.2)}
+.plan-admin-card{display:grid;gap:6px;padding:16px;border:1px solid rgba(15,23,42,.12);border-radius:16px;background:#fff}
+.plan-admin-card strong{font-size:1.05rem}.plan-admin-card span{color:#475569}.plan-admin-card a{font-weight:700;color:var(--brand)}
+
+/* Admin suscripciones v16 */
+.admin-shell{max-width:1240px;margin:auto;}
+.admin-search{padding:10px 12px;border:1px solid var(--line);border-radius:12px;min-width:240px;background:#fff;}
+.status-chip{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:900;background:#f1f5f9;color:#475569;}
+.status-chip.ok{background:#dcfce7;color:#166534;}
+.status-chip.warn{background:#fef3c7;color:#92400e;}
+.status-chip.danger{background:#fee2e2;color:#991b1b;}
+.status-chip.muted{background:#f1f5f9;color:#64748b;}
+@media(max-width:760px){.admin-search{min-width:0;width:100%;}.admin-shell .topbar{align-items:flex-start;}.admin-shell .section-head{align-items:flex-start;flex-direction:column;}.admin-shell .toolbar{width:100%;}.admin-shell .toolbar button{flex:1;}}
