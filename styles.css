@@ -217,3 +217,84 @@ button.mini{padding:8px 10px;min-height:38px}
   .service-line{grid-template-columns:34px 1fr;}
   .service-line .svc-qty,.service-line .svc-price,.service-line [data-remove-line]{grid-column:2;}
 }
+
+
+/* ===== FIX FINAL PDF / PRINT: página completa, sin encoger y footer abajo ===== */
+.doc-page{
+  background:#fff;
+  color:#111827;
+  width:7.5in;
+  max-width:100%;
+  min-height:10in;
+  margin:0 auto;
+  padding:0.38in;
+  border:1px solid #e5e7eb;
+  box-shadow:0 20px 60px rgba(0,0,0,.08);
+  display:flex;
+  flex-direction:column;
+  box-sizing:border-box;
+  break-after:page;
+  page-break-after:always;
+}
+.doc-body{flex:1 1 auto;display:block;padding-bottom:.25in;}
+.doc-head{text-align:center;border-bottom:2px solid #111827;padding-bottom:16px;margin-bottom:18px;}
+.doc-logo{width:72px;height:72px;object-fit:contain;margin:0 auto 8px;display:block;}
+.doc-title{font-size:20px;font-weight:900;letter-spacing:.06em;}
+.doc-table{width:100%;border-collapse:collapse;margin:18px 0;page-break-inside:auto;break-inside:auto;}
+.doc-table th,.doc-table td{border:1px solid #d9dee7;padding:10px;text-align:left;vertical-align:top;}
+.doc-table th{background:#f8fafc;color:#475569;font-size:11px;text-transform:uppercase;}
+.doc-table tr{page-break-inside:avoid;break-inside:avoid;}
+.doc-foot{
+  margin-top:auto;
+  padding-top:14px;
+  text-align:center;
+  color:#64748b;
+  font-size:11px;
+}
+
+@page{size:letter;margin:.45in;}
+
+@media print{
+  html,body{
+    margin:0!important;
+    padding:0!important;
+    width:100%!important;
+    min-height:100%!important;
+    background:#fff!important;
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+  body{
+    display:block!important;
+  }
+  .doc-page{
+    width:100%!important;
+    max-width:none!important;
+    min-height:calc(11in - .9in)!important;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+    box-shadow:none!important;
+    transform:none!important;
+    zoom:1!important;
+    display:flex!important;
+    flex-direction:column!important;
+    page-break-after:always;
+    break-after:page;
+  }
+  .doc-page:last-child{page-break-after:auto;break-after:auto;}
+  .doc-body{
+    flex:1 1 auto!important;
+    padding:0 0 .25in 0!important;
+  }
+  .doc-foot{
+    position:static!important;
+    margin-top:auto!important;
+    padding-top:.18in!important;
+    text-align:center!important;
+  }
+  .doc-table{width:100%!important;}
+  .doc-table tr{page-break-inside:avoid!important;break-inside:avoid!important;}
+  .doc-logo{width:.72in!important;height:.72in!important;}
+  h2{margin:.18in 0!important;}
+}
