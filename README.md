@@ -1,43 +1,19 @@
-# Nexus Business PR SaaS V3 Enterprise
+# Nexus Business PR SaaS V4 Industry Locked
 
-Plataforma SaaS multi-servicios para negocios en Puerto Rico.
+Versión enfocada en SaaS multiindustria real.
 
-## Requisitos Firebase
-1. Authentication > Email/Password > Enable
-2. Firestore Database > Rules > copiar `firestore.rules`
-3. Publicar en GitHub Pages con `index.html`, `styles.css`, `app.js` y `firestore.rules`
+## Cambios clave
+- El panel lateral cambia por industria.
+- Dashboard, logo, títulos, formularios y reportes cambian según industria.
+- No se muestran rastros de otros servicios si se selecciona una industria.
+- Reportes y facturas tienen preview antes de imprimir o descargar.
+- Planes usan enlaces de pago definidos en `payment-links.js`, no editables desde el SaaS.
+- Firestore separado por usuario: `/users/{uid}/...`.
 
-## Estructura de datos
-Cada usuario guarda su empresa privada en:
+## Firebase
+Activa Authentication Email/Password.
+Copia `firestore.rules` en Firestore Rules.
 
-`tenants/{uid}`
-
-Incluye:
-- settings
-- clients
-- workers
-- assets
-- services
-- invoices
-- payments
-- cashflow
-- activity
-
-## Planes
-Los planes están en el frontend y se enlazan con enlaces externos de pago configurables:
-- Starter
-- Pro
-- Business
-
-Puedes usar Stripe Payment Links, ATH Móvil Business link, PayPal checkout u otra plataforma externa.
-
-## Industrias incluidas
-- Transporte
-- HVAC / Refrigeración
-- Handyman
-- Construcción liviana
-- Limpieza
-- Salón / Barbería
-- Mecánica móvil
-- Landscaping
-
+## Pago
+Edita `payment-links.js` con tus links reales de Stripe Payment Links, ATH/checkout externo o página de contacto.
+Nota: en GitHub Pages el frontend es público. Para ocultar lógica sensible de pagos usa Firebase Functions o backend.
