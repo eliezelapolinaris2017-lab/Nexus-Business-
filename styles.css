@@ -348,3 +348,8 @@ button.mini{padding:8px 10px;min-height:38px}
 .auth-card p:empty{display:none;}
 
 .enterprise-plan{border:2px solid #d4af37}.enterprise-plan .price{font-weight:700}
+
+
+/* V23 Datos Demo dentro de Configuración */
+.demo-settings{border:1px dashed rgba(148,163,184,.45);border-radius:18px;padding:16px;background:rgba(15,23,42,.03)}
+.demo-settings h3{margin:0 0 6px 0}.demo-buttons{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.check-row{display:flex!important;align-items:center;gap:8px;margin:10px 0;color:#334155}.check-row input{width:auto!important}

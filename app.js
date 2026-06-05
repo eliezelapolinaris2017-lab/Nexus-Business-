@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const firebaseConfig = { apiKey:"AIzaSyDGoSNKi1wapE1SpHxTc8wNZGGkJ2nQj7s", authDomain:"nexus-transport-2887b.firebaseapp.com", projectId:"nexus-transport-2887b", storageBucket:"nexus-transport-2887b.firebasestorage.app", messagingSenderId:"972915419764", appId:"1:972915419764:web:7d61dfb03bbe56df867f21" };
 const app = initializeApp(firebaseConfig);
@@ -11,6 +11,8 @@ const $ = id => document.getElementById(id);
 const money = n => Number(n || 0).toLocaleString('en-US', { style:'currency', currency:'USD' });
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const today = () => new Date().toISOString().slice(0,10);
+const daysAgo = n => new Date(Date.now() - n*86400000).toISOString().slice(0,10);
+const plusDays = n => new Date(Date.now() + n*86400000).toISOString().slice(0,10);
 const links = () => window.NEXUS_PAYMENT_LINKS || {};
 const ownerEmail = () => window.NEXUS_OWNER_EMAIL || 'eliezelapolinaris@icloud.com';
 const uid = () => auth.currentUser?.uid;
@@ -24,6 +26,57 @@ const INDUSTRIES = {
   handyman:{name:'Handyman',logo:'HM',color:'#f97316',client:'Cliente',clients:'Clientes',service:'Trabajo',services:'Trabajos',team:'Personal',payroll:'Pagos personal',assets:'Activos',suppliers:'Suplidores materiales',supplierPayments:'Pagos a suplidores',hero:'Trabajos livianos, materiales, evidencias, cobros, nómina y suplidores.',nav:['dashboard','clients','services','team','payroll','assets','suppliers','supplierPayments','billing','payments','cashflow','reports','plans','settings'],serviceFields:['Categoría','Área','Materiales','Prioridad','Observaciones'],assetFields:['Herramienta','Estado','Costo','Asignado a'],supplierFields:['Categoría','Material principal','Términos','Notas']},
   cleaning:{name:'Limpieza',logo:'CL',color:'#14b8a6',client:'Cliente',clients:'Clientes',service:'Limpieza',services:'Servicios de Limpieza',team:'Personal',payroll:'Nómina personal',assets:'Activos',suppliers:'Suplidores productos',supplierPayments:'Pagos a suplidores',hero:'Limpiezas residenciales/comerciales, productos, nómina, suplidores, cobros y reportes.',nav:['dashboard','clients','services','team','payroll','assets','suppliers','supplierPayments','billing','payments','cashflow','reports','plans','settings'],serviceFields:['Tipo de limpieza','Área','Frecuencia','Productos','Notas'],assetFields:['Producto / Equipo','Cantidad','Costo','Ubicación'],supplierFields:['Categoría','Producto principal','Términos','Notas']},
   construction:{name:'Construcción',logo:'CO',color:'#64748b',client:'Cliente',clients:'Clientes',service:'Proyecto',services:'Proyectos',team:'Equipo',payroll:'Pagos de obra',assets:'Activos',suppliers:'Suplidores construcción',supplierPayments:'Pagos a suplidores',hero:'Proyectos, etapas, materiales, pagos de obra, suplidores, evidencias y reportes.',nav:['dashboard','clients','services','team','payroll','assets','suppliers','supplierPayments','billing','payments','cashflow','reports','plans','settings'],serviceFields:['Tipo de proyecto','Dirección','Etapa','Materiales','Notas técnicas'],assetFields:['Material / Equipo','Cantidad','Costo','Proveedor'],supplierFields:['Categoría','Material principal','Términos','Notas']}
+};
+
+const DEMOS = {
+  hvac:{
+    business:'Oasis Demo HVAC', color:'#0ea5e9', slogan:'Gestión administrativa para servicios HVAC.',
+    clients:[['Condominio Brisas del Mar','787-555-1101','admin@brisasdemo.com','San Juan','Ave. Isla Verde #100'],['Café Miramar','787-555-1102','operaciones@cafemiramar.demo','Miramar','Calle Cerra #55'],['Residencia Santiago','787-555-1103','santiago@demo.com','Trujillo Alto','Urb. Encantada']],
+    team:[['Luis Técnico','787-555-2101',18,5,'Técnico'],['Carlos Ayudante','787-555-2102',10,0,'Ayudante'],['Marta Coordinadora','787-555-2103',0,0,'Coordinación']],
+    assets:[['Mini Split Sala 24k','Equipo','Lobby principal','Activo',1250,plusDays(330),'AirMax Inverter R32'],['Wallpack Oficina 15k','Equipo','Oficina administrativa','En garantía',1450,plusDays(520),'Unidad comercial'],['Condensador 36k','Equipo','Techo área norte','Requiere revisión',2200,plusDays(90),'Carrier 36k']],
+    suppliers:[['AirMax Puerto Rico','787-555-3101','ventas@airmax.demo',850],['Refrigeración PR Supply','787-555-3102','orders@rpr.demo',420]],
+    services:[['Mantenimiento profundo',275,'Lavado de evaporador y condensador',[{description:'Mantenimiento profundo 24k',qty:1,price:175},{description:'Filtro y desinfección',qty:1,price:100}]],['Diagnóstico HVAC',95,'Verificación de presiones y amperaje',[{description:'Diagnóstico técnico',qty:1,price:95}]],['Instalación mini split',750,'Instalación equipo inverter',[{description:'Mano de obra instalación',qty:1,price:600},{description:'Materiales básicos',qty:1,price:150}]]]
+  },
+  salon:{
+    business:'Cynthia Demo Salón', color:'#a855f7', slogan:'Agenda, cobros y administración para salón.',
+    clients:[['María López','787-555-1201','maria@demo.com','Carolina','Urb. Villa Fontana'],['Jessica Rivera','787-555-1202','jessica@demo.com','San Juan','Calle Loíza #88'],['Ana Morales','787-555-1203','ana@demo.com','Bayamón','Santa Rosa Mall']],
+    team:[['Cynthia González','787-555-2201',45,0,'Estilista'],['Natalia Colorista','787-555-2202',35,0,'Colorista'],['Andrea Nails','787-555-2203',30,0,'Técnica uñas']],
+    assets:[['Silla principal #1','Mobiliario','Estación frontal','Activo',900,plusDays(700),'Silla hidráulica'],['Lavacabezas negro','Mobiliario','Área shampoo','Activo',650,plusDays(420),'Unidad principal'],['Secadora profesional','Equipo','Área styling','En garantía',480,plusDays(280),'Secadora pedestal']],
+    suppliers:[['Beauty Supply PR','787-555-3201','ventas@beauty.demo',300],['Color Pro Distributor','787-555-3202','color@demo.com',180]],
+    services:[['Color y blower',125,'Servicio de color completo',[{description:'Color raíz',qty:1,price:75},{description:'Blower',qty:1,price:50}]],['Uñas gel',55,'Manicura gel',[{description:'Manicura gel',qty:1,price:55}]],['Tratamiento hidratante',85,'Tratamiento y secado',[{description:'Tratamiento',qty:1,price:60},{description:'Secado',qty:1,price:25}]]]
+  },
+  transport:{
+    business:'Nexus Demo Transport', color:'#2563eb', slogan:'Rutas, cobros y control administrativo de transporte.',
+    clients:[['Distribuidora Norte','787-555-1301','logistica@norte.demo','Arecibo','PR-2 Km 70'],['Farmacia Central','787-555-1302','compras@farmacia.demo','Caguas','Ave. Gautier Benítez'],['Almacén Metro','787-555-1303','metro@demo.com','Guaynabo','Zona Industrial']],
+    team:[['Pedro Chofer','787-555-2301',22,0,'Chofer'],['Ángel Ruta','787-555-2302',20,0,'Chofer'],['Sofía Despacho','787-555-2303',0,0,'Despacho']],
+    assets:[['Van Ford Transit','Vehículo','Base Bayamón','Activo',28500,plusDays(250),'Unidad TR-01'],['Camión pequeño','Vehículo','Base Caguas','Activo',42000,plusDays(180),'Unidad TR-02'],['Hand Truck','Herramienta','Van TR-01','Activo',220,plusDays(800),'Equipo carga']],
+    suppliers:[['Taller Rápido PR','787-555-3301','servicio@taller.demo',650],['Gasolina Fleet','787-555-3302','fleet@fuel.demo',1200]],
+    services:[['Ruta local',180,'Entrega zona metro',[{description:'Ruta local metro',qty:1,price:180}]],['Carga liviana',240,'Recogido y entrega',[{description:'Servicio carga liviana',qty:1,price:240}]],['Ruta larga',475,'San Juan a Mayagüez',[{description:'Ruta larga',qty:1,price:425},{description:'Peaje y manejo',qty:1,price:50}]]]
+  },
+  handyman:{
+    business:'Axis Demo Property Solutions', color:'#f97316', slogan:'Trabajos livianos, materiales, cobros y equipo.',
+    clients:[['Residencia Colón','787-555-1401','colon@demo.com','Guaynabo','Urb. Garden Hills'],['Oficina Legal Ríos','787-555-1402','admin@rioslegal.demo','Hato Rey','Milla de Oro'],['Apartamento Vega','787-555-1403','vega@demo.com','Carolina','Torres del Parque']],
+    team:[['José Handyman','787-555-2401',25,0,'Técnico general'],['Raúl Auxiliar','787-555-2402',15,0,'Auxiliar'],['Lina Admin','787-555-2403',0,0,'Administración']],
+    assets:[['Taladro inalámbrico','Herramienta','Vehículo HM-01','Activo',180,plusDays(400),'Milwaukee'],['Escalera 8 pies','Herramienta','Almacén','Activo',120,plusDays(900),'Fibra'],['Kit plomería básica','Herramienta','Vehículo HM-01','Activo',250,plusDays(350),'Servicio campo']],
+    suppliers:[['Ferretería Central','787-555-3401','ventas@ferreteria.demo',275],['Pinturas Pro','787-555-3402','ordenes@pinturas.demo',150]],
+    services:[['Plomería liviana',165,'Cambio de mezcladora',[{description:'Cambio mezcladora',qty:1,price:115},{description:'Materiales',qty:1,price:50}]],['Electricidad liviana',95,'Cambio receptáculos',[{description:'Cambio receptáculos',qty:3,price:25},{description:'Visita',qty:1,price:20}]],['Pintura',350,'Retoque oficina',[{description:'Mano de obra pintura',qty:1,price:275},{description:'Materiales',qty:1,price:75}]]]
+  },
+  cleaning:{
+    business:'Clean Pro Demo Services', color:'#14b8a6', slogan:'Limpieza residencial y comercial con control financiero.',
+    clients:[['Airbnb Ocean View','787-555-1501','host@ocean.demo','Luquillo','Condominio Playa Azul'],['Clínica Dental Sol','787-555-1502','admin@dental.demo','Bayamón','Ave. Main #10'],['Oficina Caribe','787-555-1503','office@caribe.demo','San Juan','Centro Internacional']],
+    team:[['Rosa Supervisora','787-555-2501',18,0,'Supervisora'],['Marcos Limpieza','787-555-2502',14,0,'Personal'],['Diana Limpieza','787-555-2503',14,0,'Personal']],
+    assets:[['Aspiradora comercial','Equipo','Almacén','Activo',450,plusDays(300),'Uso diario'],['Máquina vapor','Equipo','Van CL-01','Activo',750,plusDays(500),'Desinfección'],['Carrito productos','Equipo','Clínica Dental','Activo',180,plusDays(200),'Asignado cliente']],
+    suppliers:[['Janitorial Supply PR','787-555-3501','ventas@janitorial.demo',390],['Eco Clean Products','787-555-3502','eco@clean.demo',210]],
+    services:[['Limpieza profunda',325,'Limpieza inicial comercial',[{description:'Limpieza profunda',qty:1,price:275},{description:'Productos especiales',qty:1,price:50}]],['Mantenimiento recurrente',180,'Servicio semanal',[{description:'Limpieza semanal',qty:1,price:180}]],['Post-construcción',520,'Limpieza final obra',[{description:'Post-construcción',qty:1,price:520}]]]
+  },
+  construction:{
+    business:'Build Demo Contractors', color:'#64748b', slogan:'Proyectos, suplidores, nómina y reportes de obra.',
+    clients:[['Proyecto Terra Lugo','787-555-1601','terra@demo.com','Trujillo Alto','Solar 12'],['Local Comercial Plaza','787-555-1602','plaza@demo.com','Caguas','Plaza Central'],['Residencia Rivera','787-555-1603','rivera@demo.com','Dorado','Urb. Dorado Beach']],
+    team:[['Miguel Maestro','787-555-2601',30,0,'Maestro obra'],['Ernesto Ayudante','787-555-2602',18,0,'Ayudante'],['Nadia Proyecto','787-555-2603',0,0,'Administración']],
+    assets:[['Mezcladora cemento','Equipo','Obra Terra Lugo','Activo',900,plusDays(600),'Equipo obra'],['Andamio modular','Equipo','Almacén','Activo',1500,plusDays(400),'6 secciones'],['Generador obra','Equipo','Obra Plaza','En garantía',2200,plusDays(700),'Generador 6500W']],
+    suppliers:[['Materiales del Este','787-555-3601','ventas@materiales.demo',1850],['Hormigón Express','787-555-3602','ordenes@hormigon.demo',2400]],
+    services:[['Supervisión de obra',950,'Semana de supervisión',[{description:'Supervisión semanal',qty:1,price:950}]],['Electricidad',1250,'Instalación circuito comercial',[{description:'Mano de obra electricidad',qty:1,price:900},{description:'Materiales',qty:1,price:350}]],['Terminaciones',2100,'Fase de terminaciones',[{description:'Mano de obra terminaciones',qty:1,price:1600},{description:'Materiales',qty:1,price:500}]]]
+  }
 };
 
 const PLANS = {
@@ -235,6 +288,111 @@ function serviceItemsText(s){
 function limitText(c){const l=limit(c);return unlimited(l)?`${(state[c]||[]).length}/∞`:`${(state[c]||[]).length}/${l}`;}
 function limits(){['clients','services','team','assets','suppliers','supplierPayments','payroll','invoices','payments','cashflow'].forEach(c=>{const el=$(c+'Limit');if(el)el.textContent=`Uso: ${limitText(c)}`;});}
 
+
+async function addDemoRecord(col, data){
+  return await addDoc(colPath(col), {...data, demo:true, createdAt:serverTimestamp(), updatedAt:serverTimestamp()});
+}
+async function clearDemoData(){
+  if(!uid()) return;
+  const demoCols = ['clients','services','team','assets','suppliers','supplierPayments','payroll','invoices','payments','cashflow','planRequests'];
+  for(const c of demoCols){
+    const snap = await getDocs(colPath(c));
+    await Promise.all(snap.docs.filter(d=>d.data()?.demo === true || String(d.data()?.number||'').includes('DEMO')).map(d=>deleteDoc(d.ref)));
+  }
+}
+function demoTotals(items){
+  const subtotal = serviceItemsTotal(items || []);
+  const ivu = subtotal * taxRate();
+  return {subtotal, ivu, total:subtotal+ivu, taxPercent:taxPercent()};
+}
+async function loadIndustryDemo(industryId){
+  const demo = DEMOS[industryId];
+  if(!demo) return alert('Demo no disponible.');
+  const selectedPlan = $('demoPlanSelect')?.value || currentPlanId();
+  await setDoc(profRef(),{
+    businessName:demo.business,
+    slogan:demo.slogan,
+    industry:industryId,
+    primaryColor:demo.color,
+    plan:selectedPlan,
+    demoIndustryLoaded:industryId,
+    demoLoadedAt:serverTimestamp(),
+    updatedAt:serverTimestamp()
+  },{merge:true});
+
+  const clients=[];
+  for(const c of demo.clients){
+    const ref=await addDemoRecord('clients',{name:c[0],phone:c[1],email:c[2],city:c[3],address:c[4]});
+    clients.push({id:ref.id,name:c[0]});
+  }
+  const team=[];
+  for(const t of demo.team){
+    const ref=await addDemoRecord('team',{name:t[0],phone:t[1],rate:t[2],retention:t[3],role:t[4]});
+    team.push({id:ref.id,name:t[0],rate:t[2]});
+  }
+  const assets=[];
+  for(let i=0;i<demo.assets.length;i++){
+    const a=demo.assets[i], c=clients[i%clients.length];
+    const ref=await addDemoRecord('assets',{clientId:c.id,clientName:c.name,industry:industryId,name:a[0],category:a[1],location:a[2],status:a[3],value:a[4],date:today(),warranty:a[5],notes:a[6]});
+    assets.push({id:ref.id,name:a[0],clientId:c.id,clientName:c.name});
+  }
+  const suppliers=[];
+  for(const sp of demo.suppliers){
+    const ref=await addDemoRecord('suppliers',{name:sp[0],phone:sp[1],email:sp[2],openingBalance:sp[3],fields:['Demo','Activo','30 días','']});
+    suppliers.push({id:ref.id,name:sp[0],openingBalance:sp[3]});
+  }
+  const services=[];
+  for(let i=0;i<demo.services.length;i++){
+    const sv=demo.services[i], c=clients[i%clients.length], t=team[i%team.length], a=assets[i%assets.length];
+    const ref=await addDemoRecord('services',{clientId:c.id,clientName:c.name,assetId:a.id,assetName:a.name,teamId:t.id,teamName:t.name,date:daysAgo(18-i*4),serviceType:sv[0],title:sv[2],amount:sv[1],items:sv[3],fields:[sv[0],a.name,'Demo','Completado','Notas administrativas']});
+    services.push({id:ref.id,clientId:c.id,clientName:c.name,title:sv[2],items:sv[3]});
+  }
+  const invoices=[];
+  for(let i=0;i<services.length;i++){
+    const sv=services[i], totals=demoTotals(sv.items), number=`INV-DEMO-${industryId.toUpperCase()}-${String(i+1).padStart(3,'0')}`;
+    const ref=await addDemoRecord('invoices',{number,date:daysAgo(15-i*3),serviceId:sv.id,clientId:sv.clientId,clientName:sv.clientName,serviceTitle:sv.title,items:sv.items,fields:[],subtotal:totals.subtotal,ivu:totals.ivu,taxPercent:totals.taxPercent,total:totals.total,status:i===0?'Pagada':'Pendiente'});
+    invoices.push({id:ref.id,number,total:totals.total});
+  }
+  for(let i=0;i<invoices.length;i++){
+    const inv=invoices[i];
+    const amount=i===0?inv.total:Math.round(inv.total*0.45*100)/100;
+    await addDemoRecord('payments',{invoiceId:inv.id,invoiceNumber:inv.number,date:daysAgo(10-i*2),method:i===0?'Tarjeta':'ATH Móvil',amount,note:'Cobro demo'});
+    await addDemoRecord('cashflow',{date:daysAgo(10-i*2),type:'Ingreso',concept:`Cobro ${inv.number}`,amount});
+  }
+  for(let i=0;i<suppliers.length;i++){
+    const sp=suppliers[i], amount=Math.round(sp.openingBalance*0.55*100)/100;
+    await addDemoRecord('supplierPayments',{supplierId:sp.id,supplierName:sp.name,date:daysAgo(7+i),method:'Transferencia',amount,note:'Pago demo suplidor'});
+    await addDemoRecord('cashflow',{date:daysAgo(7+i),type:'Gasto',concept:`Pago suplidor ${sp.name}`,amount});
+  }
+  for(let i=0;i<team.length;i++){
+    const gross=team[i].rate?320+i*80:0;
+    if(gross>0){
+      const deductions=Math.round(gross*0.05*100)/100, net=gross-deductions;
+      await addDemoRecord('payroll',{teamId:team[i].id,teamName:team[i].name,date:daysAgo(5+i),period:'Semana demo',gross,deductions,net,method:'ATH Móvil',note:'Pago demo'});
+      await addDemoRecord('cashflow',{date:daysAgo(5+i),type:'Gasto',concept:`Nómina ${team[i].name}`,amount:net});
+    }
+  }
+  alert(`Demo ${INDUSTRIES[industryId]?.name || industryId} cargado en Configuración.`);
+  show('dashboard');
+}
+async function loadAllDemos(){
+  alert('Para mantener la cuenta limpia, carga una industria a la vez. Cambia de demo desde Configuración cuando quieras probar otra industria.');
+}
+async function cleanDemoFromSettings(){
+  if(!confirm('Esto eliminará solamente registros marcados como demo. ¿Continuar?')) return;
+  await clearDemoData();
+  await setDoc(profRef(),{demoIndustryLoaded:'',demoLoadedAt:null,updatedAt:serverTimestamp()},{merge:true});
+  alert('Datos demo eliminados.');
+}
+function bindDemoSettings(){
+  document.querySelectorAll('[data-load-demo]').forEach(btn=>btn.onclick=async()=>{
+    if($('demoCleanBefore')?.checked) await clearDemoData();
+    await loadIndustryDemo(btn.dataset.loadDemo);
+  });
+  const all=$('loadAllDemosBtn'); if(all) all.onclick=loadAllDemos;
+  const clean=$('cleanDemoBtn'); if(clean) clean.onclick=cleanDemoFromSettings;
+}
+
 function forms(){const i=industry();
   $('clientsTitle').textContent=i.clients;$('servicesTitle').textContent=i.services;$('teamTitle').textContent=i.team;$('assetsTitle').textContent=i.assets;$('payrollTitle').textContent=i.payroll;$('suppliersTitle').textContent=i.suppliers;$('supplierPaymentsTitle').textContent=i.supplierPayments;
   $('clientForm').innerHTML=input('Nombre','cName')+input('Teléfono','cPhone')+input('Email','cEmail')+input('Municipio','cCity')+input('Dirección','cAddress','text','','wide')+'<button class="primary" type="submit">Guardar</button>';
@@ -246,8 +404,9 @@ function forms(){const i=industry();
   $('payrollForm').innerHTML=select(i.team,'prTeam',state.team.map(t=>({value:t.id,label:`${t.name} · balance ${money(teamBalance(t.id))}`})))+input('Fecha','prDate','date',today())+input('Periodo','prPeriod','text')+input('Bruto','prGross','number')+input('Deducciones adicionales','prDeductions','number','0')+input('Método','prMethod','text','Transferencia')+input('Nota','prNote','text','','wide')+'<button class="primary" type="submit">Registrar pago de nómina</button>';
   $('paymentForm').innerHTML=select('Factura','pInvoice',state.invoices.map(inv=>({value:inv.id,label:`${inv.number} · ${inv.clientName} · balance ${money(invoiceBalance(inv))}`})))+input('Fecha','pDate','date',today())+input('Método','pMethod','text','ATH / Efectivo / Tarjeta')+input('Monto','pAmount','number')+input('Nota','pNote','text','','wide')+'<button class="primary" type="submit">Registrar cobro</button>';
   $('cashForm').innerHTML=input('Fecha','xDate','date',today())+select('Tipo','xType',[{value:'Ingreso',label:'Ingreso'},{value:'Gasto',label:'Gasto'}])+input('Concepto','xConcept')+input('Monto','xAmount','number')+'<button class="primary" type="submit">Guardar movimiento</button>';
-  const p=profile();$('settingsForm').innerHTML=`<div><label>Industria</label><select id="set_industry">${Object.entries(INDUSTRIES).map(([id,x])=>`<option value="${id}" ${p.industry===id?'selected':''}>${x.name}</option>`).join('')}</select></div><div><label>Plan activo</label><input value="${esc(activePlanName())}" disabled></div><div><label>Estado</label><input value="${esc(planRequestStatusText())}" disabled></div><div class="wide"><label>Servicios de esta industria</label><textarea id="set_services" rows="5" placeholder="Un servicio por línea">${esc(serviceOptions().join('\n'))}</textarea></div>`+input('Nombre comercial','set_businessName','text',p.businessName)+input('Eslogan','set_slogan','text',p.slogan)+input('Teléfono','set_phone','text',p.phone)+input('WhatsApp','set_whatsapp','text',p.whatsapp)+input('Email','set_email','text',p.email)+input('Website','set_web','text',p.web)+input('Dirección','set_address','text',p.address,'wide')+input('Registro comerciante','set_merchant','text',p.merchant)+input('Representante','set_representative','text',p.representative)+input('IVU %','set_tax','number',p.tax)+input('Color primario','set_primaryColor','color',p.primaryColor)+input('Color secundario','set_secondaryColor','color',p.secondaryColor)+`<div><label>Logo Dashboard</label><input id="set_logoDashboard" type="file" accept="image/*"><small class="muted">Actual: ${p.logoDashboard?'cargado':'sin logo'}</small></div><div><label>Logo PDF</label><input id="set_logoPdf" type="file" accept="image/*"><small class="muted">Actual: ${p.logoPdf?'cargado':'sin logo'}</small></div><div><label>Favicon</label><input id="set_favicon" type="file" accept="image/*"><small class="muted">Actual: ${p.favicon?'cargado':'sin favicon'}</small></div><div><label>Firma digital</label><input id="set_signature" type="file" accept="image/*"><small class="muted">Actual: ${p.signature?'cargada':'sin firma'}</small></div>`;
+  const p=profile();$('settingsForm').innerHTML=`<div><label>Industria</label><select id="set_industry">${Object.entries(INDUSTRIES).map(([id,x])=>`<option value="${id}" ${p.industry===id?'selected':''}>${x.name}</option>`).join('')}</select></div><div><label>Plan activo</label><input value="${esc(activePlanName())}" disabled></div><div><label>Estado</label><input value="${esc(planRequestStatusText())}" disabled></div><div class="wide"><label>Servicios de esta industria</label><textarea id="set_services" rows="5" placeholder="Un servicio por línea">${esc(serviceOptions().join('\n'))}</textarea></div>`+input('Nombre comercial','set_businessName','text',p.businessName)+input('Eslogan','set_slogan','text',p.slogan)+input('Teléfono','set_phone','text',p.phone)+input('WhatsApp','set_whatsapp','text',p.whatsapp)+input('Email','set_email','text',p.email)+input('Website','set_web','text',p.web)+input('Dirección','set_address','text',p.address,'wide')+input('Registro comerciante','set_merchant','text',p.merchant)+input('Representante','set_representative','text',p.representative)+input('IVU %','set_tax','number',p.tax)+input('Color primario','set_primaryColor','color',p.primaryColor)+input('Color secundario','set_secondaryColor','color',p.secondaryColor)+`<div><label>Logo Dashboard</label><input id="set_logoDashboard" type="file" accept="image/*"><small class="muted">Actual: ${p.logoDashboard?'cargado':'sin logo'}</small></div><div><label>Logo PDF</label><input id="set_logoPdf" type="file" accept="image/*"><small class="muted">Actual: ${p.logoPdf?'cargado':'sin logo'}</small></div><div><label>Favicon</label><input id="set_favicon" type="file" accept="image/*"><small class="muted">Actual: ${p.favicon?'cargado':'sin favicon'}</small></div><div><label>Firma digital</label><input id="set_signature" type="file" accept="image/*"><small class="muted">Actual: ${p.signature?'cargada':'sin firma'}</small></div><div class="wide demo-settings"><h3>Datos Demo</h3><p class="muted">Carga datos de prueba por industria desde aquí. Úsalo solo para demostraciones o pruebas internas.</p><div><label>Plan para la prueba</label><select id="demoPlanSelect">${Object.entries(PLANS).map(([id,x])=>`<option value="${id}" ${currentPlanId()===id?'selected':''}>${x.name}</option>`).join('')}</select></div><label class="check-row"><input id="demoCleanBefore" type="checkbox" checked> Limpiar datos demo antes de cargar</label><div class="demo-buttons">${Object.entries(INDUSTRIES).map(([id,x])=>`<button type="button" class="ghost" data-load-demo="${id}">Cargar ${x.name}</button>`).join('')}<button id="cleanDemoBtn" type="button" class="danger">Eliminar datos demo</button></div><small class="muted">Los datos reales no se eliminan; solo registros marcados como demo.</small></div>`;
   limits();
+  bindDemoSettings();
 }
 
 function kpis(){const billed=sum(state.invoices,'total'), collected=sum(state.payments,'amount'), expenses=state.cashflow.filter(x=>x.type==='Gasto').reduce((a,x)=>a+Number(x.amount||0),0), payroll=sum(state.payroll,'net'), supp=sum(state.supplierPayments,'amount');$('kpis').innerHTML=[['Clientes',state.clients.length],['Servicios',state.services.length],['Facturado',money(billed)],['Cobrado',money(collected)],['Nómina pagada',money(payroll)],['Suplidores pagados',money(supp)],['Gastos caja',money(expenses)],['Caja neta',money(collected-expenses)]].map(([a,b])=>`<div class="kpi"><span>${a}</span><strong>${b}</strong></div>`).join('');$('planExperience').innerHTML=`<div class="experience"><b>${plan().badge}: ${plan().name}</b><span>${plan().features.join(' · ')}</span><div class="quota"><i style="width:${Math.min(100,(state.clients.length/(unlimited(limit('clients'))?Math.max(1,state.clients.length):limit('clients')))*100)}%"></i></div><button id="upgradeBtn" type="button">Ver planes</button></div>`;$('recentList').innerHTML=[...state.services.slice(-3).map(x=>`Servicio: ${x.clientName} · ${money(x.amount)}`),...state.payroll.slice(-2).map(x=>`Nómina: ${x.teamName} · ${money(x.net)}`),...state.supplierPayments.slice(-2).map(x=>`Suplidor: ${x.supplierName} · ${money(x.amount)}`)].map(x=>`<div class="list-item">${esc(x)}</div>`).join('')||'<p class="muted">Sin actividad.</p>'; $('upgradeBtn')&&($('upgradeBtn').onclick=()=>show('plans'));}
