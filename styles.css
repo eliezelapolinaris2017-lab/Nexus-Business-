@@ -167,3 +167,29 @@
 .main > section.view[hidden]{
   display:none !important;
 }
+
+/* =====================================================
+   V12 — Nómina y suplidores por industria
+   Mantiene módulos fijos y tablas limpias.
+===================================================== */
+.list-item{
+  padding:10px 0;
+  border-bottom:1px solid var(--line);
+  color:#334155;
+}
+.list-item:last-child{border-bottom:0}
+#payroll .card,#suppliers .card,#supplierPayments .card{
+  max-width:1280px;
+  margin-left:auto;
+  margin-right:auto;
+}
+#payrollTable b,#suppliersTable b,#supplierPaymentsTable b{
+  color:#0f172a;
+}
+@media(min-width: 921px){
+  #payrollForm.form-grid,
+  #supplierForm.form-grid,
+  #supplierPaymentForm.form-grid{
+    grid-template-columns:repeat(4,minmax(160px,1fr));
+  }
+}

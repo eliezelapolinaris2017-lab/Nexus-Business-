@@ -1,17 +1,17 @@
-# Nexus Business PR SaaS V8 Serio Real
+# Nexus Business PR SaaS V12 — Nómina y Suplidores
 
-Versión acumulativa sobre V5 con cambios reales en HTML, CSS, JS, payment-links y reglas.
+Actualización acumulativa sobre V11.
 
-## Incluye
-- White-label real por usuario/empresa
-- Logo Dashboard, Logo PDF, Favicon, Firma Digital
-- Menú, textos, formularios y reportes bloqueados por industria
-- Planes con límites reales
-- Bloqueo de módulos por plan
-- Preview antes de imprimir/descargar
-- Facturas y reportes con branding corporativo
-- Enlaces de pago privados en `payment-links.js`
-- Firestore seguro por UID
+## Nuevo
+- Módulo de nómina/pagos por industria.
+- Módulo de suplidores cuando aplica por industria.
+- Módulo de pagos a suplidores.
+- Nómina conectada al flujo de caja como gasto.
+- Pagos a suplidores conectados al flujo de caja como gasto.
+- Balance por empleado/equipo: comisión generada - retención - nómina pagada.
+- Balance por suplidor: balance inicial - pagos realizados.
+- Reportes con preview para nómina y suplidores.
+- Menú dinámico por industria sin apilar módulos.
 
 ## Firebase
-Activa Email/Password en Authentication. Copia `firestore.rules` en Firestore Rules.
+Mantiene Firestore seguro por UID bajo `users/{uid}`.
