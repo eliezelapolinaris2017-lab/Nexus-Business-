@@ -1,1 +1,111 @@
 :root{--bg:#f4f7fb;--card:#fff;--text:#172033;--muted:#687385;--line:#e3e8f0;--brand:#2563eb;--brand2:#0f172a;--soft:#eef4ff;--danger:#dc2626;--ok:#16a34a;--warn:#f59e0b;--shadow:0 16px 45px rgba(15,23,42,.08);--r:18px}*{box-sizing:border-box}body{margin:0;font-family:Inter,Segoe UI,system-ui,Arial;background:var(--bg);color:var(--text)}button,input,select,textarea{font:inherit}button{border:0;border-radius:12px;padding:10px 14px;background:#eef2f7;color:#152033;font-weight:700;cursor:pointer}button:hover{filter:brightness(.97)}button.primary,.primary{background:var(--brand);color:white}button.danger{background:#fee2e2;color:#991b1b}button.ghost{background:#fff;border:1px solid var(--line)}.hidden{display:none!important}.muted{color:var(--muted)}.auth-screen{min-height:100vh;display:grid;place-items:center;background:linear-gradient(135deg,#0f172a,#1e3a8a 55%,#0f172a)}.auth-card{width:min(420px,92vw);background:rgba(255,255,255,.96);border-radius:28px;padding:30px;box-shadow:0 30px 80px rgba(0,0,0,.28)}.auth-mark{width:70px;height:70px;border-radius:22px;background:var(--brand);color:white;display:grid;place-items:center;font-size:30px;font-weight:900}.auth-card input,.auth-card select{width:100%;margin:8px 0;padding:13px 14px;border:1px solid var(--line);border-radius:14px}.auth-switch{display:flex;background:#eef2f7;border-radius:14px;padding:4px;margin:18px 0}.auth-switch button{flex:1;background:transparent}.auth-switch button.active{background:white;box-shadow:0 6px 18px rgba(0,0,0,.08)}.app{display:grid;grid-template-columns:292px 1fr;min-height:100vh}.sidebar{background:#fff;border-right:1px solid var(--line);padding:20px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:18px}.brand{display:flex;gap:12px;align-items:center}.brand-img{width:54px;height:54px;border-radius:16px;background:var(--brand);color:white;display:grid;place-items:center;font-weight:900;overflow:hidden}.brand-img img,.hero-logo img{width:100%;height:100%;object-fit:contain}.brand span{display:block;color:var(--muted);font-size:13px}.sidebar nav{display:flex;flex-direction:column;gap:6px}.sidebar nav button{text-align:left;background:transparent;color:#39445a;border-radius:13px;display:flex;justify-content:space-between;align-items:center}.sidebar nav button.active{background:var(--soft);color:var(--brand)}.sidebar nav button.locked{opacity:.55}.side-plan{margin-top:auto;background:linear-gradient(135deg,var(--brand2),#243756);color:#fff;border-radius:22px;padding:18px}.side-plan span,.side-plan small{display:block;color:rgba(255,255,255,.72)}.side-plan strong{font-size:22px}.side-plan button{width:100%;margin-top:12px;background:#fff;color:#111827}.main{padding:24px;min-width:0}.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:12px}.topbar h1{margin:0}.topbar p{margin:3px 0 0;color:var(--muted)}.top-actions{display:flex;gap:10px;align-items:center}.icon-btn{display:none}.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px;box-shadow:var(--shadow);margin-bottom:18px}.hero{display:flex;gap:18px;align-items:center}.hero-logo{width:92px;height:92px;border-radius:24px;background:var(--brand);color:white;display:grid;place-items:center;font-size:34px;font-weight:900;overflow:hidden}.pill{display:inline-flex;background:var(--soft);color:var(--brand);padding:6px 10px;border-radius:999px;font-size:12px;font-weight:900}.kpis{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:14px;margin-bottom:18px}.kpi{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow)}.kpi span{display:block;color:var(--muted);font-size:13px}.kpi strong{font-size:24px}.grid.two{display:grid;grid-template-columns:1fr 1fr;gap:18px}.section-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.limit-chip{font-size:12px;background:#f1f5f9;border:1px solid var(--line);padding:6px 10px;border-radius:999px;color:var(--muted)}.form-grid{display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:12px;margin:14px 0}.form-grid .wide,.form-grid .full{grid-column:span 2}.form-grid label{display:block;font-size:12px;font-weight:800;color:#475569;margin-bottom:6px}.form-grid input,.form-grid select,.form-grid textarea{width:100%;padding:12px 13px;border:1px solid var(--line);border-radius:13px;background:#fff}.form-grid button{align-self:end}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:16px}table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{font-size:12px;text-transform:uppercase;color:#64748b;background:#f8fafc}.actions{display:flex;gap:8px;flex-wrap:wrap}.toolbar,.report-actions{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}.plans{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:14px}.plan{border:1px solid var(--line);border-radius:20px;padding:18px;background:#fff}.plan.featured{border-color:var(--brand);box-shadow:0 20px 55px rgba(37,99,235,.15)}.plan h3{margin:0}.plan .price{font-size:30px;font-weight:900;margin:10px 0}.paper{background:#f8fafc;border:1px solid var(--line);border-radius:18px;min-height:300px;padding:20px;overflow:auto}.doc-page{background:white;color:#111827;width:min(820px,100%);margin:auto;padding:42px;border:1px solid #e5e7eb;box-shadow:0 20px 60px rgba(0,0,0,.08)}.doc-head{text-align:center;border-bottom:2px solid #111827;padding-bottom:18px;margin-bottom:18px}.doc-logo{width:86px;height:86px;object-fit:contain;margin:0 auto 10px;display:block}.doc-title{font-size:20px;font-weight:900;letter-spacing:.08em}.doc-meta{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}.doc-box{border:1px solid #e5e7eb;padding:12px;border-radius:10px}.doc-table{width:100%;border-collapse:collapse;margin:18px 0}.doc-table th,.doc-table td{border:1px solid #e5e7eb;padding:9px}.doc-total{text-align:right;font-size:18px;font-weight:900}.doc-foot{margin-top:30px;text-align:center;color:#64748b;font-size:12px}.experience{display:grid;gap:8px}.quota{height:8px;background:#e2e8f0;border-radius:99px;overflow:hidden}.quota i{display:block;height:100%;background:var(--brand)}.locked-panel{position:relative;opacity:.75}.locked-panel:after{content:'Plan requerido';position:absolute;inset:0;background:rgba(255,255,255,.76);display:grid;place-items:center;font-weight:900;color:#0f172a;border-radius:var(--r)}@media(max-width:920px){.app{grid-template-columns:1fr}.sidebar{position:fixed;z-index:10;transform:translateX(-105%);transition:.2s}.sidebar.open{transform:none}.icon-btn{display:inline-flex}.kpis,.grid.two,.plans,.form-grid{grid-template-columns:1fr}.form-grid .wide,.form-grid .full{grid-column:auto}}
+
+/* =====================================================
+   V9 FIX — Configuración Corporativa: layout premium
+   Evita que los campos/logo queden apilados en desktop.
+   ===================================================== */
+#settings .card{
+  max-width: 1180px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#settingsForm.form-grid{
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+  margin-top: 18px;
+}
+
+#settingsForm.form-grid > div{
+  grid-column: span 6;
+  min-width: 0;
+}
+
+#settingsForm.form-grid > div:has(input[type="color"]){
+  grid-column: span 3;
+}
+
+#settingsForm.form-grid > div:has(input[type="file"]){
+  grid-column: span 3;
+  min-height: 150px;
+  padding: 16px;
+  border: 1px dashed rgba(37, 99, 235, .35);
+  border-radius: 20px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, .045);
+}
+
+#settingsForm.form-grid > div:has(input[type="file"]) label{
+  font-size: 13px;
+  color: #0f172a;
+  margin-bottom: 10px;
+}
+
+#settingsForm.form-grid input[type="file"]{
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 14px;
+  padding: 10px;
+  cursor: pointer;
+}
+
+#settingsForm.form-grid > div:has(input[type="file"]) small{
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 10px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--brand);
+  font-weight: 800;
+  font-size: 11px;
+}
+
+#settingsForm.form-grid input,
+#settingsForm.form-grid select,
+#settingsForm.form-grid textarea{
+  min-height: 46px;
+}
+
+#settingsForm.form-grid .wide,
+#settingsForm.form-grid .full{
+  grid-column: span 12;
+}
+
+#saveSettings{
+  margin-top: 8px;
+  min-width: 220px;
+}
+
+@media(max-width: 1120px){
+  #settingsForm.form-grid > div,
+  #settingsForm.form-grid > div:has(input[type="color"]),
+  #settingsForm.form-grid > div:has(input[type="file"]){
+    grid-column: span 6;
+  }
+}
+
+@media(max-width: 720px){
+  #settings .card{
+    padding: 16px;
+  }
+  #settingsForm.form-grid,
+  .form-grid{
+    grid-template-columns: 1fr;
+  }
+  #settingsForm.form-grid > div,
+  #settingsForm.form-grid > div:has(input[type="color"]),
+  #settingsForm.form-grid > div:has(input[type="file"]),
+  #settingsForm.form-grid .wide,
+  #settingsForm.form-grid .full{
+    grid-column: 1 / -1;
+  }
+  #saveSettings{
+    width: 100%;
+  }
+}
