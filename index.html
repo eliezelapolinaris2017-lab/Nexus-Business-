@@ -58,11 +58,25 @@
           <div class="hero-logo" id="dashboardLogo">N</div>
           <div><span id="planBadge" class="pill">Free</span><h2 id="dashboardTitle">Dashboard</h2><p id="dashboardText"></p></div>
         </div>
-        <div id="kpis" class="kpis"></div>
+        <div class="coach-card card">
+          <div class="coach-copy">
+            <span class="pill">Nexus Daily</span>
+            <h2 id="coachGreeting">Buenos días.</h2>
+            <p id="coachSummary">Tu operación diaria en un solo lugar.</p>
+          </div>
+          <div id="businessHealth" class="health-badge">🟢 Excelente</div>
+        </div>
+        <div id="dailyStrip" class="daily-strip"></div>
+        <div class="grid two">
+          <div class="card"><div class="section-head"><h3>Mi Día</h3><span id="dailyDate" class="limit-chip"></span></div><div id="myDayList" class="daily-list"></div></div>
+          <div class="card"><div class="section-head"><h3>Objetivo diario</h3><span id="goalStatus" class="limit-chip"></span></div><div id="dailyGoalBox" class="goal-box"></div></div>
+        </div>
+        <div class="grid two"><div class="card"><h3>Prioridades</h3><div id="priorityList" class="list"></div></div><div class="card"><h3>Acciones rápidas</h3><div id="quickActions" class="quick-actions smart-actions"></div></div></div>
+        <div class="grid two"><div class="card"><h3>Próximos eventos</h3><div id="agendaList" class="list"></div></div><div class="card"><h3>Búsqueda global</h3><div id="globalResults" class="list"></div></div></div>
+        <div id="kpis" class="kpis compact-kpis"></div>
         <div class="control-strip" id="controlStrip"></div>
-        <div class="grid two"><div class="card"><h3>Alertas</h3><div id="alertList" class="list"></div></div><div class="card"><h3>Acciones rápidas</h3><div id="quickActions" class="quick-actions"></div></div></div>
-        <div class="grid two"><div class="card"><h3>Agenda empresarial</h3><div id="agendaList" class="list"></div></div><div class="card"><h3>Búsqueda global</h3><div id="globalResults" class="list"></div></div></div>
-        <div class="grid two"><div class="card"><h3>Experiencia del plan</h3><div id="planExperience"></div></div><div class="card"><h3>Actividad reciente</h3><div id="recentList" class="list"></div></div></div>
+        <div class="grid two"><div class="card"><h3>Actividad reciente</h3><div id="recentList" class="list"></div></div><div class="card"><h3>Experiencia del plan</h3><div id="planExperience"></div></div></div>
+        <div id="alertList" class="hidden"></div>
       </section>
 
       <section id="clients" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2 id="clientsTitle">Clientes</h2><span id="clientsLimit" class="limit-chip"></span></div><form id="clientForm" class="form-grid"></form><div id="clientsTable"></div></div></section>

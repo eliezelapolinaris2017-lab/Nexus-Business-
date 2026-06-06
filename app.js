@@ -123,7 +123,7 @@ const TITLES = {dashboard:'Home',clients:'Clientes',services:'Servicios',team:'E
 let mode = 'login', unsub = [];
 let state = {profile:null,clients:[],services:[],team:[],assets:[],suppliers:[],supplierPayments:[],payroll:[],purchases:[],invoices:[],payments:[],cashflow:[],planRequests:[],previewHtml:'',activeView:'dashboard'};
 
-function defaultProfile(){return {businessName:'Mi Negocio',industry:'hvac',language:'es',plan:'free',planStatus:'active',planChangeMode:'manual',pendingPlan:'',pendingPlanStatus:'none',phone:'',whatsapp:'',email:auth.currentUser?.email||'',address:'',web:'',tax:'11.5',merchant:'',representative:'',slogan:'',logoDashboard:'',logoPdf:'',favicon:'',signature:'',primaryColor:'#2563eb',secondaryColor:'#0f172a',customServices:{},transportRatePerMile:'2.50',transportBaseCharge:'0',onboardingComplete:false,onboardingSkipped:false,createdAt:new Date().toISOString()};}
+function defaultProfile(){return {businessName:'Mi Negocio',industry:'hvac',language:'es',plan:'free',planStatus:'active',planChangeMode:'manual',pendingPlan:'',pendingPlanStatus:'none',phone:'',whatsapp:'',email:auth.currentUser?.email||'',address:'',web:'',tax:'11.5',merchant:'',representative:'',slogan:'',logoDashboard:'',logoPdf:'',favicon:'',signature:'',primaryColor:'#2563eb',secondaryColor:'#0f172a',customServices:{},transportRatePerMile:'2.50',transportBaseCharge:'0',dailyGoal:'1000',onboardingComplete:false,onboardingSkipped:false,createdAt:new Date().toISOString()};}
 function profile(){return state.profile || defaultProfile();}
 function industry(){return INDUSTRIES[profile().industry] || INDUSTRIES.hvac;}
 function normalizePlanId(value){
@@ -310,6 +310,100 @@ function dashboardAlerts(){
   if(ops.overduePurchases>0) alerts.push(`Compras vencidas: ${money(ops.overduePurchases)}`);
   if(pendingPlans) alerts.push('Solicitud de plan pendiente');
   return alerts;
+}
+
+
+function businessDayStats(){
+  const t=today();
+  const tomorrow=plusDays(1);
+  const f=financialSummary();
+  const o=operationalSummary();
+  const todayServices=state.services.filter(s=>String(s.date||'')===t);
+  const tomorrowServices=state.services.filter(s=>String(s.date||'')===tomorrow);
+  const weekServices=state.services.filter(s=>String(s.date||'')>=t && String(s.date||'')<=plusDays(7));
+  const pendingInvoices=state.invoices.filter(i=>invoiceBalance(i)>0 && invoiceStatus(i)!=='Cancelada');
+  const overdueInvoices=state.invoices.filter(i=>invoiceStatus(i)==='Vencida');
+  const pendingPurchases=state.purchases.filter(p=>purchaseBalance(p)>0);
+  const overduePurchases=state.purchases.filter(p=>purchaseStatus(p)==='Vencida');
+  const paymentsToday=state.payments.filter(p=>String(p.date||'')===t).reduce((a,p)=>a+Number(p.amount||0),0);
+  const invoicesDueToday=state.invoices.filter(i=>invoiceBalance(i)>0 && String(i.dueDate||'')===t);
+  const purchasesDueToday=state.purchases.filter(p=>purchaseBalance(p)>0 && String(p.dueDate||'')===t);
+  return {t,tomorrow,f,o,todayServices,tomorrowServices,weekServices,pendingInvoices,overdueInvoices,pendingPurchases,overduePurchases,paymentsToday,invoicesDueToday,purchasesDueToday};
+}
+function greetingText(){
+  const h=new Date().getHours();
+  if(h<12) return 'Buenos días.';
+  if(h<18) return 'Buenas tardes.';
+  return 'Buenas noches.';
+}
+function businessHealth(stats){
+  let score=100;
+  score-=Math.min(40,stats.overdueInvoices.length*12);
+  score-=Math.min(25,stats.overduePurchases.length*10);
+  if(stats.o.payrollDue>0) score-=15;
+  if(stats.f.receivable>0 && stats.f.paid>0 && stats.f.receivable>stats.f.paid) score-=10;
+  if(score>=80) return {label:'Excelente',icon:'🟢',className:'ok'};
+  if(score>=55) return {label:'Atención',icon:'🟡',className:'warn'};
+  return {label:'Crítico',icon:'🔴',className:'danger'};
+}
+function industryQuickActions(){
+  const base=[['clients','+ Cliente'],['services','+ Servicio'],['billing','+ Factura'],['payments','+ Cobro'],['purchases','+ Compra'],['team','+ Empleado']];
+  const specific={
+    hvac:[['services','Nuevo mantenimiento'],['services','Nueva instalación']],
+    transport:[['services','Nueva ruta'],['services','Nuevo viaje']],
+    salon:[['services','Nueva cita'],['clients','Nuevo cliente']],
+    construction:[['services','Nuevo proyecto'],['purchases','Nueva compra']],
+    cleaning:[['services','Nueva limpieza'],['clients','Nuevo cliente']],
+    handyman:[['services','Nuevo trabajo'],['purchases','Nueva compra']]
+  }[profile().industry]||[];
+  return [...specific,...base].filter(([v])=>!lockedModule(v)).slice(0,8);
+}
+function recentActivity(){
+  const rows=[];
+  state.clients.slice(-3).forEach(x=>rows.push({date:x.createdAt?.seconds||x.date||'',text:`Cliente creado: ${x.name}`,view:'clients'}));
+  state.services.slice(-4).forEach(x=>rows.push({date:x.createdAt?.seconds||x.date||'',text:`Servicio: ${x.clientName} · ${serviceTitle(x)} · ${money(serviceAmount(x))}`,view:'services'}));
+  state.invoices.slice(-4).forEach(x=>rows.push({date:x.createdAt?.seconds||x.date||'',text:`Factura: ${x.number} · ${x.clientName} · ${money(x.total)}`,view:'billing'}));
+  state.payments.slice(-4).forEach(x=>rows.push({date:x.createdAt?.seconds||x.date||'',text:`Cobro recibido: ${x.invoiceNumber} · ${money(x.amount)}`,view:'payments'}));
+  state.purchases.slice(-3).forEach(x=>rows.push({date:x.createdAt?.seconds||x.date||'',text:`Compra: ${x.supplierName||''} · ${money(x.total)}`,view:'purchases'}));
+  return rows.slice(-8).reverse();
+}
+function renderNexusDaily(){
+  const s=businessDayStats();
+  const h=businessHealth(s);
+  const p=profile();
+  const goal=Number(p.dailyGoal||1000);
+  const progress=goal>0?Math.min(100,(s.paymentsToday/goal)*100):0;
+  if($('coachGreeting')) $('coachGreeting').textContent=T(greetingText());
+  if($('coachSummary')) $('coachSummary').textContent=`${p.businessName||'Nexus'} · ${new Date().toLocaleDateString('es-PR',{weekday:'long',month:'short',day:'numeric'})}`;
+  if($('businessHealth')){$('businessHealth').className=`health-badge ${h.className}`;$('businessHealth').textContent=`${h.icon} ${T(h.label)}`;}
+  if($('dailyDate')) $('dailyDate').textContent=new Date().toLocaleDateString('es-PR');
+  if($('dailyStrip')) $('dailyStrip').innerHTML=[
+    ['Servicios',s.todayServices.length,'services'],['Cobros',money(s.paymentsToday),'payments'],['Facturas',s.pendingInvoices.length,'billing'],['Compras',s.pendingPurchases.length,'purchases'],['Nómina',money(s.o.payrollDue),'payroll']
+  ].filter(([_,__,v])=>!lockedModule(v)).map(([a,b,v])=>`<button class="daily-card" type="button" data-daily-view="${v}"><span>${T(a)}</span><b>${esc(b)}</b></button>`).join('');
+  document.querySelectorAll('[data-daily-view]').forEach(b=>b.onclick=()=>show(b.dataset.dailyView));
+  if($('myDayList')) $('myDayList').innerHTML=[
+    ['Servicios de hoy',`${s.todayServices.length}`,s.todayServices.length?'services':''],
+    ['Facturas vencidas',`${s.overdueInvoices.length}`,s.overdueInvoices.length?'billing':''],
+    ['Cobros recibidos hoy',money(s.paymentsToday),'payments'],
+    ['Compras por pagar',`${s.pendingPurchases.length}`,s.pendingPurchases.length?'purchases':''],
+    ['Nómina pendiente',money(s.o.payrollDue),s.o.payrollDue>0?'payroll':'']
+  ].map(([a,b,v])=>`<button class="day-row" type="button" ${v?`data-day-view="${v}"`:''}><span>${T(a)}</span><b>${esc(b)}</b></button>`).join('');
+  document.querySelectorAll('[data-day-view]').forEach(b=>b.onclick=()=>show(b.dataset.dayView));
+  if($('dailyGoalBox')) $('dailyGoalBox').innerHTML=`<div class="goal-main"><span>${T('Meta')}</span><strong>${money(goal)}</strong></div><div class="goal-main"><span>${T('Cobrado')}</span><strong>${money(s.paymentsToday)}</strong></div><div class="goal-bar"><i style="width:${progress}%"></i></div><small>${Math.round(progress)}% ${T('completado')}</small>`;
+  if($('goalStatus')) $('goalStatus').textContent=progress>=100?T('Completado'):T('En progreso');
+  if($('priorityList')){
+    const priorities=[];
+    if(s.overdueInvoices.length) priorities.push(['danger','Facturas vencidas',`${s.overdueInvoices.length} · ${money(s.overdueInvoices.reduce((a,i)=>a+invoiceBalance(i),0))}`,'billing']);
+    if(s.invoicesDueToday.length) priorities.push(['warn','Facturas vencen hoy',`${s.invoicesDueToday.length}`,'billing']);
+    if(s.overduePurchases.length) priorities.push(['danger','Compras vencidas',`${s.overduePurchases.length}`,'purchases']);
+    if(s.o.payrollDue>0) priorities.push(['warn','Nómina pendiente',money(s.o.payrollDue),'payroll']);
+    if(!priorities.length) priorities.push(['ok','Operación al día','Sin pendientes críticos','dashboard']);
+    $('priorityList').innerHTML=priorities.map(([cls,a,b,v])=>`<button class="priority-item ${cls}" type="button" data-priority-view="${v}"><span>${T(a)}</span><b>${esc(b)}</b></button>`).join('');
+    document.querySelectorAll('[data-priority-view]').forEach(b=>b.onclick=()=>show(b.dataset.priorityView));
+  }
+  if($('quickActions')) $('quickActions').innerHTML=industryQuickActions().map(([v,l])=>`<button type="button" data-quick-view="${v}">${T(l)}</button>`).join('');
+  document.querySelectorAll('[data-quick-view]').forEach(b=>b.onclick=()=>show(b.dataset.quickView));
+  if($('recentList')){const r=recentActivity();$('recentList').innerHTML=r.length?r.map(x=>`<button class="activity-item" type="button" data-activity-view="${x.view}">${esc(T(x.text))}</button>`).join(''):'<p class="muted">Sin actividad.</p>';document.querySelectorAll('[data-activity-view]').forEach(b=>b.onclick=()=>show(b.dataset.activityView));}
 }
 
 
@@ -669,7 +763,7 @@ function forms(){const i=industry();
   $('purchaseForm').innerHTML=select('Suplidor','puSupplier',state.suppliers.map(s=>({value:s.id,label:s.name})))+input('Fecha','puDate','date',today())+input('Vence','puDue','date',plusDays(15))+input('Concepto','puConcept')+input('Referencia / factura','puRef')+input('Subtotal','puSubtotal','number')+input('IVU / impuestos','puTax','number','0')+select('Estado','puStatus',['Pendiente','Parcial','Pagada','Vencida','Cancelada'].map(x=>({value:x,label:x})))+input('Notas','puNote','text','','wide')+'<button class="primary" type="submit">Registrar compra</button>';
   $('paymentForm').innerHTML=select('Factura','pInvoice',state.invoices.filter(inv=>invoiceStatus(inv)!=='Cancelada' && invoiceBalance(inv)>0).map(inv=>({value:inv.id,label:`${inv.number} · ${inv.clientName} · balance ${money(invoiceBalance(inv))}`})))+input('Fecha','pDate','date',today())+select('Método','pMethod',['ATH Móvil','Stripe','PayPal','Transferencia','Cheque','Efectivo','Tarjeta'].map(x=>({value:x,label:x})))+input('Monto','pAmount','number')+input('Nota','pNote','text','','wide')+'<button class="primary" type="submit">Registrar cobro</button>';
   $('cashForm').innerHTML=input('Fecha','xDate','date',today())+select('Tipo','xType',[{value:'Ingreso',label:'Ingreso'},{value:'Gasto',label:'Gasto'}])+input('Concepto','xConcept')+input('Monto','xAmount','number')+'<button class="primary" type="submit">Guardar movimiento</button>';
-  const p=profile();$('settingsForm').innerHTML=`<div><label>${T('Industria')}</label><select id="set_industry">${Object.entries(INDUSTRIES).map(([id,x])=>`<option value="${id}" ${p.industry===id?'selected':''}>${T(x.name)}</option>`).join('')}</select></div><div><label>${T('Idioma')}</label><select id="set_language"><option value="es" ${(p.language||'es')==='es'?'selected':''}>Español</option><option value="en" ${(p.language||'es')==='en'?'selected':''}>English</option></select></div><div><label>${T('Plan activo')}</label><input value="${esc(activePlanName())}" disabled></div><div><label>Estado</label><input value="${esc(planRequestStatusText())}" disabled></div><div class="wide"><label>Servicios de esta industria</label><textarea id="set_services" rows="5" placeholder="Un servicio por línea">${esc(serviceOptions().join('\n'))}</textarea></div>`+input('Nombre comercial','set_businessName','text',p.businessName)+input('Eslogan','set_slogan','text',p.slogan)+input('Teléfono','set_phone','text',p.phone)+input('WhatsApp','set_whatsapp','text',p.whatsapp)+input('Email','set_email','text',p.email)+input('Website','set_web','text',p.web)+input('Dirección','set_address','text',p.address,'wide')+input('Registro comerciante','set_merchant','text',p.merchant)+input('Representante','set_representative','text',p.representative)+input('IVU %','set_tax','number',p.tax)+(p.industry==='transport'?input('Tarifa por milla','set_transportRatePerMile','number',p.transportRatePerMile||'2.50')+input('Cargo base ruta','set_transportBaseCharge','number',p.transportBaseCharge||'0'):'')+input('Color primario','set_primaryColor','color',p.primaryColor)+input('Color secundario','set_secondaryColor','color',p.secondaryColor)+`<div><label>Logo Dashboard</label><input id="set_logoDashboard" type="file" accept="image/*"><small class="muted">Actual: ${p.logoDashboard?'cargado':'sin logo'}</small></div><div><label>Logo PDF</label><input id="set_logoPdf" type="file" accept="image/*"><small class="muted">Actual: ${p.logoPdf?'cargado':'sin logo'}</small></div><div><label>Favicon</label><input id="set_favicon" type="file" accept="image/*"><small class="muted">Actual: ${p.favicon?'cargado':'sin favicon'}</small></div><div><label>Firma digital</label><input id="set_signature" type="file" accept="image/*"><small class="muted">Actual: ${p.signature?'cargada':'sin firma'}</small></div><div class="wide demo-settings"><h3>Demo</h3><div class="demo-buttons"><button id="loadDemoBtn" type="button" class="primary">Cargar demo</button><button id="cleanDemoBtn" type="button" class="danger">Borrar demo</button></div></div>`;
+  const p=profile();$('settingsForm').innerHTML=`<div><label>${T('Industria')}</label><select id="set_industry">${Object.entries(INDUSTRIES).map(([id,x])=>`<option value="${id}" ${p.industry===id?'selected':''}>${T(x.name)}</option>`).join('')}</select></div><div><label>${T('Idioma')}</label><select id="set_language"><option value="es" ${(p.language||'es')==='es'?'selected':''}>Español</option><option value="en" ${(p.language||'es')==='en'?'selected':''}>English</option></select></div><div><label>${T('Plan activo')}</label><input value="${esc(activePlanName())}" disabled></div><div><label>Estado</label><input value="${esc(planRequestStatusText())}" disabled></div><div class="wide"><label>Servicios de esta industria</label><textarea id="set_services" rows="5" placeholder="Un servicio por línea">${esc(serviceOptions().join('\n'))}</textarea></div>`+input('Nombre comercial','set_businessName','text',p.businessName)+input('Eslogan','set_slogan','text',p.slogan)+input('Teléfono','set_phone','text',p.phone)+input('WhatsApp','set_whatsapp','text',p.whatsapp)+input('Email','set_email','text',p.email)+input('Website','set_web','text',p.web)+input('Dirección','set_address','text',p.address,'wide')+input('Registro comerciante','set_merchant','text',p.merchant)+input('Representante','set_representative','text',p.representative)+input('IVU %','set_tax','number',p.tax)+input('Meta diaria','set_dailyGoal','number',p.dailyGoal||'1000')+(p.industry==='transport'?input('Tarifa por milla','set_transportRatePerMile','number',p.transportRatePerMile||'2.50')+input('Cargo base ruta','set_transportBaseCharge','number',p.transportBaseCharge||'0'):'')+input('Color primario','set_primaryColor','color',p.primaryColor)+input('Color secundario','set_secondaryColor','color',p.secondaryColor)+`<div><label>Logo Dashboard</label><input id="set_logoDashboard" type="file" accept="image/*"><small class="muted">Actual: ${p.logoDashboard?'cargado':'sin logo'}</small></div><div><label>Logo PDF</label><input id="set_logoPdf" type="file" accept="image/*"><small class="muted">Actual: ${p.logoPdf?'cargado':'sin logo'}</small></div><div><label>Favicon</label><input id="set_favicon" type="file" accept="image/*"><small class="muted">Actual: ${p.favicon?'cargado':'sin favicon'}</small></div><div><label>Firma digital</label><input id="set_signature" type="file" accept="image/*"><small class="muted">Actual: ${p.signature?'cargada':'sin firma'}</small></div><div class="wide demo-settings"><h3>Demo</h3><div class="demo-buttons"><button id="loadDemoBtn" type="button" class="primary">Cargar demo</button><button id="cleanDemoBtn" type="button" class="danger">Borrar demo</button></div></div>`;
   limits();
   bindDemoSettings();
 }
@@ -680,13 +774,10 @@ function kpis(){
   const todayServices=state.services.filter(s=>s.date===today()).length;
   const completed=state.services.filter(s=>String(s.status||'').toLowerCase()==='completado').length;
   const ops=operationalSummary();
-  $('kpis').innerHTML=[['Clientes',state.clients.length],['Servicios hoy',todayServices],['Facturado',money(billed)],['Cobrado',money(collected)],['Balance por cobrar',money(balances)],['Nómina pendiente',money(ops.payrollDue)],['Cuentas por pagar',money(ops.purchaseDebt)],['Caja neta',money(collected-expenses)]].map(([a,b])=>`<div class="kpi"><span>${a}</span><strong>${b}</strong></div>`).join('');
+  $('kpis').innerHTML=[['Clientes',state.clients.length],['Servicios hoy',todayServices],['Facturado',money(billed)],['Cobrado',money(collected)],['Balance por cobrar',money(balances)],['Nómina pendiente',money(ops.payrollDue)],['Cuentas por pagar',money(ops.purchaseDebt)],['Caja neta',money(collected-expenses)]].map(([a,b])=>`<div class="kpi"><span>${T(a)}</span><strong>${b}</strong></div>`).join('');
   const alerts=dashboardAlerts();
   if($('alertList')) $('alertList').innerHTML=alerts.length?alerts.map(x=>`<div class="alert-item">${esc(x)}</div>`).join(''):'<p class="muted">Sin alertas.</p>';
-  if($('quickActions')) $('quickActions').innerHTML=[['clients','Nuevo cliente'],['services','Nuevo servicio'],['billing','Facturar'],['payments','Registrar cobro'],['reports','Reportes']].filter(([v])=>!lockedModule(v)).map(([v,l])=>`<button type="button" data-quick-view="${v}">${l}</button>`).join('');
-  document.querySelectorAll('[data-quick-view]').forEach(b=>b.onclick=()=>show(b.dataset.quickView));
-  $('planExperience').innerHTML=`<div class="experience"><b>${plan().badge}: ${plan().name}</b><span>${plan().features.join(' · ')}</span><div class="quota"><i style="width:${Math.min(100,(state.clients.length/(unlimited(limit('clients'))?Math.max(1,state.clients.length):limit('clients')))*100)}%"></i></div><button id="upgradeBtn" type="button">Ver planes</button></div>`;
-  $('recentList').innerHTML=[...state.services.slice(-4).map(x=>`Servicio: ${x.clientName} · ${serviceTitle(x)} · ${money(serviceAmount(x))}`),...state.payments.slice(-3).map(x=>`Cobro: ${x.invoiceNumber} · ${money(x.amount)}`),...state.payroll.slice(-2).map(x=>`Nómina: ${x.teamName} · ${money(x.net)}`)].map(x=>`<div class="list-item">${esc(x)}</div>`).join('')||'<p class="muted">Sin actividad.</p>'; 
+  if($('planExperience')) $('planExperience').innerHTML=`<div class="experience"><b>${plan().badge}: ${plan().name}</b><span>${plan().features.map(T).join(' · ')}</span><div class="quota"><i style="width:${Math.min(100,(state.clients.length/(unlimited(limit('clients'))?Math.max(1,state.clients.length):limit('clients')))*100)}%"></i></div><button id="upgradeBtn" type="button">${T('Ver planes')}</button></div>`;
   $('upgradeBtn')&&($('upgradeBtn').onclick=()=>show('plans'));
   controlCenter();
 }
@@ -765,19 +856,16 @@ function renderWelcomeCenter(){
   const finish=$('welcomeFinish'); if(finish) finish.onclick=async()=>{await setDoc(profRef(),{onboardingComplete:true,onboardingSkipped:false,updatedAt:serverTimestamp()},{merge:true});};
 }
 function renderHomePolish(){
+  renderNexusDaily();
   const ct=$('controlStrip'); if(!ct) return;
-  const todayServices=state.services.filter(s=>String(s.date||'')===today()).length;
-  const pendingInvoices=state.invoices.filter(i=>invoiceBalance(i)>0 && invoiceStatus(i)!=='Cancelada').length;
-  const pendingPurchases=state.purchases.filter(p=>purchaseBalance(p)>0).length;
-  const pendingPayroll=state.payroll.filter(p=>String(p.status||'').toLowerCase()==='pendiente').length;
-  const newClients=state.clients.filter(c=>String(c.date||c.createdAt?.seconds||'').includes(today())).length;
-  ct.innerHTML = [
-    ['Hoy', `${todayServices} servicios`],
-    ['Finanzas', `${pendingInvoices} facturas pendientes`],
-    ['Operaciones', `${pendingPurchases} compras`],
-    ['Nómina', `${pendingPayroll} pendientes`],
-    ['Clientes', `${newClients} nuevos`]
-  ].map(x=>`<div class="mini-kpi"><b>${T(x[0])}</b><span>${esc(T(x[1]))}</span></div>`).join('');
+  const f=financialSummary(), o=operationalSummary();
+  ct.innerHTML=[
+    ['Por cobrar',money(f.receivable),'billing'],
+    ['Vencido',money(f.overdue),'billing'],
+    ['Por pagar',money(o.purchaseDebt),'purchases'],
+    ['Nómina',money(o.payrollDue),'payroll']
+  ].map(([a,b,v])=>`<button class="control-card" type="button" data-control-view="${v}"><span>${T(a)}</span><b>${b}</b></button>`).join('');
+  document.querySelectorAll('[data-control-view]').forEach(b=>b.onclick=()=>show(b.dataset.controlView));
 }
 
 function render(){setVisuals();nav();forms();bindServiceItems();bindServiceProductivity();if(isTransport()){['sOrigin','sDestination','sRouteMiles','sRouteRate','sRouteBase'].forEach(id=>$(id)&&($(id).oninput=updateTransportTotal));updateTransportTotal();}kpis();renderHomePolish();tables();plans();renderWelcomeCenter();enforceModuleView();$('pageTitle').textContent=T(TITLES[state.activeView]||state.activeView);$('pageSubtitle').textContent=state.activeView==='dashboard'?T('Resumen operativo, financiero y alertas'):' ';applyLanguage();}
@@ -808,7 +896,114 @@ async function cancelInvoice(id){
 }
 
 async function remove(c,id){if(confirm('¿Borrar registro?'))await deleteDoc(docPath(c,id));}
-async function editRecord(c,id){const arr=state[c]||[],r=arr.find(x=>x.id===id);if(!r)return;const val=prompt('Editar nombre/título/concepto principal:',r.name||r.title||r.concept||r.supplierName||r.teamName||'');if(val===null)return;const field=r.name!==undefined?'name':r.title!==undefined?'title':r.concept!==undefined?'concept':r.supplierName!==undefined?'supplierName':'teamName';await updateDoc(docPath(c,id),{[field]:val,updatedAt:serverTimestamp()});}
+
+const EDIT_LABELS={
+  name:'Nombre',phone:'Teléfono',email:'Email',city:'Ciudad',address:'Dirección',altName:'Contacto alterno',altPhone:'Teléfono alterno',altEmail:'Email alterno',tags:'Etiquetas',notes:'Notas',
+  clientId:'Cliente',clientName:'Cliente',assetId:'Activo',assetName:'Activo',teamId:'Empleado / Equipo',teamName:'Empleado / Equipo',date:'Fecha',dueDate:'Vencimiento',status:'Estado',priority:'Prioridad',serviceType:'Tipo de servicio',title:'Título / Descripción',amount:'Monto',subtotal:'Subtotal',tax:'Impuesto',total:'Total',
+  role:'Cargo',salary:'Salario',rate:'Tarifa',retention:'Retención',startDate:'Fecha de ingreso',category:'Categoría',location:'Ubicación',value:'Valor',warranty:'Garantía',industry:'Industria',
+  whatsapp:'WhatsApp',contact:'Contacto',creditLimit:'Límite de crédito',openingBalance:'Balance inicial',supplierId:'Suplidor',supplierName:'Suplidor',purchaseId:'Compra',purchaseNumber:'Compra',method:'Método',note:'Nota',
+  period:'Periodo',hours:'Horas',overtime:'Horas extra',gross:'Bruto',bonus:'Bono',advance:'Adelanto',deductions:'Descuentos',net:'Neto',concept:'Concepto',reference:'Referencia',number:'Número',
+  invoiceId:'Factura',invoiceNumber:'Factura',type:'Tipo'
+};
+const EDIT_ORDER={
+  clients:['name','phone','email','city','address','altName','altPhone','altEmail','tags','notes'],
+  services:['clientId','assetId','teamId','date','status','priority','serviceType','title','amount','items','fields','route'],
+  team:['name','phone','email','role','status','salary','rate','retention','startDate'],
+  assets:['clientId','industry','name','category','location','status','value','date','warranty','notes'],
+  suppliers:['name','phone','whatsapp','email','contact','category','creditLimit','openingBalance','fields'],
+  supplierPayments:['supplierId','purchaseId','date','method','amount','note'],
+  payroll:['teamId','date','period','hours','overtime','gross','bonus','advance','deductions','net','method','note'],
+  purchases:['supplierId','date','dueDate','concept','reference','subtotal','tax','total','status','note'],
+  invoices:['number','date','dueDate','clientName','serviceTitle','subtotal','ivu','taxPercent','total','status','notes'],
+  payments:['invoiceId','date','method','amount','note'],
+  cashflow:['date','type','concept','amount']
+};
+function ensureEditModal(){
+  let m=$('editModal');
+  if(m) return m;
+  const wrap=document.createElement('div');
+  wrap.id='editModal';
+  wrap.className='edit-modal hidden';
+  wrap.innerHTML=`<div class="edit-backdrop" data-close-edit></div><div class="edit-panel card"><div class="edit-head"><div><span class="pill">Editar</span><h2 id="editTitle">Editar registro</h2></div><button class="icon-btn" data-close-edit type="button">×</button></div><form id="editForm" class="form-grid edit-form"></form><div class="edit-actions"><button type="button" data-close-edit>Cancelar</button><button id="editSave" class="primary" type="button">Guardar cambios</button></div></div>`;
+  document.body.appendChild(wrap);
+  wrap.querySelectorAll('[data-close-edit]').forEach(b=>b.onclick=closeEditModal);
+  return wrap;
+}
+function closeEditModal(){const m=$('editModal'); if(m)m.classList.add('hidden'); state.editing=null;}
+function editType(k,v){
+  if(['amount','subtotal','tax','total','ivu','taxPercent','salary','rate','retention','value','creditLimit','openingBalance','hours','overtime','gross','bonus','advance','deductions','net'].includes(k)) return 'number';
+  if(String(k).toLowerCase().includes('date') || k==='date' || k==='dueDate' || k==='startDate') return 'date';
+  if(['notes','note','address','items','fields','route'].includes(k)) return 'textarea';
+  return 'text';
+}
+function editOptions(c,k,val){
+  if(k==='clientId') return state.clients.map(x=>({value:x.id,label:x.name}));
+  if(k==='assetId') return [{value:'',label:'Sin activo'},...state.assets.map(x=>({value:x.id,label:assetName(x)}))];
+  if(k==='teamId') return [{value:'',label:'Sin equipo'},...state.team.map(x=>({value:x.id,label:x.name}))];
+  if(k==='supplierId') return state.suppliers.map(x=>({value:x.id,label:x.name}));
+  if(k==='purchaseId') return [{value:'',label:'Sin compra'},...state.purchases.map(x=>({value:x.id,label:x.number||x.concept||x.id}))];
+  if(k==='invoiceId') return state.invoices.map(x=>({value:x.id,label:x.number||x.id}));
+  if(k==='status'){
+    if(c==='invoices') return ['Pendiente','Parcial','Pagada','Vencida','Cancelada'].map(x=>({value:x,label:x}));
+    if(c==='team') return ['Activo','Inactivo','Suspendido'].map(x=>({value:x,label:x}));
+    if(c==='assets') return ['Activo','Inactivo','En garantía','Fuera de servicio'].map(x=>({value:x,label:x}));
+    return ['Pendiente','En proceso','Completado','Cancelado'].map(x=>({value:x,label:x}));
+  }
+  if(k==='priority') return ['Baja','Normal','Alta','Urgente'].map(x=>({value:x,label:x}));
+  if(k==='method') return ['ATH Móvil','Stripe','PayPal','Transferencia','Cheque','Efectivo','Tarjeta'].map(x=>({value:x,label:x}));
+  if(k==='type') return ['Ingreso','Gasto'].map(x=>({value:x,label:x}));
+  if(k==='industry') return Object.entries(INDUSTRIES).map(([id,x])=>({value:id,label:x.name}));
+  if(k==='serviceType') return servicesForCurrentIndustry().map(x=>({value:x,label:x}));
+  return null;
+}
+function editFieldHtml(c,k,v){
+  const label=EDIT_LABELS[k]||k;
+  const opts=editOptions(c,k,v);
+  if(opts) return select(label,'edit_'+k,opts,v,'');
+  const type=editType(k,v);
+  if(type==='textarea'){
+    let out = (typeof v==='object' && v!==null) ? JSON.stringify(v,null,2) : (v??'');
+    return `<div class="wide"><label>${esc(label)}</label><textarea id="edit_${esc(k)}" rows="${['items','fields','route'].includes(k)?6:3}" placeholder="${esc(label)}">${esc(out)}</textarea></div>`;
+  }
+  return input(label,'edit_'+k,type,v??'', type==='number'?'':'');
+}
+function editKeys(c,r){
+  const base=EDIT_ORDER[c]||[];
+  const extras=Object.keys(r).filter(k=>!['id','createdAt','updatedAt','uid'].includes(k) && !base.includes(k));
+  return [...base.filter(k=>k in r || ['clientId','assetId','teamId','supplierId','purchaseId','invoiceId'].includes(k)),...extras];
+}
+function readEditValue(k,original){
+  const el=$('edit_'+k); if(!el) return undefined;
+  const type=editType(k,original);
+  const raw=el.value;
+  if(type==='number') return Number(raw||0);
+  if(['items','fields','route'].includes(k)){
+    try{return raw.trim()?JSON.parse(raw):(['items','fields'].includes(k)?[]:{});}catch(e){throw new Error(`El campo ${EDIT_LABELS[k]||k} debe tener formato JSON válido.`);}
+  }
+  return raw;
+}
+async function editRecord(c,id){
+  const arr=state[c]||[],r=arr.find(x=>x.id===id); if(!r)return;
+  const m=ensureEditModal(); state.editing={c,id};
+  $('editTitle').textContent=`Editar ${TITLES[c]||c}`;
+  $('editForm').innerHTML=editKeys(c,r).map(k=>editFieldHtml(c,k,r[k])).join('') || '<p class="muted">No hay campos editables.</p>';
+  $('editSave').onclick=async()=>{
+    try{
+      const data={};
+      for(const k of editKeys(c,r)){const v=readEditValue(k,r[k]); if(v!==undefined)data[k]=v;}
+      if(data.clientId){const cl=clientBy(data.clientId); data.clientName=cl.name||data.clientName||'';}
+      if(data.assetId!==undefined){const a=assetBy(data.assetId); data.assetName=a.id?assetName(a):'';}
+      if(data.teamId!==undefined){const t=teamBy(data.teamId); data.teamName=t.name||'';}
+      if(data.supplierId){const s=supplierBy(data.supplierId); data.supplierName=s.name||data.supplierName||'';}
+      if(data.purchaseId){const p=state.purchases.find(x=>x.id===data.purchaseId)||{}; data.purchaseNumber=p.number||p.reference||'';}
+      if(data.invoiceId){const inv=state.invoices.find(x=>x.id===data.invoiceId)||{}; data.invoiceNumber=inv.number||'';}
+      data.updatedAt=serverTimestamp();
+      await updateDoc(docPath(c,id),data);
+      closeEditModal();
+    }catch(err){alert(err.message||err);}
+  };
+  m.classList.remove('hidden');
+}
 async function createInvoice(serviceId){if(!canCreate('invoices')){alert('Límite de facturas alcanzado.');show('plans');return;}const s=state.services.find(x=>x.id===serviceId);if(!s)return;const totals=invoiceTotalsFromService(s);const number='INV-'+String(Date.now()).slice(-7);await add('invoices',{number,date:today(),serviceId:s.id,clientId:s.clientId,clientName:s.clientName,serviceTitle:serviceTitle(s),items:s.items||[],fields:s.fields||[],subtotal:totals.subtotal,ivu:totals.ivu,taxPercent:totals.taxPercent,total:totals.total,status:'Pendiente',dueDate:plusDays(15),notes:'',terms:'Pago según acuerdo.'});}
 function docHeader(title){const p=profile(),logo=p.logoPdf||p.logoDashboard;return `<div class="doc-page"><div class="doc-body"><div class="doc-head">${logo?`<img class="doc-logo" src="${logo}">`:''}<div class="doc-title">${esc(p.businessName||'Empresa')}</div><div>${esc(p.address||'')}</div><div>${esc(p.phone||'')} ${p.email?' · '+esc(p.email):''} ${p.web?' · '+esc(p.web):''}</div><div>${p.merchant?'Registro: '+esc(p.merchant):''}</div></div><h2 style="text-align:center">${esc(title)}</h2>`;}
 function docFooter(){const p=profile();return `</div><div class="doc-foot">${esc(p.businessName||'Empresa')}</div></div>`;}
@@ -825,7 +1020,7 @@ function previewPaystub(id){
 }
 function preview(type){let title={executive:'REPORTE EJECUTIVO',finance:'REPORTE FINANCIERO',receivable:'CUENTAS POR COBRAR',invoices:'REPORTE DE FACTURAS',payments:'REPORTE DE COBROS',payroll:'REPORTE DE NÓMINA',suppliers:'REPORTE DE SUPLIDORES',services:'REPORTE DE SERVICIOS',assetsClient:'ACTIVOS POR CLIENTE',assetsStatus:'ACTIVOS POR ESTADO',purchases:'COMPRAS Y CUENTAS POR PAGAR',ops:'REPORTE OPERACIONAL'}[type]||'REPORTE';let html=docHeader(title);if(type==='executive'){html+=`<table class="doc-table"><tr><th>Concepto</th><th>Total</th></tr><tr><td>Clientes</td><td>${state.clients.length}</td></tr><tr><td>Servicios</td><td>${state.services.length}</td></tr><tr><td>Facturado</td><td>${money(sum(state.invoices,'total'))}</td></tr><tr><td>Cobrado</td><td>${money(sum(state.payments,'amount'))}</td></tr><tr><td>Nómina pagada</td><td>${money(sum(state.payroll,'net'))}</td></tr><tr><td>Suplidores pagados</td><td>${money(sum(state.supplierPayments,'amount'))}</td></tr></table>`;}else if(type==='finance'){const f=financialSummary();html+=`<table class="doc-table"><tr><th>Indicador</th><th>Total</th></tr><tr><td>Facturado</td><td>${money(f.invoiced)}</td></tr><tr><td>Cobrado</td><td>${money(f.paid)}</td></tr><tr><td>Por cobrar</td><td>${money(f.receivable)}</td></tr><tr><td>Vencido</td><td>${money(f.overdue)}</td></tr><tr><td>Gastos</td><td>${money(f.expenses)}</td></tr><tr><td>Caja neta</td><td>${money(f.net)}</td></tr><tr><td>Ingreso del mes</td><td>${money(f.monthIncome)}</td></tr><tr><td>Gasto del mes</td><td>${money(f.monthExpenses)}</td></tr><tr><td>Neto del mes</td><td>${money(f.monthNet)}</td></tr></table>`;}else if(type==='receivable'){const rows=state.invoices.filter(inv=>invoiceBalance(inv)>0 && invoiceStatus(inv)!=='Cancelada').map(inv=>`<tr><td>${esc(inv.number)}</td><td>${esc(inv.clientName)}</td><td>${esc(inv.dueDate||'—')}</td><td>${money(inv.total)}</td><td>${money(invoicePaid(inv))}</td><td>${money(invoiceBalance(inv))}</td><td>${esc(invoiceStatus(inv))}</td></tr>`).join('');html+=`<table class="doc-table"><tr><th>Factura</th><th>Cliente</th><th>Vence</th><th>Total</th><th>Pagado</th><th>Balance</th><th>Estado</th></tr>${rows}</table>`;}else if(type==='invoices'){html+=`<table class="doc-table"><tr><th>Factura</th><th>Cliente</th><th>Total</th><th>Pagado</th><th>Balance</th><th>Estado</th></tr>${state.invoices.map(x=>`<tr><td>${esc(x.number)}</td><td>${esc(x.clientName)}</td><td>${money(x.total)}</td><td>${money(invoicePaid(x))}</td><td>${money(invoiceBalance(x))}</td><td>${esc(invoiceStatus(x))}</td></tr>`).join('')}</table>`;}else if(type==='payments'){html+=`<table class="doc-table"><tr><th>Fecha</th><th>Factura</th><th>Método</th><th>Monto</th></tr>${state.payments.map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.invoiceNumber)}</td><td>${esc(x.method)}</td><td>${money(x.amount)}</td></tr>`).join('')}</table>`;}else if(type==='payroll'){html+=`<table class="doc-table"><tr><th>Fecha</th><th>Empleado</th><th>Periodo</th><th>Neto</th></tr>${state.payroll.map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.teamName)}</td><td>${esc(x.period)}</td><td>${money(x.net)}</td></tr>`).join('')}</table>`;}else if(type==='suppliers'){html+=`<table class="doc-table"><tr><th>Suplidor</th><th>Compras</th><th>Pagado</th><th>Balance</th></tr>${state.suppliers.map(x=>`<tr><td>${esc(x.name)}</td><td>${money(supplierPurchasesTotal(x.id))}</td><td>${money(supplierPaid(x.id))}</td><td>${money(supplierBalance(x.id))}</td></tr>`).join('')}</table>`;}else if(type==='purchases'){html+=`<table class="doc-table"><tr><th>Fecha</th><th>Suplidor</th><th>Concepto</th><th>Total</th><th>Pagado</th><th>Balance</th><th>Estado</th></tr>${state.purchases.map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.supplierName)}</td><td>${esc(x.concept)}</td><td>${money(x.total)}</td><td>${money(purchasePaid(x.id))}</td><td>${money(purchaseBalance(x))}</td><td>${esc(purchaseStatus(x))}</td></tr>`).join('')}</table>`;}else if(type==='ops'){const o=operationalSummary();html+=`<table class="doc-table"><tr><th>Indicador</th><th>Total</th></tr><tr><td>Empleados activos</td><td>${o.employees}</td></tr><tr><td>Nómina pendiente</td><td>${money(o.payrollDue)}</td></tr><tr><td>Suplidores</td><td>${o.suppliers}</td></tr><tr><td>Compras registradas</td><td>${o.purchases}</td></tr><tr><td>Cuentas por pagar</td><td>${money(o.purchaseDebt)}</td></tr><tr><td>Compras vencidas</td><td>${money(o.overduePurchases)}</td></tr></table>`;}else if(type==='assetsClient'){html+=`<table class="doc-table"><tr><th>Cliente</th><th>Activo</th><th>Categoría</th><th>Ubicación</th><th>Estado</th></tr>${state.assets.map(a=>`<tr><td>${esc(a.clientName||'Sin cliente')}</td><td>${esc(assetName(a))}</td><td>${esc(assetCategory(a))}</td><td>${esc(assetLocation(a))}</td><td>${esc(assetStatus(a))}</td></tr>`).join('')}</table>`;}else if(type==='assetsStatus'){const groups={};state.assets.forEach(a=>{const st=assetStatus(a);groups[st]=(groups[st]||0)+1;});html+=`<table class="doc-table"><tr><th>Estado</th><th>Cantidad</th></tr>${Object.entries(groups).map(([st,c])=>`<tr><td>${esc(st)}</td><td>${c}</td></tr>`).join('')}</table>`;}else{html+=`<table class="doc-table"><tr><th>Fecha</th><th>Cliente</th><th>Activo</th><th>Servicio</th><th>Monto</th></tr>${state.services.map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.clientName)}</td><td>${esc(x.assetName||'')}</td><td>${esc(serviceTitle(x))}</td><td>${money(serviceAmount(x))}</td></tr>`).join('')}</table>`;}html+=docFooter();state.previewHtml=html;$('reportPreview').innerHTML=html;}
 function fileData(input){return new Promise(res=>{const f=input?.files?.[0];if(!f)return res('');const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(f);});}
-async function saveSettings(){const p={...profile()};['businessName','slogan','phone','whatsapp','email','web','address','merchant','representative','tax','transportRatePerMile','transportBaseCharge','primaryColor','secondaryColor','language'].forEach(k=>p[k]=$('set_'+k)?.value||'');p.industry=$('set_industry').value;p.customServices={...(p.customServices||{})};p.customServices[p.industry]=($('set_services')?.value||'').split('\n').map(x=>x.trim()).filter(Boolean);for(const k of ['logoDashboard','logoPdf','favicon','signature']){const v=await fileData($('set_'+k));if(v)p[k]=v;}if(onboardingProgress()>=50) p.onboardingSkipped=false; await setDoc(profRef(),p,{merge:true});alert(T('Guardado.'));}
+async function saveSettings(){const p={...profile()};['businessName','slogan','phone','whatsapp','email','web','address','merchant','representative','tax','transportRatePerMile','transportBaseCharge','dailyGoal','primaryColor','secondaryColor','language'].forEach(k=>p[k]=$('set_'+k)?.value||'');p.industry=$('set_industry').value;p.customServices={...(p.customServices||{})};p.customServices[p.industry]=($('set_services')?.value||'').split('\n').map(x=>x.trim()).filter(Boolean);for(const k of ['logoDashboard','logoPdf','favicon','signature']){const v=await fileData($('set_'+k));if(v)p[k]=v;}if(onboardingProgress()>=50) p.onboardingSkipped=false; await setDoc(profRef(),p,{merge:true});alert(T('Guardado.'));}
 function bindForms(){
   $('clientForm').onsubmit=e=>{e.preventDefault();add('clients',{name:$('cName').value,phone:$('cPhone').value,email:$('cEmail').value,city:$('cCity').value,address:$('cAddress').value,altName:$('cAltName')?.value||'',altPhone:$('cAltPhone')?.value||'',altEmail:$('cAltEmail')?.value||'',tags:$('cTags')?.value||'',notes:$('cNotes')?.value||''});e.target.reset();};
   $('serviceForm').onsubmit=e=>{e.preventDefault();const c=state.clients.find(x=>x.id===$('sClient').value)||{},t=state.team.find(x=>x.id===$('sTeam').value)||{},a=assetBy($('sAsset')?.value||'');const items=getServiceItems();const enteredTitle=($('sTitle')?.value||'').trim();const totalFromItems=serviceItemsTotal(items);const selectedService=$('sServiceType')?.value||industry().service;const title=enteredTitle || items[0]?.description || selectedService;const route=transportRouteFromForm();const serviceFields=industry().serviceFields.map((_,n)=>$('sF'+n)?.value||'');add('services',{clientId:c.id||'',clientName:c.name||'',assetId:a.id||'',assetName:a.id?assetName(a):'',teamId:t.id||'',teamName:t.name||'',date:$('sDate').value,status:$('sStatus')?.value||'Pendiente',priority:$('sPriority')?.value||'Normal',serviceType:selectedService,title,amount:totalFromItems>0?totalFromItems:Number($('sAmount').value||0),items,fields:serviceFields,route});e.target.reset();bindServiceItems();if(isTransport())updateTransportTotal();};
