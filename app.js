@@ -1234,16 +1234,24 @@ function exportReport(type){
   a.download=`nexus-${type||'reporte'}.csv`;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),500);
 }
+function currentReportType(){
+  const selected=document.querySelector('.report-option.selected:not(.report-hidden)') || document.querySelector('.report-option:not(.report-hidden)');
+  return selected?.dataset.reportType || 'executive';
+}
+function selectReport(type){
+  document.querySelectorAll('.report-option').forEach(btn=>btn.classList.toggle('selected', btn.dataset.reportType===type));
+}
 function filterReportCenter(){
   const q=($('reportSearch')?.value||'').toLowerCase().trim();
-  document.querySelectorAll('.report-item').forEach(item=>{
+  document.querySelectorAll('.report-option').forEach(item=>{
     const hay=(item.dataset.reportName||item.textContent||'').toLowerCase();
-    item.classList.toggle('report-hidden', q && !hay.includes(q));
+    item.classList.toggle('report-hidden', !!q && !hay.includes(q));
   });
-  document.querySelectorAll('.report-group').forEach(group=>{
-    const visible=Array.from(group.querySelectorAll('.report-item')).some(x=>!x.classList.contains('report-hidden'));
-    group.classList.toggle('report-hidden', !visible);
-  });
+  const selected=document.querySelector('.report-option.selected');
+  if(selected && selected.classList.contains('report-hidden')){
+    const first=document.querySelector('.report-option:not(.report-hidden)');
+    if(first) selectReport(first.dataset.reportType);
+  }
 }
 function downloadCurrentPreview(){
   const btn=$('downloadPreview'); if(btn) btn.click();
@@ -1283,9 +1291,10 @@ function bindForms(){
   $('paymentForm').onsubmit=async e=>{e.preventDefault();const inv=state.invoices.find(x=>x.id===$('pInvoice').value);if(!inv)return alert('Selecciona factura.');if(invoiceStatus(inv)==='Cancelada')return alert('No se puede cobrar una factura cancelada.');const amount=Number($('pAmount').value||0);if(amount<=0)return alert('Monto inválido.');const bal=invoiceBalance(inv);if(amount>bal+0.01 && !confirm('El cobro excede el balance. ¿Registrar de todos modos?')) return;await add('payments',{invoiceId:inv.id,invoiceNumber:inv.number,date:$('pDate').value,method:$('pMethod').value,amount,note:$('pNote').value});await add('cashflow',{date:$('pDate').value,type:'Ingreso',concept:`Cobro ${inv.number}`,amount});const newBal=Math.max(0,bal-amount);await updateDoc(docPath('invoices',inv.id),{status:newBal<=0?'Pagada':amount>0?'Parcial':invoiceStatus(inv),updatedAt:serverTimestamp()});e.target.reset();};
   $('cashForm').onsubmit=e=>{e.preventDefault();add('cashflow',{date:$('xDate').value,type:$('xType').value,concept:$('xConcept').value,amount:Number($('xAmount').value||0)});e.target.reset();};
   $('saveSettings').onclick=saveSettings;$('invoiceFromService').onclick=()=>{const s=state.services.find(s=>!state.invoices.some(i=>i.serviceId===s.id));if(s)createInvoice(s.id);else alert('No hay servicios pendientes de facturar.');};
-  document.querySelectorAll('[data-preview]').forEach(b=>b.onclick=()=>{if(lockedModule('reports')){alert('Reportes es premium.');show('plans');return;}preview(b.dataset.preview);});
-  document.querySelectorAll('[data-report-pdf]').forEach(b=>b.onclick=()=>{if(lockedModule('reports')){alert('Reportes es premium.');show('plans');return;}preview(b.dataset.reportPdf);setTimeout(downloadCurrentPreview,250);});
-  document.querySelectorAll('[data-report-export]').forEach(b=>b.onclick=()=>exportReport(b.dataset.reportExport));
+  document.querySelectorAll('.report-option').forEach(b=>b.onclick=()=>selectReport(b.dataset.reportType));
+  if($('reportViewBtn')) $('reportViewBtn').onclick=()=>{if(lockedModule('reports')){alert('Reportes es premium.');show('plans');return;}preview(currentReportType());};
+  if($('reportPdfBtn')) $('reportPdfBtn').onclick=()=>{if(lockedModule('reports')){alert('Reportes es premium.');show('plans');return;}preview(currentReportType());setTimeout(downloadCurrentPreview,250);};
+  if($('reportExportBtn')) $('reportExportBtn').onclick=()=>exportReport(currentReportType());
   if($('reportSearch')) $('reportSearch').oninput=filterReportCenter;
   $('printPreview').onclick=()=>{const html=state.previewHtml||$('reportPreview').innerHTML;const w=open('','_blank');w.document.write(`<html><head><title>Documento</title><link rel="stylesheet" href="styles.css"><style>@page{size:letter;margin:.45in;}html,body{margin:0!important;padding:0!important;background:#fff!important;}body{display:block!important;}.doc-page{width:100%!important;max-width:none!important;min-height:calc(11in - .9in)!important;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important;transform:none!important;zoom:1!important;display:flex!important;flex-direction:column!important;}.doc-body{flex:1 1 auto!important;padding:0 0 .25in 0!important;}.doc-foot{position:static!important;margin-top:auto!important;text-align:center!important;}.doc-table{width:100%!important;}</style></head><body>${html}</body></html>`);w.document.close();setTimeout(()=>{w.focus();w.print();},700);};
   $('downloadPreview').onclick=()=>{const {jsPDF}=window.jspdf;const docp=new jsPDF({unit:'pt',format:'a4'});docp.html(state.previewHtml||$('reportPreview').innerHTML,{callback:d=>{const pages=d.getNumberOfPages();for(let n=1;n<=pages;n++){d.setPage(n);d.setFontSize(8);d.setTextColor(100);d.text(`Página ${n} de ${pages}`,d.internal.pageSize.getWidth()/2,d.internal.pageSize.getHeight()-18,{align:'center'});}d.save('nexus-documento.pdf');},x:18,y:18,width:559,windowWidth:900,autoPaging:'text'});};
