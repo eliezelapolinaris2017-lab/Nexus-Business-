@@ -6,7 +6,7 @@ service cloud.firestore {
     function admin() { return signed() && request.auth.token.email == "nexustoolspr@gmail.com"; }
     function protectedPlanKeys() { return ['plan','planStatus','stripeCustomerId','stripeSubscriptionId','planUpdatedAt','planExpiresAt','lastPaymentMethod','lastPaymentAmount','lastPaymentDate']; }
     function pendingRequestKeys() { return ['pendingPlan','pendingPlanName','pendingPaymentUrl','pendingPlanStatus','pendingPlanRequestedAt']; }
-    function normalCollections() { return ['clients','services','team','assets','suppliers','supplierPayments','payroll','purchases','invoices','payments','cashflow']; }
+    function normalCollections() { return ['clients','services','team','assets','suppliers','supplierPayments','payroll','payrollRetentions','purchases','invoices','payments','cashflow']; }
 
     match /users/{userId} {
       allow create: if owner(userId);
