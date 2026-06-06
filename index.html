@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Nexus Business PR SaaS</title>
   <link id="faviconLink" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f172a'/%3E%3Ctext x='32' y='41' text-anchor='middle' font-size='30' fill='white' font-family='Arial'%3EN%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=33" />
+  <link rel="stylesheet" href="styles.css?v=34" />
 
   <style id="criticalModuleLayout">
     /* V12 CRITICAL: un módulo visible a la vez. No más módulos apilados. */
@@ -80,9 +80,30 @@
       <section id="plans" class="view" hidden aria-hidden="true"><div class="card"><h2>Planes</h2><div id="plansGrid" class="plans"></div></div></section>
       <section id="settings" class="view" hidden aria-hidden="true"><div class="card"><h2>Configuración</h2><form id="settingsForm" class="form-grid"></form><button id="saveSettings" class="primary" type="button">Guardar</button></div></section>
     </main>
+
+    <section id="welcomeCenter" class="welcome-overlay hidden" aria-hidden="true">
+      <div class="welcome-card">
+        <div class="welcome-head">
+          <div>
+            <span class="pill">Nexus 1.0</span>
+            <h2>Bienvenido a Nexus</h2>
+            <p>Configura tu operación inicial.</p>
+          </div>
+          <button id="welcomeClose" class="icon-btn" type="button">×</button>
+        </div>
+        <div class="welcome-progress"><i id="welcomeProgressBar"></i></div>
+        <div id="welcomeSteps" class="welcome-steps"></div>
+        <div class="welcome-actions">
+          <button id="welcomeSettings" type="button">Configurar</button>
+          <button id="welcomeLoadDemo" class="primary" type="button">Cargar demo</button>
+          <button id="welcomeFinish" class="primary" type="button">Comenzar</button>
+        </div>
+      </div>
+    </section>
+
   </div>
 
-  <script type="module" src="payment-links.js?v=33"></script>
-  <script type="module" src="app.js?v=33"></script>
+  <script type="module" src="payment-links.js?v=34"></script>
+  <script type="module" src="app.js?v=34"></script>
 </body>
 </html>

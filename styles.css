@@ -614,6 +614,9 @@ button.mini{padding:8px 10px;min-height:38px}
 .control-card{background:linear-gradient(135deg,#fff,#f8fbff);border:1px solid var(--line);border-radius:20px;padding:16px;text-align:left;box-shadow:var(--shadow)}
 .control-card span{display:block;color:var(--muted);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
 .control-card b{display:block;color:#0f172a;font-size:22px;margin-top:6px}
+.mini-kpi{background:linear-gradient(135deg,#fff,#f8fbff);border:1px solid var(--line);border-radius:20px;padding:16px;text-align:left;box-shadow:var(--shadow)}
+.mini-kpi b{display:block;color:var(--brand);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.mini-kpi span{display:block;color:#0f172a;font-size:18px;font-weight:900;margin-top:6px}
 .alert-item{padding:11px 12px;border:1px solid #fee2e2;background:#fff7f7;border-radius:14px;margin-bottom:8px;color:#7f1d1d;font-weight:700}
 .agenda-item,.search-hit{width:100%;display:grid;grid-template-columns:auto 1fr;gap:4px 10px;text-align:left;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:8px}
 .agenda-item b,.search-hit b{color:var(--brand);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
@@ -623,3 +626,24 @@ button.mini{padding:8px 10px;min-height:38px}
 .quick-actions button{background:var(--brand);color:#fff;border:0}
 @media(max-width:920px){.control-strip{grid-template-columns:1fr 1fr}.global-search{width:100%}.top-actions{flex-wrap:wrap;justify-content:flex-end}.quick-actions{grid-template-columns:1fr}}
 @media(max-width:560px){.control-strip{grid-template-columns:1fr}.top-actions{width:100%;justify-content:stretch}.global-search{order:-1;width:100%}}
+
+
+/* v34 Home / Welcome Center */
+.welcome-overlay{position:fixed;inset:0;z-index:80;background:rgba(15,23,42,.58);backdrop-filter:blur(10px);display:grid;place-items:center;padding:22px}
+.welcome-overlay.hidden{display:none!important}
+.welcome-card{width:min(760px,100%);background:linear-gradient(180deg,#fff,#f8fbff);border:1px solid rgba(37,99,235,.14);box-shadow:0 30px 90px rgba(15,23,42,.28);border-radius:28px;padding:24px}
+.welcome-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:16px}
+.welcome-head h2{font-size:34px;margin:10px 0 4px;color:#0f172a;letter-spacing:-.04em}
+.welcome-head p{margin:0;color:var(--muted)}
+.welcome-progress{height:10px;background:#eaf1ff;border-radius:999px;overflow:hidden;margin:18px 0 20px}
+.welcome-progress i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--brand),#38bdf8);border-radius:999px;transition:.25s}
+.welcome-steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.welcome-step{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:18px;padding:14px;background:#fff}
+.welcome-step b{display:block;color:#0f172a;margin-bottom:2px}
+.welcome-step span:first-child{width:34px;height:34px;border-radius:12px;background:var(--soft);display:grid;place-items:center;font-weight:900}
+.welcome-step.done{border-color:rgba(22,163,74,.35);background:#f2fff6}
+.welcome-step.done span:first-child{background:#dcfce7;color:#15803d}
+.welcome-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;flex-wrap:wrap}
+.home-section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.home-section-title h3{margin:0}
+@media(max-width:720px){.welcome-card{padding:18px;border-radius:22px}.welcome-head h2{font-size:28px}.welcome-steps{grid-template-columns:1fr}.welcome-actions button{flex:1}}
