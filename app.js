@@ -121,7 +121,7 @@ const PLANS = {
 
 const TITLES = {dashboard:'Home',clients:'Clientes',services:'Servicios',team:'Equipo',payroll:'Nómina',assets:'Activos',suppliers:'Suplidores',supplierPayments:'Pagos suplidores',purchases:'Compras',billing:'Facturación',payments:'Cobros',cashflow:'Flujo de caja',reports:'Reportes',plans:'Planes',settings:'Configuración'};
 let mode = 'login', unsub = [];
-let state = {profile:null,clients:[],services:[],team:[],assets:[],suppliers:[],supplierPayments:[],payroll:[],purchases:[],invoices:[],payments:[],cashflow:[],planRequests:[],previewHtml:'',activeView:'dashboard'};
+let state = {profile:null,clients:[],services:[],team:[],assets:[],suppliers:[],supplierPayments:[],payroll:[],purchases:[],invoices:[],payments:[],cashflow:[],planRequests:[],previewHtml:'',activeView:'dashboard',editingServiceId:null};
 
 function defaultProfile(){return {businessName:'Mi Negocio',industry:'hvac',language:'es',plan:'free',planStatus:'active',planChangeMode:'manual',pendingPlan:'',pendingPlanStatus:'none',phone:'',whatsapp:'',email:auth.currentUser?.email||'',address:'',web:'',tax:'11.5',merchant:'',representative:'',slogan:'',logoDashboard:'',logoPdf:'',favicon:'',signature:'',primaryColor:'#2563eb',secondaryColor:'#0f172a',customServices:{},transportRatePerMile:'2.50',transportBaseCharge:'0',dailyGoal:'1000',onboardingComplete:false,onboardingSkipped:false,createdAt:new Date().toISOString()};}
 function profile(){return state.profile || defaultProfile();}
@@ -591,8 +591,62 @@ function bindServiceItems(){
 function setServiceItems(items){
   const box=$('serviceItemsBox');
   if(!box) return;
-  box.innerHTML=itemRowsHtml((items||[]).map(([description,qty,price])=>({description,qty,price})));
+  const normalized=(items&&items.length?items:[{description:'',qty:1,price:''}]).map(it=>{
+    if(Array.isArray(it)){ const [description,qty,price]=it; return {description,qty,price}; }
+    return {description:it.description||'', qty:it.qty ?? 1, price:it.price ?? ''};
+  });
+  box.innerHTML=itemRowsHtml(normalized);
   bindServiceItems();
+}
+
+function resetServiceEditMode(){
+  state.editingServiceId=null;
+  const btn=$('serviceSubmitBtn'); if(btn) btn.textContent='Guardar';
+  const cancel=$('cancelServiceEdit'); if(cancel) cancel.classList.add('hidden');
+  const banner=$('serviceEditBanner'); if(banner) banner.classList.add('hidden');
+}
+function fillServiceForm(s){
+  if(!s) return;
+  if($('sClient')) $('sClient').value=s.clientId||'';
+  if($('sAsset')) $('sAsset').value=s.assetId||'';
+  if($('sTeam')) $('sTeam').value=s.teamId||'';
+  if($('sDate')) $('sDate').value=s.date||today();
+  if($('sStatus')) $('sStatus').value=s.status||'Pendiente';
+  if($('sPriority')) $('sPriority').value=s.priority||'Normal';
+  if($('sServiceType')){
+    const val=s.serviceType||serviceTitle(s)||serviceOptions()[0]||'';
+    if(val && ![...$('sServiceType').options].some(o=>o.value===val)){
+      $('sServiceType').insertAdjacentHTML('beforeend',`<option value="${esc(val)}">${esc(val)}</option>`);
+    }
+    $('sServiceType').value=val;
+  }
+  if($('sTitle')) $('sTitle').value=s.title||serviceTitle(s)||'';
+  if($('sAmount')) $('sAmount').value=Number(s.amount ?? serviceSubtotal(s) ?? 0).toFixed(2);
+  (s.fields||[]).forEach((v,n)=>{ const el=$('sF'+n); if(el) el.value=v||''; });
+  if(isTransport()){
+    const r=s.route||transportRouteFromService(s)||{};
+    if($('sOrigin')) $('sOrigin').value=r.origin||'';
+    if($('sDestination')) $('sDestination').value=r.destination||'';
+    if($('sRouteMiles')) $('sRouteMiles').value=r.miles??'';
+    if($('sRouteRate')) $('sRouteRate').value=r.rate??(profile().transportRatePerMile||'2.50');
+    if($('sRouteBase')) $('sRouteBase').value=r.base??(profile().transportBaseCharge||'0');
+    updateTransportTotal();
+  }
+  setServiceItems((s.items&&s.items.length)?s.items:[{description:serviceTitle(s),qty:1,price:s.amount||0}]);
+  updateServiceTotal();
+}
+function startServiceEdit(id){
+  const s=state.services.find(x=>x.id===id);
+  if(!s) return;
+  state.editingServiceId=id;
+  show('services');
+  setTimeout(()=>{
+    fillServiceForm(s);
+    const btn=$('serviceSubmitBtn'); if(btn) btn.textContent='Actualizar servicio';
+    const cancel=$('cancelServiceEdit'); if(cancel) cancel.classList.remove('hidden');
+    const banner=$('serviceEditBanner'); if(banner){ banner.textContent=`Editando: ${serviceTitle(s)} · ${s.clientName||''}`; banner.classList.remove('hidden'); }
+    $('serviceForm')?.scrollIntoView({behavior:'smooth',block:'start'});
+  },0);
 }
 function bindServiceProductivity(){
   document.querySelectorAll('[data-service-template]').forEach(btn=>btn.onclick=()=>{
@@ -754,7 +808,7 @@ function bindDemoSettings(){
 function forms(){const i=industry();
   $('clientsTitle').textContent=i.clients;$('servicesTitle').textContent=i.services;$('teamTitle').textContent=i.team;$('assetsTitle').textContent=i.assets;$('payrollTitle').textContent=i.payroll;$('suppliersTitle').textContent=i.suppliers;$('supplierPaymentsTitle').textContent=i.supplierPayments;
   $('clientForm').innerHTML=input('Nombre','cName')+input('Teléfono','cPhone')+input('Email','cEmail')+input('Municipio','cCity')+input('Dirección','cAddress','text','','wide')+input('Contacto alterno','cAltName')+input('Tel. alterno','cAltPhone')+input('Email alterno','cAltEmail')+input('Etiquetas','cTags','text','VIP, Corporativo')+input('Notas administrativas','cNotes','text','','wide')+'<button class="primary" type="submit">Guardar</button>';
-  $('serviceForm').innerHTML=`<div class="wide quick-template-bar"><label>Plantillas rápidas</label><div>${serviceTemplates().map((t,n)=>`<button type="button" class="ghost" data-service-template="${n}">${esc(t.name)}</button>`).join('')}<button type="button" class="ghost" id="duplicateLastService">Duplicar último</button></div></div>`+select(i.client,'sClient',state.clients.map(c=>({value:c.id,label:c.name})))+select('Activo relacionado','sAsset',[{value:'',label:'Sin activo'}].concat(state.assets.map(a=>({value:a.id,label:assetLabel(a)}))),'')+select(i.team,'sTeam',state.team.map(t=>({value:t.id,label:t.name})))+input('Fecha','sDate','date',today())+select('Estado','sStatus',[{value:'Pendiente',label:'Pendiente'},{value:'En proceso',label:'En proceso'},{value:'Completado',label:'Completado'},{value:'Facturado',label:'Facturado'}],'Pendiente')+select('Prioridad','sPriority',[{value:'Normal',label:'Normal'},{value:'Alta',label:'Alta'},{value:'Urgente',label:'Urgente'}],'Normal')+select('Servicio','sServiceType',serviceOptions().map(x=>({value:x,label:x})))+input('Descripción principal','sTitle','text','','wide')+input('Monto facturado','sAmount','number')+transportRouteFormHtml()+i.serviceFields.map((f,n)=>input(f,'sF'+n,'text','','wide')).join('')+`<div class="wide service-lines-card"><div class="line-head"><div><b>Partidas</b></div><strong id="sItemsTotal">$0.00</strong></div><div id="serviceItemsBox">${itemRowsHtml()}</div><button id="addServiceLine" class="ghost" type="button">+ Añadir servicio</button></div><button class="primary" type="submit">Guardar</button>`;
+  $('serviceForm').innerHTML=`<div class="wide quick-template-bar"><label>Plantillas rápidas</label><div>${serviceTemplates().map((t,n)=>`<button type="button" class="ghost" data-service-template="${n}">${esc(t.name)}</button>`).join('')}<button type="button" class="ghost" id="duplicateLastService">Duplicar último</button></div></div>`+select(i.client,'sClient',state.clients.map(c=>({value:c.id,label:c.name})))+select('Activo relacionado','sAsset',[{value:'',label:'Sin activo'}].concat(state.assets.map(a=>({value:a.id,label:assetLabel(a)}))),'')+select(i.team,'sTeam',state.team.map(t=>({value:t.id,label:t.name})))+input('Fecha','sDate','date',today())+select('Estado','sStatus',[{value:'Pendiente',label:'Pendiente'},{value:'En proceso',label:'En proceso'},{value:'Completado',label:'Completado'},{value:'Facturado',label:'Facturado'}],'Pendiente')+select('Prioridad','sPriority',[{value:'Normal',label:'Normal'},{value:'Alta',label:'Alta'},{value:'Urgente',label:'Urgente'}],'Normal')+select('Servicio','sServiceType',serviceOptions().map(x=>({value:x,label:x})))+input('Descripción principal','sTitle','text','','wide')+input('Monto facturado','sAmount','number')+transportRouteFormHtml()+i.serviceFields.map((f,n)=>input(f,'sF'+n,'text','','wide')).join('')+`<div id="serviceEditBanner" class="wide edit-banner hidden"></div><div class="wide service-lines-card"><div class="line-head"><div><b>Partidas</b></div><strong id="sItemsTotal">$0.00</strong></div><div id="serviceItemsBox">${itemRowsHtml()}</div><button id="addServiceLine" class="ghost" type="button">+ Añadir servicio</button></div><div class="wide form-actions"><button id="serviceSubmitBtn" class="primary" type="submit">Guardar</button><button id="cancelServiceEdit" class="ghost hidden" type="button">Cancelar edición</button></div>`;
   $('teamForm').innerHTML=input('Nombre','tName')+input('Teléfono','tPhone')+input('Email','tEmail')+input('Puesto / Rol','tRole')+select('Estado','tStatus',['Activo','Inactivo','Contratista'].map(x=>({value:x,label:x})))+input('Salario base','tSalary','number','0')+input('% Comisión','tRate','number','0')+input('% Retención','tRetention','number','0')+input('Fecha ingreso','tStart','date',today())+'<button class="primary" type="submit">Guardar</button>';
   $('assetForm').innerHTML=select('Cliente asignado','aClient',[{value:'',label:'Sin cliente'}].concat(state.clients.map(c=>({value:c.id,label:c.name}))))+input('Nombre del activo','aName')+select('Categoría','aCategory',['Equipo','Vehículo','Herramienta','Mobiliario','Infraestructura','Tecnología','Inventario Especial','Otro'].map(x=>({value:x,label:x})))+input('Ubicación','aLocation')+select('Estado','aStatus',['Activo','En uso','En garantía','Inactivo','Baja'].map(x=>({value:x,label:x})))+input('Valor estimado','aValue','number')+input('Fecha de registro','aDate','date',today())+input('Garantía / vigencia','aWarranty','text','','wide')+input('Notas administrativas','aNotes','text','','wide')+'<button class="primary" type="submit">Guardar activo</button>';
   $('supplierForm').innerHTML=input('Nombre suplidor','supName')+input('Teléfono','supPhone')+input('WhatsApp','supWhatsapp')+input('Email','supEmail')+input('Contacto','supContact')+input('Categoría','supCategory')+input('Límite crédito','supCredit','number','0')+input('Balance inicial / deuda','supOpening','number','0')+i.supplierFields.map((f,n)=>input(f,'supF'+n,'text','','wide')).join('')+'<button class="primary" type="submit">Guardar suplidor</button>';
@@ -1084,62 +1138,11 @@ function bindEditTransportRoute(){
   updateEditRouteTotal();
 }
 async function editServiceRecord(id){
-  const original=state.services.find(x=>x.id===id); if(!original) return;
-  const s=normalizeEditRecord('services',original);
-  const m=ensureEditModal(); state.editing={c:'services',id};
-  $('editTitle').textContent=`Editar ${TITLES.services||'Servicios'}`;
-  const serviceFieldLabels=industry().serviceFields || [];
-  const savedFields=Array.isArray(s.fields)?s.fields:[];
-  const fieldLabels=[...serviceFieldLabels];
-  for(let n=fieldLabels.length;n<savedFields.length;n++) fieldLabels.push(`Campo adicional ${n+1}`);
-  const route=s.route || transportRouteFromService(s);
-  $('editForm').innerHTML=
-    select(industry().client,'edit_clientId',state.clients.map(c=>({value:c.id,label:c.name})),s.clientId||'')+
-    select('Activo relacionado','edit_assetId',[{value:'',label:'Sin activo'},...state.assets.map(a=>({value:a.id,label:assetLabel(a)}))],s.assetId||'')+
-    select(industry().team,'edit_teamId',[{value:'',label:'Sin equipo'},...state.team.map(t=>({value:t.id,label:t.name}))],s.teamId||'')+
-    input('Fecha','edit_date','date',s.date||today())+
-    select('Estado','edit_status',['Pendiente','En proceso','Completado','Facturado','Cancelado'].map(x=>({value:x,label:x})),s.status||'Pendiente')+
-    select('Prioridad','edit_priority',['Baja','Normal','Alta','Urgente'].map(x=>({value:x,label:x})),s.priority||'Normal')+
-    editSelectHtml('Servicio','edit_serviceType',serviceOptions().map(x=>({value:x,label:x})),s.serviceType||serviceTitle(s),'')+
-    input('Descripción principal','edit_title','text',s.title||serviceTitle(s),'wide')+
-    input('Monto facturado','edit_amount','number',s.amount??serviceSubtotal(s))+
-    editTransportRouteHtml(route)+
-    fieldLabels.map((f,n)=>input(f,`edit_field_${n}`,'text',savedFields[n]||'','wide')).join('')+
-    `<div class="wide service-lines-card"><div class="line-head"><div><b>Partidas</b></div><strong id="edit_sItemsTotal">$0.00</strong></div><div id="editServiceItemsBox">${editServiceItemsHtml(s.items||[])}</div><button id="edit_addServiceLine" class="ghost" type="button">+ Añadir servicio</button></div>`;
-  bindEditServiceItems();
-  bindEditTransportRoute();
-  $('editSave').onclick=async()=>{
-    try{
-      const cl=clientBy($('edit_clientId')?.value||'');
-      const a=assetBy($('edit_assetId')?.value||'');
-      const t=teamBy($('edit_teamId')?.value||'');
-      const items=getEditServiceItems();
-      const itemTotal=serviceItemsTotal(items);
-      const routeData=editRouteFromModal();
-      const fields=fieldLabels.map((_,n)=>$('edit_field_'+n)?.value||'');
-      const selectedService=$('edit_serviceType')?.value||industry().service;
-      const title=($('edit_title')?.value||'').trim() || items[0]?.description || selectedService;
-      const data={
-        clientId:cl.id||'', clientName:cl.name||'',
-        assetId:a.id||'', assetName:a.id?assetName(a):'',
-        teamId:t.id||'', teamName:t.name||'',
-        date:$('edit_date')?.value||today(),
-        status:$('edit_status')?.value||'Pendiente',
-        priority:$('edit_priority')?.value||'Normal',
-        serviceType:selectedService,
-        title,
-        amount:itemTotal>0?itemTotal:Number($('edit_amount')?.value||0),
-        items,
-        fields,
-        route:routeData,
-        updatedAt:serverTimestamp()
-      };
-      await updateDoc(docPath('services',id),data);
-      closeEditModal();
-    }catch(err){alert(err.message||err);}
-  };
-  m.classList.remove('hidden');
+  // Services uses the main form for both New and Edit.
+  // This keeps templates, partidas, industry-specific fields and route logic consistent.
+  startServiceEdit(id);
 }
+
 
 async function editRecord(c,id){
   if(c==='services') return editServiceRecord(id);
@@ -1185,7 +1188,29 @@ function fileData(input){return new Promise(res=>{const f=input?.files?.[0];if(!
 async function saveSettings(){const p={...profile()};['businessName','slogan','phone','whatsapp','email','web','address','merchant','representative','tax','transportRatePerMile','transportBaseCharge','dailyGoal','primaryColor','secondaryColor','language'].forEach(k=>p[k]=$('set_'+k)?.value||'');p.industry=$('set_industry').value;p.customServices={...(p.customServices||{})};p.customServices[p.industry]=($('set_services')?.value||'').split('\n').map(x=>x.trim()).filter(Boolean);for(const k of ['logoDashboard','logoPdf','favicon','signature']){const v=await fileData($('set_'+k));if(v)p[k]=v;}if(onboardingProgress()>=50) p.onboardingSkipped=false; await setDoc(profRef(),p,{merge:true});alert(T('Guardado.'));}
 function bindForms(){
   $('clientForm').onsubmit=e=>{e.preventDefault();add('clients',{name:$('cName').value,phone:$('cPhone').value,email:$('cEmail').value,city:$('cCity').value,address:$('cAddress').value,altName:$('cAltName')?.value||'',altPhone:$('cAltPhone')?.value||'',altEmail:$('cAltEmail')?.value||'',tags:$('cTags')?.value||'',notes:$('cNotes')?.value||''});e.target.reset();};
-  $('serviceForm').onsubmit=e=>{e.preventDefault();const c=state.clients.find(x=>x.id===$('sClient').value)||{},t=state.team.find(x=>x.id===$('sTeam').value)||{},a=assetBy($('sAsset')?.value||'');const items=getServiceItems();const enteredTitle=($('sTitle')?.value||'').trim();const totalFromItems=serviceItemsTotal(items);const selectedService=$('sServiceType')?.value||industry().service;const title=enteredTitle || items[0]?.description || selectedService;const route=transportRouteFromForm();const serviceFields=industry().serviceFields.map((_,n)=>$('sF'+n)?.value||'');add('services',{clientId:c.id||'',clientName:c.name||'',assetId:a.id||'',assetName:a.id?assetName(a):'',teamId:t.id||'',teamName:t.name||'',date:$('sDate').value,status:$('sStatus')?.value||'Pendiente',priority:$('sPriority')?.value||'Normal',serviceType:selectedService,title,amount:totalFromItems>0?totalFromItems:Number($('sAmount').value||0),items,fields:serviceFields,route});e.target.reset();bindServiceItems();if(isTransport())updateTransportTotal();};
+  $('serviceForm').onsubmit=async e=>{
+    e.preventDefault();
+    const c=state.clients.find(x=>x.id===$('sClient').value)||{},t=state.team.find(x=>x.id===$('sTeam').value)||{},a=assetBy($('sAsset')?.value||'');
+    const items=getServiceItems();
+    const enteredTitle=($('sTitle')?.value||'').trim();
+    const totalFromItems=serviceItemsTotal(items);
+    const selectedService=$('sServiceType')?.value||industry().service;
+    const title=enteredTitle || items[0]?.description || selectedService;
+    const route=transportRouteFromForm();
+    const serviceFields=industry().serviceFields.map((_,n)=>$('sF'+n)?.value||'');
+    const payload={clientId:c.id||'',clientName:c.name||'',assetId:a.id||'',assetName:a.id?assetName(a):'',teamId:t.id||'',teamName:t.name||'',date:$('sDate').value,status:$('sStatus')?.value||'Pendiente',priority:$('sPriority')?.value||'Normal',serviceType:selectedService,title,amount:totalFromItems>0?totalFromItems:Number($('sAmount').value||0),items,fields:serviceFields,route};
+    if(state.editingServiceId){
+      await updateDoc(docPath('services',state.editingServiceId),{...payload,updatedAt:serverTimestamp()});
+      resetServiceEditMode();
+    }else{
+      await add('services',payload);
+    }
+    e.target.reset();
+    if($('sDate')) $('sDate').value=today();
+    setServiceItems([]);
+    if(isTransport()) updateTransportTotal();
+  };
+  $('cancelServiceEdit') && ($('cancelServiceEdit').onclick=()=>{ $('serviceForm').reset(); if($('sDate')) $('sDate').value=today(); setServiceItems([]); resetServiceEditMode(); if(isTransport()) updateTransportTotal(); });
   $('teamForm').onsubmit=e=>{e.preventDefault();add('team',{name:$('tName').value,phone:$('tPhone').value,email:$('tEmail')?.value||'',role:$('tRole').value,status:$('tStatus')?.value||'Activo',salary:Number($('tSalary')?.value||0),rate:Number($('tRate').value||0),retention:Number($('tRetention').value||0),startDate:$('tStart')?.value||today()});e.target.reset();};
   $('assetForm').onsubmit=e=>{e.preventDefault();const c=clientBy($('aClient')?.value||'');add('assets',{clientId:c.id||'',clientName:c.name||'',industry:profile().industry||'hvac',name:$('aName').value,category:$('aCategory').value,location:$('aLocation').value,status:$('aStatus').value,value:Number($('aValue').value||0),date:$('aDate').value,warranty:$('aWarranty').value,notes:$('aNotes').value});e.target.reset();};
   $('supplierForm').onsubmit=e=>{e.preventDefault();add('suppliers',{name:$('supName').value,phone:$('supPhone').value,whatsapp:$('supWhatsapp')?.value||'',email:$('supEmail').value,contact:$('supContact')?.value||'',category:$('supCategory')?.value||'',creditLimit:Number($('supCredit')?.value||0),openingBalance:Number($('supOpening').value||0),fields:industry().supplierFields.map((_,n)=>$('supF'+n)?.value||'')});e.target.reset();};
