@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Nexus Business PR SaaS</title>
   <link id="faviconLink" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f172a'/%3E%3Ctext x='32' y='41' text-anchor='middle' font-size='30' fill='white' font-family='Arial'%3EN%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=30" />
+  <link rel="stylesheet" href="styles.css?v=31" />
 
   <style id="criticalModuleLayout">
     /* V12 CRITICAL: un módulo visible a la vez. No más módulos apilados. */
@@ -69,16 +69,17 @@
       <section id="payroll" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2 id="payrollTitle">Nómina / Pagos equipo</h2><span id="payrollLimit" class="limit-chip"></span></div><form id="payrollForm" class="form-grid"></form><div id="payrollTable"></div></div></section>
       <section id="suppliers" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2 id="suppliersTitle">Suplidores</h2><span id="suppliersLimit" class="limit-chip"></span></div><form id="supplierForm" class="form-grid"></form><div id="suppliersTable"></div></div></section>
       <section id="supplierPayments" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2 id="supplierPaymentsTitle">Pagos a suplidores</h2><span id="supplierPaymentsLimit" class="limit-chip"></span></div><form id="supplierPaymentForm" class="form-grid"></form><div id="supplierPaymentsTable"></div></div></section>
+      <section id="purchases" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2>Compras</h2><span id="purchasesLimit" class="limit-chip"></span></div><form id="purchaseForm" class="form-grid"></form><div id="purchasesTable"></div></div></section>
       <section id="billing" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2>Facturación</h2><span id="invoicesLimit" class="limit-chip"></span></div><div class="toolbar"><button id="invoiceFromService" type="button">Facturar próximo servicio sin factura</button></div><div id="invoiceTable"></div></div></section>
       <section id="payments" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2>Cobros</h2><span id="paymentsLimit" class="limit-chip"></span></div><form id="paymentForm" class="form-grid"></form><div id="paymentsTable"></div></div></section>
       <section id="cashflow" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2>Flujo de caja</h2><span id="cashflowLimit" class="limit-chip"></span></div><form id="cashForm" class="form-grid"></form><div id="cashTable"></div></div></section>
-      <section id="reports" class="view" hidden aria-hidden="true"><div class="card"><h2>Reportes</h2><div class="report-actions"><button data-preview="executive" type="button">Preview Ejecutivo</button><button data-preview="finance" type="button">Financiero</button><button data-preview="receivable" type="button">Cuentas por cobrar</button><button data-preview="invoices" type="button">Preview Facturas</button><button data-preview="services" type="button">Preview Servicios</button><button data-preview="payments" type="button">Preview Cobros</button><button data-preview="payroll" type="button">Preview Nómina</button><button data-preview="suppliers" type="button">Preview Suplidores</button><button data-preview="assetsClient" type="button">Activos por Cliente</button><button data-preview="assetsStatus" type="button">Activos por Estado</button></div><div id="reportPreview" class="paper"></div><div class="report-actions"><button id="printPreview" type="button">Imprimir</button><button id="downloadPreview" type="button">Descargar PDF</button></div></div></section>
+      <section id="reports" class="view" hidden aria-hidden="true"><div class="card"><h2>Reportes</h2><div class="report-actions"><button data-preview="executive" type="button">Preview Ejecutivo</button><button data-preview="finance" type="button">Financiero</button><button data-preview="receivable" type="button">Cuentas por cobrar</button><button data-preview="invoices" type="button">Preview Facturas</button><button data-preview="services" type="button">Preview Servicios</button><button data-preview="payments" type="button">Preview Cobros</button><button data-preview="payroll" type="button">Preview Nómina</button><button data-preview="suppliers" type="button">Preview Suplidores</button><button data-preview="purchases" type="button">Compras / CxP</button><button data-preview="ops" type="button">Operacional</button><button data-preview="assetsClient" type="button">Activos por Cliente</button><button data-preview="assetsStatus" type="button">Activos por Estado</button></div><div id="reportPreview" class="paper"></div><div class="report-actions"><button id="printPreview" type="button">Imprimir</button><button id="downloadPreview" type="button">Descargar PDF</button></div></div></section>
       <section id="plans" class="view" hidden aria-hidden="true"><div class="card"><h2>Planes</h2><div id="plansGrid" class="plans"></div></div></section>
       <section id="settings" class="view" hidden aria-hidden="true"><div class="card"><h2>Configuración</h2><form id="settingsForm" class="form-grid"></form><button id="saveSettings" class="primary" type="button">Guardar</button></div></section>
     </main>
   </div>
 
-  <script type="module" src="payment-links.js?v=30"></script>
-  <script type="module" src="app.js?v=30"></script>
+  <script type="module" src="payment-links.js?v=31"></script>
+  <script type="module" src="app.js?v=31"></script>
 </body>
 </html>
