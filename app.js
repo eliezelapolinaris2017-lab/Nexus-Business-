@@ -279,6 +279,50 @@ function dashboardAlerts(){
   return alerts;
 }
 
+
+function agendaItems(){
+  const items=[];
+  state.services.filter(x=>x.date && x.date>=today()).forEach(x=>items.push({date:x.date,type:'Servicio',title:`${x.clientName||'Cliente'} · ${serviceTitle(x)}`,view:'services'}));
+  state.invoices.filter(x=>invoiceBalance(x)>0 && x.dueDate).forEach(x=>items.push({date:x.dueDate,type:'Factura',title:`${x.number} · ${x.clientName} · ${money(invoiceBalance(x))}`,view:'billing'}));
+  state.purchases.filter(x=>purchaseBalance(x)>0 && x.dueDate).forEach(x=>items.push({date:x.dueDate,type:'Compra',title:`${x.number||x.concept} · ${x.supplierName} · ${money(purchaseBalance(x))}`,view:'purchases'}));
+  state.payroll.filter(x=>x.date).slice(-8).forEach(x=>items.push({date:x.date,type:'Nómina',title:`${x.teamName} · ${money(x.net)}`,view:'payroll'}));
+  return items.sort((a,b)=>String(a.date).localeCompare(String(b.date))).slice(0,8);
+}
+function globalSearchResults(q){
+  const term=String(q||'').toLowerCase().trim();
+  if(!term) return [];
+  const hit=(...v)=>v.join(' ').toLowerCase().includes(term);
+  const rows=[];
+  state.clients.forEach(x=>hit(x.name,x.phone,x.email,x.city,x.tags)&&rows.push({type:'Cliente',title:x.name,meta:[x.phone,x.city].filter(Boolean).join(' · '),view:'clients'}));
+  state.services.forEach(x=>hit(x.clientName,serviceTitle(x),x.assetName,x.status)&&rows.push({type:'Servicio',title:`${x.clientName} · ${serviceTitle(x)}`,meta:[x.date,money(serviceAmount(x))].join(' · '),view:'services'}));
+  state.invoices.forEach(x=>hit(x.number,x.clientName,x.serviceTitle,invoiceStatus(x))&&rows.push({type:'Factura',title:`${x.number} · ${x.clientName}`,meta:`${invoiceStatus(x)} · ${money(invoiceBalance(x))}`,view:'billing'}));
+  state.assets.forEach(x=>hit(assetName(x),x.clientName,assetCategory(x),assetLocation(x),assetStatus(x))&&rows.push({type:'Activo',title:assetName(x),meta:[x.clientName,assetStatus(x)].filter(Boolean).join(' · '),view:'assets'}));
+  state.team.forEach(x=>hit(x.name,x.role,x.phone,x.email)&&rows.push({type:'Empleado',title:x.name,meta:[x.role,x.status].filter(Boolean).join(' · '),view:'team'}));
+  state.suppliers.forEach(x=>hit(x.name,x.phone,x.email,x.category)&&rows.push({type:'Suplidor',title:x.name,meta:[x.category,money(supplierBalance(x.id))].join(' · '),view:'suppliers'}));
+  return rows.slice(0,10);
+}
+function renderGlobalSearch(){
+  const input=$('globalSearch');
+  const box=$('globalResults');
+  if(!input || !box) return;
+  const q=input.value||'';
+  const rows=globalSearchResults(q);
+  box.innerHTML=q.trim()? (rows.length?rows.map(r=>`<button class="search-hit" type="button" data-search-view="${esc(r.view)}"><b>${esc(r.type)}</b><span>${esc(r.title)}</span><small>${esc(r.meta||'')}</small></button>`).join(''):'<p class="muted">Sin resultados.</p>') : '<p class="muted">Busca clientes, facturas, servicios, activos, empleados o suplidores.</p>';
+  document.querySelectorAll('[data-search-view]').forEach(b=>b.onclick=()=>show(b.dataset.searchView));
+}
+function controlCenter(){
+  const f=financialSummary(), o=operationalSummary();
+  if($('controlStrip')) $('controlStrip').innerHTML=[
+    ['Por cobrar',money(f.receivable),'billing'],
+    ['Vencido',money(f.overdue),'billing'],
+    ['Por pagar',money(o.purchaseDebt),'purchases'],
+    ['Nómina',money(o.payrollDue),'payroll']
+  ].map(([a,b,v])=>`<button class="control-card" type="button" data-control-view="${v}"><span>${a}</span><b>${b}</b></button>`).join('');
+  document.querySelectorAll('[data-control-view]').forEach(b=>b.onclick=()=>show(b.dataset.controlView));
+  if($('agendaList')){const ag=agendaItems();$('agendaList').innerHTML=ag.length?ag.map(x=>`<button class="agenda-item" type="button" data-agenda-view="${esc(x.view)}"><b>${esc(x.date)}</b><span>${esc(x.type)}</span><small>${esc(x.title)}</small></button>`).join(''):'<p class="muted">Sin eventos próximos.</p>';document.querySelectorAll('[data-agenda-view]').forEach(b=>b.onclick=()=>show(b.dataset.agendaView));}
+  renderGlobalSearch();
+}
+
 function enforceModuleView(){const active=state.activeView||'dashboard';document.querySelectorAll('.main > section.view').forEach(view=>{const ok=view.id===active;view.classList.toggle('active',ok);view.hidden=!ok;view.setAttribute('aria-hidden',ok?'false':'true');view.style.display=ok?'block':'none';view.style.visibility=ok?'visible':'hidden';view.style.height=ok?'auto':'0px';view.style.overflow=ok?'visible':'hidden';});}
 function show(v){state.activeView=lockedModule(v)?'plans':(v||'dashboard');render();if(innerWidth<921)document.querySelector('.sidebar')?.classList.remove('open');}
 function latestPlanRequest(){
@@ -611,6 +655,7 @@ function kpis(){
   $('planExperience').innerHTML=`<div class="experience"><b>${plan().badge}: ${plan().name}</b><span>${plan().features.join(' · ')}</span><div class="quota"><i style="width:${Math.min(100,(state.clients.length/(unlimited(limit('clients'))?Math.max(1,state.clients.length):limit('clients')))*100)}%"></i></div><button id="upgradeBtn" type="button">Ver planes</button></div>`;
   $('recentList').innerHTML=[...state.services.slice(-4).map(x=>`Servicio: ${x.clientName} · ${serviceTitle(x)} · ${money(serviceAmount(x))}`),...state.payments.slice(-3).map(x=>`Cobro: ${x.invoiceNumber} · ${money(x.amount)}`),...state.payroll.slice(-2).map(x=>`Nómina: ${x.teamName} · ${money(x.net)}`)].map(x=>`<div class="list-item">${esc(x)}</div>`).join('')||'<p class="muted">Sin actividad.</p>'; 
   $('upgradeBtn')&&($('upgradeBtn').onclick=()=>show('plans'));
+  controlCenter();
 }
 
 function tables(){const i=industry();
@@ -652,7 +697,7 @@ function plans(){
   }).join('');
   document.querySelectorAll('[data-plan]').forEach(b=>b.onclick=()=>requestPlanChange(b.dataset.plan));
 }
-function render(){setVisuals();nav();forms();bindServiceItems();bindServiceProductivity();if(isTransport()){['sOrigin','sDestination','sRouteMiles','sRouteRate','sRouteBase'].forEach(id=>$(id)&&($(id).oninput=updateTransportTotal));updateTransportTotal();}kpis();tables();plans();enforceModuleView();$('pageTitle').textContent=TITLES[state.activeView]||state.activeView;$('pageSubtitle').textContent='';}
+function render(){setVisuals();nav();forms();bindServiceItems();bindServiceProductivity();if(isTransport()){['sOrigin','sDestination','sRouteMiles','sRouteRate','sRouteBase'].forEach(id=>$(id)&&($(id).oninput=updateTransportTotal));updateTransportTotal();}kpis();tables();plans();enforceModuleView();$('pageTitle').textContent=TITLES[state.activeView]||state.activeView;$('pageSubtitle').textContent=state.activeView==='dashboard'?'Resumen operativo, financiero y alertas':' ';}
 async function add(c,data){if(!canCreate(c)){alert(`Límite alcanzado en plan ${plan().name}. Mejora tu plan.`);show('plans');return null;}return await addDoc(colPath(c),{...data,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});}
 
 function showClientSummary(id){
@@ -713,7 +758,7 @@ function bindForms(){
   document.querySelectorAll('[data-preview]').forEach(b=>b.onclick=()=>{if(lockedModule('reports')){alert('Reportes es premium.');show('plans');return;}preview(b.dataset.preview);});
   $('printPreview').onclick=()=>{const html=state.previewHtml||$('reportPreview').innerHTML;const w=open('','_blank');w.document.write(`<html><head><title>Documento</title><link rel="stylesheet" href="styles.css"><style>@page{size:letter;margin:.45in;}html,body{margin:0!important;padding:0!important;background:#fff!important;}body{display:block!important;}.doc-page{width:100%!important;max-width:none!important;min-height:calc(11in - .9in)!important;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important;transform:none!important;zoom:1!important;display:flex!important;flex-direction:column!important;}.doc-body{flex:1 1 auto!important;padding:0 0 .25in 0!important;}.doc-foot{position:static!important;margin-top:auto!important;text-align:center!important;}.doc-table{width:100%!important;}</style></head><body>${html}</body></html>`);w.document.close();setTimeout(()=>{w.focus();w.print();},700);};
   $('downloadPreview').onclick=()=>{const {jsPDF}=window.jspdf;const docp=new jsPDF({unit:'pt',format:'a4'});docp.html(state.previewHtml||$('reportPreview').innerHTML,{callback:d=>{const pages=d.getNumberOfPages();for(let n=1;n<=pages;n++){d.setPage(n);d.setFontSize(8);d.setTextColor(100);d.text(`Página ${n} de ${pages}`,d.internal.pageSize.getWidth()/2,d.internal.pageSize.getHeight()-18,{align:'center'});}d.save('nexus-documento.pdf');},x:18,y:18,width:559,windowWidth:900,autoPaging:'text'});};
-  $('sideUpgrade').onclick=()=>show('plans');$('mobileMenu').onclick=()=>document.querySelector('.sidebar').classList.toggle('open');$('logoutBtn').onclick=()=>signOut(auth);
+  $('sideUpgrade').onclick=()=>show('plans');$('mobileMenu').onclick=()=>document.querySelector('.sidebar').classList.toggle('open');$('logoutBtn').onclick=()=>signOut(auth);if($('globalSearch')) $('globalSearch').oninput=renderGlobalSearch;
 }
 function authUI(){$('authIndustry').innerHTML=Object.entries(INDUSTRIES).map(([id,x])=>`<option value="${id}">${x.name}</option>`).join('');$('showLogin').onclick=()=>{mode='login';document.querySelectorAll('.register-only').forEach(x=>x.classList.add('hidden'));$('authSubmit').textContent='Entrar';$('showLogin').classList.add('active');$('showRegister').classList.remove('active');};$('showRegister').onclick=()=>{mode='register';document.querySelectorAll('.register-only').forEach(x=>x.classList.remove('hidden'));$('authSubmit').textContent='Crear cuenta';$('showRegister').classList.add('active');$('showLogin').classList.remove('active');};$('authForm').onsubmit=async e=>{e.preventDefault();$('authMsg').textContent='Procesando...';try{if(mode==='register'){const cred=await createUserWithEmailAndPassword(auth,$('authEmail').value,$('authPassword').value);await setDoc(doc(db,'users',cred.user.uid),{...defaultProfile(),businessName:$('authBusiness').value||'Mi Negocio',industry:$('authIndustry').value,email:$('authEmail').value});}else await signInWithEmailAndPassword(auth,$('authEmail').value,$('authPassword').value);$('authMsg').textContent='';}catch(err){$('authMsg').textContent=err.message;}};}
 async function load(){unsub.forEach(x=>x());unsub=[];const snap=await getDoc(profRef());if(!snap.exists())await setDoc(profRef(),defaultProfile());unsub.push(onSnapshot(profRef(),s=>{state.profile=s.data()||defaultProfile();render();}));COLS.forEach(c=>unsub.push(onSnapshot(colPath(c),s=>{state[c]=s.docs.map(d=>({id:d.id,...d.data()}));$('syncStatus').textContent='Sincronizado';render();},e=>{$('syncStatus').textContent='Firebase bloqueado';console.error(e);})));}
