@@ -90,7 +90,62 @@
       <section id="billing" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2>Facturación</h2><span id="invoicesLimit" class="limit-chip"></span></div><div class="toolbar"><button id="invoiceFromService" type="button">Facturar próximo servicio sin factura</button></div><div id="invoiceTable"></div></div></section>
       <section id="payments" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2>Cobros</h2><span id="paymentsLimit" class="limit-chip"></span></div><form id="paymentForm" class="form-grid"></form><div id="paymentsTable"></div></div></section>
       <section id="cashflow" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2>Flujo de caja</h2><span id="cashflowLimit" class="limit-chip"></span></div><form id="cashForm" class="form-grid"></form><div id="cashTable"></div></div></section>
-      <section id="reports" class="view" hidden aria-hidden="true"><div class="card"><h2>Reportes</h2><div class="report-actions"><button data-preview="executive" type="button">Preview Ejecutivo</button><button data-preview="finance" type="button">Financiero</button><button data-preview="receivable" type="button">Cuentas por cobrar</button><button data-preview="invoices" type="button">Preview Facturas</button><button data-preview="services" type="button">Preview Servicios</button><button data-preview="payments" type="button">Preview Cobros</button><button data-preview="payroll" type="button">Preview Nómina</button><button data-preview="suppliers" type="button">Preview Suplidores</button><button data-preview="purchases" type="button">Compras / CxP</button><button data-preview="ops" type="button">Operacional</button><button data-preview="assetsClient" type="button">Activos por Cliente</button><button data-preview="assetsStatus" type="button">Activos por Estado</button></div><div id="reportPreview" class="paper"></div><div class="report-actions"><button id="printPreview" type="button">Imprimir</button><button id="downloadPreview" type="button">Descargar PDF</button></div></div></section>
+      <section id="reports" class="view" hidden aria-hidden="true">
+        <div class="card report-center-card">
+          <div class="section-head clean-head">
+            <div>
+              <h2>Report Center</h2>
+              <small>Reportes organizados por categoría.</small>
+            </div>
+          </div>
+
+          <div class="report-center-tools">
+            <input id="reportSearch" type="search" placeholder="Buscar reporte..." autocomplete="off">
+          </div>
+
+          <div class="report-center-scroll" id="reportCenterList">
+            <div class="report-group" data-report-group="operacionales">
+              <h3>Operacionales</h3>
+              <div class="report-list">
+                <article class="report-item" data-report-name="clientes customers operacional" data-report-type="executive"><div><b>Clientes</b><span>Resumen general de clientes.</span></div><div class="report-item-actions"><button data-preview="executive" type="button">Ver</button><button data-report-pdf="executive" type="button">PDF</button><button data-report-export="executive" type="button">Exportar</button></div></article>
+                <article class="report-item" data-report-name="servicios services trabajos jobs" data-report-type="services"><div><b>Servicios</b><span>Servicios, clientes, activos y montos.</span></div><div class="report-item-actions"><button data-preview="services" type="button">Ver</button><button data-report-pdf="services" type="button">PDF</button><button data-report-export="services" type="button">Exportar</button></div></article>
+                <article class="report-item" data-report-name="activos assets cliente estado" data-report-type="assetsClient"><div><b>Activos por Cliente</b><span>Activos asignados y estado administrativo.</span></div><div class="report-item-actions"><button data-preview="assetsClient" type="button">Ver</button><button data-report-pdf="assetsClient" type="button">PDF</button><button data-report-export="assetsClient" type="button">Exportar</button></div></article>
+                <article class="report-item" data-report-name="activos assets status estado" data-report-type="assetsStatus"><div><b>Activos por Estado</b><span>Conteo de activos por estado.</span></div><div class="report-item-actions"><button data-preview="assetsStatus" type="button">Ver</button><button data-report-pdf="assetsStatus" type="button">PDF</button><button data-report-export="assetsStatus" type="button">Exportar</button></div></article>
+              </div>
+            </div>
+
+            <div class="report-group" data-report-group="financieros">
+              <h3>Financieros</h3>
+              <div class="report-list">
+                <article class="report-item" data-report-name="facturacion invoices facturas" data-report-type="invoices"><div><b>Facturación</b><span>Facturas, pagos, balance y estado.</span></div><div class="report-item-actions"><button data-preview="invoices" type="button">Ver</button><button data-report-pdf="invoices" type="button">PDF</button><button data-report-export="invoices" type="button">Exportar</button></div></article>
+                <article class="report-item" data-report-name="cobros payments pagos" data-report-type="payments"><div><b>Cobros</b><span>Historial de pagos recibidos.</span></div><div class="report-item-actions"><button data-preview="payments" type="button">Ver</button><button data-report-pdf="payments" type="button">PDF</button><button data-report-export="payments" type="button">Exportar</button></div></article>
+                <article class="report-item" data-report-name="flujo caja cash flow financiero finance" data-report-type="finance"><div><b>Flujo de Caja</b><span>Ingresos, gastos, neto y balances.</span></div><div class="report-item-actions"><button data-preview="finance" type="button">Ver</button><button data-report-pdf="finance" type="button">PDF</button><button data-report-export="finance" type="button">Exportar</button></div></article>
+                <article class="report-item" data-report-name="cuentas cobrar receivable vencidas overdue" data-report-type="receivable"><div><b>Cuentas por Cobrar</b><span>Facturas pendientes y vencidas.</span></div><div class="report-item-actions"><button data-preview="receivable" type="button">Ver</button><button data-report-pdf="receivable" type="button">PDF</button><button data-report-export="receivable" type="button">Exportar</button></div></article>
+              </div>
+            </div>
+
+            <div class="report-group" data-report-group="administrativos">
+              <h3>Administrativos</h3>
+              <div class="report-list">
+                <article class="report-item" data-report-name="nomina payroll empleados retenciones" data-report-type="payroll"><div><b>Nómina</b><span>Bruto, retenciones, descuentos y neto.</span></div><div class="report-item-actions"><button data-preview="payroll" type="button">Ver</button><button data-report-pdf="payroll" type="button">PDF</button><button data-report-export="payroll" type="button">Exportar</button></div></article>
+                <article class="report-item" data-report-name="compras purchases cuentas pagar cxp" data-report-type="purchases"><div><b>Compras / CxP</b><span>Compras, pagos y balances a suplidores.</span></div><div class="report-item-actions"><button data-preview="purchases" type="button">Ver</button><button data-report-pdf="purchases" type="button">PDF</button><button data-report-export="purchases" type="button">Exportar</button></div></article>
+                <article class="report-item" data-report-name="suplidores vendors suppliers proveedores" data-report-type="suppliers"><div><b>Suplidores</b><span>Compras, pagos y balances por suplidor.</span></div><div class="report-item-actions"><button data-preview="suppliers" type="button">Ver</button><button data-report-pdf="suppliers" type="button">PDF</button><button data-report-export="suppliers" type="button">Exportar</button></div></article>
+              </div>
+            </div>
+
+            <div class="report-group" data-report-group="ejecutivos">
+              <h3>Ejecutivos</h3>
+              <div class="report-list">
+                <article class="report-item" data-report-name="dashboard ejecutivo executive general" data-report-type="executive"><div><b>Ejecutivo</b><span>Resumen general del negocio.</span></div><div class="report-item-actions"><button data-preview="executive" type="button">Ver</button><button data-report-pdf="executive" type="button">PDF</button><button data-report-export="executive" type="button">Exportar</button></div></article>
+                <article class="report-item" data-report-name="operacional operaciones productividad ops" data-report-type="ops"><div><b>Operacional</b><span>Empleados, compras, suplidores y cuentas por pagar.</span></div><div class="report-item-actions"><button data-preview="ops" type="button">Ver</button><button data-report-pdf="ops" type="button">PDF</button><button data-report-export="ops" type="button">Exportar</button></div></article>
+              </div>
+            </div>
+          </div>
+
+          <div id="reportPreview" class="paper"></div>
+          <div class="report-actions report-preview-actions"><button id="printPreview" type="button">Imprimir</button><button id="downloadPreview" type="button">Descargar PDF</button></div>
+        </div>
+      </section>
       <section id="plans" class="view" hidden aria-hidden="true"><div class="card"><h2>Planes</h2><div id="plansGrid" class="plans"></div></div></section>
       <section id="settings" class="view" hidden aria-hidden="true"><div class="card"><h2>Configuración</h2><form id="settingsForm" class="form-grid"></form><button id="saveSettings" class="primary" type="button">Guardar</button></div></section>
     </main>
