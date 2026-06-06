@@ -903,7 +903,7 @@ const EDIT_LABELS={
   role:'Cargo',salary:'Salario',rate:'Tarifa',retention:'Retención',startDate:'Fecha de ingreso',category:'Categoría',location:'Ubicación',value:'Valor',warranty:'Garantía',industry:'Industria',
   whatsapp:'WhatsApp',contact:'Contacto',creditLimit:'Límite de crédito',openingBalance:'Balance inicial',supplierId:'Suplidor',supplierName:'Suplidor',purchaseId:'Compra',purchaseNumber:'Compra',method:'Método',note:'Nota',
   period:'Periodo',hours:'Horas',overtime:'Horas extra',gross:'Bruto',bonus:'Bono',advance:'Adelanto',deductions:'Descuentos',net:'Neto',concept:'Concepto',reference:'Referencia',number:'Número',
-  invoiceId:'Factura',invoiceNumber:'Factura',type:'Tipo'
+  invoiceId:'Factura',invoiceNumber:'Factura',type:'Tipo',items:'Partidas / Items',fields:'Campos adicionales',route:'Ruta',terms:'Términos',serviceTitle:'Servicio',paid:'Pagado',balance:'Balance'
 };
 const EDIT_ORDER={
   clients:['name','phone','email','city','address','altName','altPhone','altEmail','tags','notes'],
@@ -914,7 +914,7 @@ const EDIT_ORDER={
   supplierPayments:['supplierId','purchaseId','date','method','amount','note'],
   payroll:['teamId','date','period','hours','overtime','gross','bonus','advance','deductions','net','method','note'],
   purchases:['supplierId','date','dueDate','concept','reference','subtotal','tax','total','status','note'],
-  invoices:['number','date','dueDate','clientName','serviceTitle','subtotal','ivu','taxPercent','total','status','notes'],
+  invoices:['number','date','dueDate','clientId','clientName','serviceTitle','items','subtotal','ivu','taxPercent','total','status','notes','terms'],
   payments:['invoiceId','date','method','amount','note'],
   cashflow:['date','type','concept','amount']
 };
@@ -956,10 +956,15 @@ function editOptions(c,k,val){
   if(k==='serviceType') return servicesForCurrentIndustry().map(x=>({value:x,label:x}));
   return null;
 }
+function editSelectHtml(label,id,opts,val='',cls=''){
+  const has=opts.some(o=>String(o.value)===String(val));
+  const full=(!has && val!==undefined && val!==null && String(val)!=='') ? [{value:val,label:String(val)+' (actual)'} , ...opts] : opts;
+  return select(label,id,full,val,cls);
+}
 function editFieldHtml(c,k,v){
   const label=EDIT_LABELS[k]||k;
   const opts=editOptions(c,k,v);
-  if(opts) return select(label,'edit_'+k,opts,v,'');
+  if(opts) return editSelectHtml(label,'edit_'+k,opts,v,'');
   const type=editType(k,v);
   if(type==='textarea'){
     let out = (typeof v==='object' && v!==null) ? JSON.stringify(v,null,2) : (v??'');
@@ -967,10 +972,25 @@ function editFieldHtml(c,k,v){
   }
   return input(label,'edit_'+k,type,v??'', type==='number'?'':'');
 }
+function normalizeEditRecord(c,r){
+  const x={...r};
+  if(!x.clientId && x.clientName){const cl=state.clients.find(c=>String(c.name||'').toLowerCase()===String(x.clientName||'').toLowerCase()); if(cl)x.clientId=cl.id;}
+  if(!x.assetId && x.assetName){const a=state.assets.find(a=>assetName(a)===x.assetName || a.name===x.assetName); if(a)x.assetId=a.id;}
+  if(!x.teamId && x.teamName){const t=state.team.find(t=>String(t.name||'').toLowerCase()===String(x.teamName||'').toLowerCase()); if(t)x.teamId=t.id;}
+  if(!x.supplierId && x.supplierName){const sp=state.suppliers.find(s=>String(s.name||'').toLowerCase()===String(x.supplierName||'').toLowerCase()); if(sp)x.supplierId=sp.id;}
+  if(!x.purchaseId && x.purchaseNumber){const pu=state.purchases.find(p=>String(p.number||p.reference||'')===String(x.purchaseNumber)); if(pu)x.purchaseId=pu.id;}
+  if(!x.invoiceId && x.invoiceNumber){const inv=state.invoices.find(i=>String(i.number||'')===String(x.invoiceNumber)); if(inv)x.invoiceId=inv.id;}
+  if(c==='services' && x.items===undefined) x.items=[];
+  if(c==='services' && x.fields===undefined) x.fields=[];
+  if(c==='invoices' && x.items===undefined) x.items=[];
+  if(c==='invoices' && x.terms===undefined) x.terms='Pago según acuerdo.';
+  return x;
+}
 function editKeys(c,r){
   const base=EDIT_ORDER[c]||[];
-  const extras=Object.keys(r).filter(k=>!['id','createdAt','updatedAt','uid'].includes(k) && !base.includes(k));
-  return [...base.filter(k=>k in r || ['clientId','assetId','teamId','supplierId','purchaseId','invoiceId'].includes(k)),...extras];
+  const skip=['id','createdAt','updatedAt','uid','userId'];
+  const extras=Object.keys(r).filter(k=>!skip.includes(k) && !base.includes(k));
+  return [...base,...extras];
 }
 function readEditValue(k,original){
   const el=$('edit_'+k); if(!el) return undefined;
@@ -983,14 +1003,16 @@ function readEditValue(k,original){
   return raw;
 }
 async function editRecord(c,id){
-  const arr=state[c]||[],r=arr.find(x=>x.id===id); if(!r)return;
+  const arr=state[c]||[],original=arr.find(x=>x.id===id); if(!original)return;
+  const r=normalizeEditRecord(c,original);
   const m=ensureEditModal(); state.editing={c,id};
   $('editTitle').textContent=`Editar ${TITLES[c]||c}`;
-  $('editForm').innerHTML=editKeys(c,r).map(k=>editFieldHtml(c,k,r[k])).join('') || '<p class="muted">No hay campos editables.</p>';
+  const keys=editKeys(c,r);
+  $('editForm').innerHTML=keys.map(k=>editFieldHtml(c,k,r[k])).join('') || '<p class="muted">No hay campos editables.</p>';
   $('editSave').onclick=async()=>{
     try{
       const data={};
-      for(const k of editKeys(c,r)){const v=readEditValue(k,r[k]); if(v!==undefined)data[k]=v;}
+      for(const k of keys){const v=readEditValue(k,r[k]); if(v!==undefined)data[k]=v;}
       if(data.clientId){const cl=clientBy(data.clientId); data.clientName=cl.name||data.clientName||'';}
       if(data.assetId!==undefined){const a=assetBy(data.assetId); data.assetName=a.id?assetName(a):'';}
       if(data.teamId!==undefined){const t=teamBy(data.teamId); data.teamName=t.name||'';}
