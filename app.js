@@ -1002,7 +1002,147 @@ function readEditValue(k,original){
   }
   return raw;
 }
+
+function editServiceItemsHtml(items){
+  const arr=(Array.isArray(items) && items.length) ? items : [{description:'',qty:1,price:''}];
+  return arr.map((it,idx)=>`<div class="service-line" data-edit-service-line>
+    <div class="line-number">${idx+1}</div>
+    <input class="edit-svc-desc" placeholder="Descripción del servicio / partida" value="${esc(it.description||'')}">
+    <input class="edit-svc-qty" type="number" step="0.01" min="0" placeholder="Cant." value="${esc(it.qty ?? 1)}">
+    <input class="edit-svc-price" type="number" step="0.01" min="0" placeholder="Precio" value="${esc(it.price ?? '')}">
+    <button class="danger mini" data-edit-remove-line type="button">×</button>
+  </div>`).join('');
+}
+function getEditServiceItems(){
+  return [...document.querySelectorAll('[data-edit-service-line]')].map(row=>({
+    description: row.querySelector('.edit-svc-desc')?.value.trim() || '',
+    qty: Number(row.querySelector('.edit-svc-qty')?.value || 1),
+    price: Number(row.querySelector('.edit-svc-price')?.value || 0)
+  })).filter(it=>it.description || it.price > 0);
+}
+function updateEditServiceTotal(){
+  const total=serviceItemsTotal(getEditServiceItems());
+  const badge=$('edit_sItemsTotal');
+  const amount=$('edit_amount');
+  if(badge) badge.textContent=money(total);
+  if(amount && total>0) amount.value=total.toFixed(2);
+}
+function bindEditServiceItems(){
+  const addBtn=$('edit_addServiceLine');
+  if(addBtn) addBtn.onclick=()=>{
+    const box=$('editServiceItemsBox');
+    if(!box) return;
+    box.insertAdjacentHTML('beforeend',editServiceItemsHtml([{description:'',qty:1,price:''}]));
+    bindEditServiceItems();
+    updateEditServiceTotal();
+  };
+  document.querySelectorAll('[data-edit-remove-line]').forEach(btn=>btn.onclick=()=>{
+    const rows=document.querySelectorAll('[data-edit-service-line]');
+    const row=btn.closest('[data-edit-service-line]');
+    if(rows.length>1) row.remove();
+    else row.querySelectorAll('input').forEach((i,idx)=>i.value=idx===1?'1':'');
+    updateEditServiceTotal();
+  });
+  document.querySelectorAll('.edit-svc-desc,.edit-svc-qty,.edit-svc-price').forEach(el=>el.oninput=updateEditServiceTotal);
+  updateEditServiceTotal();
+}
+function editTransportRouteHtml(route){
+  const r=route || {};
+  if(!isTransport() && !r.origin && !r.destination) return '';
+  return `<div class="wide route-box"><div class="route-grid">
+    ${input('Origen','edit_route_origin','text',r.origin||'','wide')}
+    ${input('Destino','edit_route_destination','text',r.destination||'','wide')}
+    ${input('Millas Google','edit_route_miles','number',r.miles??'')}
+    ${input('Tarifa por milla','edit_route_rate','number',r.rate??(profile().transportRatePerMile||'2.50'))}
+    ${input('Cargo base','edit_route_base','number',r.base??(profile().transportBaseCharge||'0'))}
+    <div><label>Ruta</label><button id="edit_openRouteBtn" type="button" class="ghost">Abrir ruta</button></div>
+  </div><small id="editRouteCalcPreview" class="muted"></small></div>`;
+}
+function editRouteFromModal(){
+  if(!$('edit_route_origin') && !$('edit_route_destination')) return null;
+  const miles=Number($('edit_route_miles')?.value||0);
+  const rate=Number($('edit_route_rate')?.value||0);
+  const base=Number($('edit_route_base')?.value||0);
+  return {origin:$('edit_route_origin')?.value||'',destination:$('edit_route_destination')?.value||'',miles,rate,base,total:base+(miles*rate)};
+}
+function updateEditRouteTotal(){
+  const r=editRouteFromModal();
+  if(!r) return;
+  const amount=$('edit_amount');
+  if(amount) amount.value=(r.total||0).toFixed(2);
+  const preview=$('editRouteCalcPreview');
+  if(preview) preview.textContent=`${Number(r.miles||0).toFixed(2)} mi × ${money(r.rate)} + ${money(r.base)} = ${money(r.total)}`;
+  const open=$('edit_openRouteBtn');
+  if(open){
+    const url=mapsRouteUrl(r.origin,r.destination);
+    open.disabled=!url;
+    open.onclick=()=>{ if(url) window.open(url,'_blank','noopener'); };
+  }
+}
+function bindEditTransportRoute(){
+  ['edit_route_origin','edit_route_destination','edit_route_miles','edit_route_rate','edit_route_base'].forEach(id=>$(id)&&($(id).oninput=updateEditRouteTotal));
+  updateEditRouteTotal();
+}
+async function editServiceRecord(id){
+  const original=state.services.find(x=>x.id===id); if(!original) return;
+  const s=normalizeEditRecord('services',original);
+  const m=ensureEditModal(); state.editing={c:'services',id};
+  $('editTitle').textContent=`Editar ${TITLES.services||'Servicios'}`;
+  const serviceFieldLabels=industry().serviceFields || [];
+  const savedFields=Array.isArray(s.fields)?s.fields:[];
+  const fieldLabels=[...serviceFieldLabels];
+  for(let n=fieldLabels.length;n<savedFields.length;n++) fieldLabels.push(`Campo adicional ${n+1}`);
+  const route=s.route || transportRouteFromService(s);
+  $('editForm').innerHTML=
+    select(industry().client,'edit_clientId',state.clients.map(c=>({value:c.id,label:c.name})),s.clientId||'')+
+    select('Activo relacionado','edit_assetId',[{value:'',label:'Sin activo'},...state.assets.map(a=>({value:a.id,label:assetLabel(a)}))],s.assetId||'')+
+    select(industry().team,'edit_teamId',[{value:'',label:'Sin equipo'},...state.team.map(t=>({value:t.id,label:t.name}))],s.teamId||'')+
+    input('Fecha','edit_date','date',s.date||today())+
+    select('Estado','edit_status',['Pendiente','En proceso','Completado','Facturado','Cancelado'].map(x=>({value:x,label:x})),s.status||'Pendiente')+
+    select('Prioridad','edit_priority',['Baja','Normal','Alta','Urgente'].map(x=>({value:x,label:x})),s.priority||'Normal')+
+    editSelectHtml('Servicio','edit_serviceType',serviceOptions().map(x=>({value:x,label:x})),s.serviceType||serviceTitle(s),'')+
+    input('Descripción principal','edit_title','text',s.title||serviceTitle(s),'wide')+
+    input('Monto facturado','edit_amount','number',s.amount??serviceSubtotal(s))+
+    editTransportRouteHtml(route)+
+    fieldLabels.map((f,n)=>input(f,`edit_field_${n}`,'text',savedFields[n]||'','wide')).join('')+
+    `<div class="wide service-lines-card"><div class="line-head"><div><b>Partidas</b></div><strong id="edit_sItemsTotal">$0.00</strong></div><div id="editServiceItemsBox">${editServiceItemsHtml(s.items||[])}</div><button id="edit_addServiceLine" class="ghost" type="button">+ Añadir servicio</button></div>`;
+  bindEditServiceItems();
+  bindEditTransportRoute();
+  $('editSave').onclick=async()=>{
+    try{
+      const cl=clientBy($('edit_clientId')?.value||'');
+      const a=assetBy($('edit_assetId')?.value||'');
+      const t=teamBy($('edit_teamId')?.value||'');
+      const items=getEditServiceItems();
+      const itemTotal=serviceItemsTotal(items);
+      const routeData=editRouteFromModal();
+      const fields=fieldLabels.map((_,n)=>$('edit_field_'+n)?.value||'');
+      const selectedService=$('edit_serviceType')?.value||industry().service;
+      const title=($('edit_title')?.value||'').trim() || items[0]?.description || selectedService;
+      const data={
+        clientId:cl.id||'', clientName:cl.name||'',
+        assetId:a.id||'', assetName:a.id?assetName(a):'',
+        teamId:t.id||'', teamName:t.name||'',
+        date:$('edit_date')?.value||today(),
+        status:$('edit_status')?.value||'Pendiente',
+        priority:$('edit_priority')?.value||'Normal',
+        serviceType:selectedService,
+        title,
+        amount:itemTotal>0?itemTotal:Number($('edit_amount')?.value||0),
+        items,
+        fields,
+        route:routeData,
+        updatedAt:serverTimestamp()
+      };
+      await updateDoc(docPath('services',id),data);
+      closeEditModal();
+    }catch(err){alert(err.message||err);}
+  };
+  m.classList.remove('hidden');
+}
+
 async function editRecord(c,id){
+  if(c==='services') return editServiceRecord(id);
   const arr=state[c]||[],original=arr.find(x=>x.id===id); if(!original)return;
   const r=normalizeEditRecord(c,original);
   const m=ensureEditModal(); state.editing={c,id};
