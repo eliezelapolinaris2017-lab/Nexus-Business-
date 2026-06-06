@@ -185,6 +185,68 @@ function serviceOptions(){
   return (arr.length?arr:defaultServiceOptions(id)).filter(Boolean);
 }
 
+
+function serviceTemplates(indId=profile().industry){
+  const map={
+    hvac:[
+      {name:'Diagnóstico',items:[['Diagnóstico técnico',1,75]],fields:['Diagnóstico HVAC','','','','']},
+      {name:'Mantenimiento',items:[['Mantenimiento profundo',1,75],['Tratamiento drenaje',1,0]],fields:['Mantenimiento profundo','','','','']},
+      {name:'Instalación',items:[['Mano de obra instalación',1,600],['Materiales básicos',1,150]],fields:['Instalación mini split','','','','']}
+    ],
+    salon:[
+      {name:'Corte / Blower',items:[['Corte',1,25],['Blower',1,35]],fields:['Corte y blower','','','','']},
+      {name:'Color',items:[['Color',1,75],['Secado',1,35]],fields:['Color','','','','']},
+      {name:'Uñas',items:[['Manicura gel',1,55]],fields:['Uñas gel','','','','']}
+    ],
+    transport:[
+      {name:'Ruta local',items:[['Ruta local',1,180]],fields:['Ruta local','']},
+      {name:'Carga liviana',items:[['Carga liviana',1,240]],fields:['Carga liviana','']},
+      {name:'Ruta larga',items:[['Ruta larga',1,425],['Peajes / manejo',1,50]],fields:['Ruta larga','']}
+    ],
+    handyman:[
+      {name:'Plomería',items:[['Plomería liviana',1,115],['Materiales',1,50]],fields:['Plomería liviana','','','','']},
+      {name:'Electricidad',items:[['Electricidad liviana',1,95]],fields:['Electricidad liviana','','','','']},
+      {name:'Pintura',items:[['Mano de obra pintura',1,275],['Materiales',1,75]],fields:['Pintura','','','','']}
+    ],
+    cleaning:[
+      {name:'Limpieza profunda',items:[['Limpieza profunda',1,275],['Productos especiales',1,50]],fields:['Limpieza profunda','','','','']},
+      {name:'Recurrente',items:[['Limpieza recurrente',1,180]],fields:['Mantenimiento recurrente','','','','']},
+      {name:'Post-construcción',items:[['Limpieza post-construcción',1,520]],fields:['Post-construcción','','','','']}
+    ],
+    construction:[
+      {name:'Estimado',items:[['Visita / estimado',1,75]],fields:['Estimado','','','','']},
+      {name:'Supervisión',items:[['Supervisión de obra',1,950]],fields:['Supervisión','','','','']},
+      {name:'Terminaciones',items:[['Mano de obra terminaciones',1,1600],['Materiales',1,500]],fields:['Terminaciones','','','','']}
+    ]
+  };
+  return map[indId]||map.hvac;
+}
+function clientTagHtml(c){
+  const tags=String(c.tags||'').split(',').map(x=>x.trim()).filter(Boolean);
+  return tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('');
+}
+function clientSummary(c){
+  const services=state.services.filter(s=>s.clientId===c.id);
+  const invoices=state.invoices.filter(i=>i.clientId===c.id);
+  const paid=invoices.reduce((a,inv)=>a+(Number(inv.total||0)-invoiceBalance(inv)),0);
+  const balance=invoices.reduce((a,inv)=>a+invoiceBalance(inv),0);
+  const assets=state.assets.filter(a=>a.clientId===c.id).length;
+  return {services:services.length,invoices:invoices.length,paid,balance,assets};
+}
+function dashboardAlerts(){
+  const pendingInvoices=state.invoices.filter(inv=>invoiceBalance(inv)>0);
+  const unpaid=pendingInvoices.reduce((a,inv)=>a+invoiceBalance(inv),0);
+  const pendingPlans=latestPlanRequest()?1:0;
+  const servicesToday=state.services.filter(s=>s.date===today()).length;
+  const payrollBalance=state.team.reduce((a,t)=>a+teamBalance(t.id),0);
+  const alerts=[];
+  if(unpaid>0) alerts.push(`Facturas con balance: ${pendingInvoices.length} · ${money(unpaid)}`);
+  if(servicesToday>0) alerts.push(`Servicios para hoy: ${servicesToday}`);
+  if(payrollBalance>0) alerts.push(`Nómina pendiente: ${money(payrollBalance)}`);
+  if(pendingPlans) alerts.push('Solicitud de plan pendiente');
+  return alerts;
+}
+
 function enforceModuleView(){const active=state.activeView||'dashboard';document.querySelectorAll('.main > section.view').forEach(view=>{const ok=view.id===active;view.classList.toggle('active',ok);view.hidden=!ok;view.setAttribute('aria-hidden',ok?'false':'true');view.style.display=ok?'block':'none';view.style.visibility=ok?'visible':'hidden';view.style.height=ok?'auto':'0px';view.style.overflow=ok?'visible':'hidden';});}
 function show(v){state.activeView=lockedModule(v)?'plans':(v||'dashboard');render();if(innerWidth<921)document.querySelector('.sidebar')?.classList.remove('open');}
 function latestPlanRequest(){
@@ -322,6 +384,39 @@ function bindServiceItems(){
   document.querySelectorAll('.svc-desc,.svc-qty,.svc-price').forEach(el=>el.oninput=updateServiceTotal);
   updateServiceTotal();
 }
+
+function setServiceItems(items){
+  const box=$('serviceItemsBox');
+  if(!box) return;
+  box.innerHTML=itemRowsHtml((items||[]).map(([description,qty,price])=>({description,qty,price})));
+  bindServiceItems();
+}
+function bindServiceProductivity(){
+  document.querySelectorAll('[data-service-template]').forEach(btn=>btn.onclick=()=>{
+    const tpl=serviceTemplates()[Number(btn.dataset.serviceTemplate)]||{};
+    if($('sServiceType') && tpl.name) $('sServiceType').value = serviceOptions().includes(tpl.name)?tpl.name:($('sServiceType').value||serviceOptions()[0]);
+    if($('sTitle')) $('sTitle').value = tpl.name||'';
+    (tpl.fields||[]).forEach((v,n)=>{const el=$('sF'+n); if(el) el.value=v||'';});
+    setServiceItems(tpl.items||[]);
+  });
+  const dup=$('duplicateLastService');
+  if(dup) dup.onclick=()=>{
+    const last=[...state.services].sort((a,b)=>String(b.createdAt?.seconds||b.date||'').localeCompare(String(a.createdAt?.seconds||a.date||'')))[0];
+    if(!last) return alert('No hay servicios para duplicar.');
+    if($('sClient')) $('sClient').value=last.clientId||'';
+    if($('sAsset')) $('sAsset').value=last.assetId||'';
+    if($('sTeam')) $('sTeam').value=last.teamId||'';
+    if($('sServiceType')) $('sServiceType').value=last.serviceType||serviceOptions()[0];
+    if($('sTitle')) $('sTitle').value=serviceTitle(last);
+    if($('sStatus')) $('sStatus').value='Pendiente';
+    if($('sPriority')) $('sPriority').value=last.priority||'Normal';
+    (last.fields||[]).forEach((v,n)=>{const el=$('sF'+n); if(el) el.value=v||'';});
+    if(last.route){['Origin','Destination','RouteMiles','RouteRate','RouteBase'].forEach(k=>{}); if($('sOrigin')) $('sOrigin').value=last.route.origin||''; if($('sDestination')) $('sDestination').value=last.route.destination||''; if($('sRouteMiles')) $('sRouteMiles').value=last.route.miles||''; if($('sRouteRate')) $('sRouteRate').value=last.route.rate||''; if($('sRouteBase')) $('sRouteBase').value=last.route.base||'';}
+    setServiceItems((last.items||[]).map(it=>[it.description,it.qty,it.price]));
+    updateTransportTotal();
+  };
+}
+
 function serviceItemsText(s){
   const items = s.items || [];
   if(items.length) return items.map(it=>`${it.qty || 1} × ${it.description || 'Servicio'} · ${money(it.price || 0)}`).join('<br>');
@@ -451,8 +546,8 @@ function bindDemoSettings(){
 
 function forms(){const i=industry();
   $('clientsTitle').textContent=i.clients;$('servicesTitle').textContent=i.services;$('teamTitle').textContent=i.team;$('assetsTitle').textContent=i.assets;$('payrollTitle').textContent=i.payroll;$('suppliersTitle').textContent=i.suppliers;$('supplierPaymentsTitle').textContent=i.supplierPayments;
-  $('clientForm').innerHTML=input('Nombre','cName')+input('Teléfono','cPhone')+input('Email','cEmail')+input('Municipio','cCity')+input('Dirección','cAddress','text','','wide')+'<button class="primary" type="submit">Guardar</button>';
-  $('serviceForm').innerHTML=select(i.client,'sClient',state.clients.map(c=>({value:c.id,label:c.name})))+select('Activo relacionado','sAsset',[{value:'',label:'Sin activo'}].concat(state.assets.map(a=>({value:a.id,label:assetLabel(a)}))),'')+select(i.team,'sTeam',state.team.map(t=>({value:t.id,label:t.name})))+input('Fecha','sDate','date',today())+select('Servicio','sServiceType',serviceOptions().map(x=>({value:x,label:x})))+input('Descripción principal','sTitle','text','','wide')+input('Monto facturado','sAmount','number')+transportRouteFormHtml()+i.serviceFields.map((f,n)=>input(f,'sF'+n,'text','','wide')).join('')+`<div class="wide service-lines-card"><div class="line-head"><div><b>Partidas</b></div><strong id="sItemsTotal">$0.00</strong></div><div id="serviceItemsBox">${itemRowsHtml()}</div><button id="addServiceLine" class="ghost" type="button">+ Añadir servicio</button></div><button class="primary" type="submit">Guardar</button>`;
+  $('clientForm').innerHTML=input('Nombre','cName')+input('Teléfono','cPhone')+input('Email','cEmail')+input('Municipio','cCity')+input('Dirección','cAddress','text','','wide')+input('Contacto alterno','cAltName')+input('Tel. alterno','cAltPhone')+input('Email alterno','cAltEmail')+input('Etiquetas','cTags','text','VIP, Corporativo')+input('Notas administrativas','cNotes','text','','wide')+'<button class="primary" type="submit">Guardar</button>';
+  $('serviceForm').innerHTML=`<div class="wide quick-template-bar"><label>Plantillas rápidas</label><div>${serviceTemplates().map((t,n)=>`<button type="button" class="ghost" data-service-template="${n}">${esc(t.name)}</button>`).join('')}<button type="button" class="ghost" id="duplicateLastService">Duplicar último</button></div></div>`+select(i.client,'sClient',state.clients.map(c=>({value:c.id,label:c.name})))+select('Activo relacionado','sAsset',[{value:'',label:'Sin activo'}].concat(state.assets.map(a=>({value:a.id,label:assetLabel(a)}))),'')+select(i.team,'sTeam',state.team.map(t=>({value:t.id,label:t.name})))+input('Fecha','sDate','date',today())+select('Estado','sStatus',[{value:'Pendiente',label:'Pendiente'},{value:'En proceso',label:'En proceso'},{value:'Completado',label:'Completado'},{value:'Facturado',label:'Facturado'}],'Pendiente')+select('Prioridad','sPriority',[{value:'Normal',label:'Normal'},{value:'Alta',label:'Alta'},{value:'Urgente',label:'Urgente'}],'Normal')+select('Servicio','sServiceType',serviceOptions().map(x=>({value:x,label:x})))+input('Descripción principal','sTitle','text','','wide')+input('Monto facturado','sAmount','number')+transportRouteFormHtml()+i.serviceFields.map((f,n)=>input(f,'sF'+n,'text','','wide')).join('')+`<div class="wide service-lines-card"><div class="line-head"><div><b>Partidas</b></div><strong id="sItemsTotal">$0.00</strong></div><div id="serviceItemsBox">${itemRowsHtml()}</div><button id="addServiceLine" class="ghost" type="button">+ Añadir servicio</button></div><button class="primary" type="submit">Guardar</button>`;
   $('teamForm').innerHTML=input('Nombre','tName')+input('Teléfono','tPhone')+input('Puesto / Rol','tRole')+input('% Comisión','tRate','number','0')+input('% Retención','tRetention','number','0')+'<button class="primary" type="submit">Guardar</button>';
   $('assetForm').innerHTML=select('Cliente asignado','aClient',[{value:'',label:'Sin cliente'}].concat(state.clients.map(c=>({value:c.id,label:c.name}))))+input('Nombre del activo','aName')+select('Categoría','aCategory',['Equipo','Vehículo','Herramienta','Mobiliario','Infraestructura','Tecnología','Inventario Especial','Otro'].map(x=>({value:x,label:x})))+input('Ubicación','aLocation')+select('Estado','aStatus',['Activo','En uso','En garantía','Inactivo','Baja'].map(x=>({value:x,label:x})))+input('Valor estimado','aValue','number')+input('Fecha de registro','aDate','date',today())+input('Garantía / vigencia','aWarranty','text','','wide')+input('Notas administrativas','aNotes','text','','wide')+'<button class="primary" type="submit">Guardar activo</button>';
   $('supplierForm').innerHTML=input('Nombre suplidor','supName')+input('Teléfono','supPhone')+input('Email','supEmail')+input('Balance inicial / deuda','supOpening','number','0')+i.supplierFields.map((f,n)=>input(f,'supF'+n,'text','','wide')).join('')+'<button class="primary" type="submit">Guardar suplidor</button>';
@@ -465,17 +560,32 @@ function forms(){const i=industry();
   bindDemoSettings();
 }
 
-function kpis(){const billed=sum(state.invoices,'total'), collected=sum(state.payments,'amount'), expenses=state.cashflow.filter(x=>x.type==='Gasto').reduce((a,x)=>a+Number(x.amount||0),0), payroll=sum(state.payroll,'net'), supp=sum(state.supplierPayments,'amount');$('kpis').innerHTML=[['Clientes',state.clients.length],['Servicios',state.services.length],['Facturado',money(billed)],['Cobrado',money(collected)],['Nómina pagada',money(payroll)],['Suplidores pagados',money(supp)],['Gastos caja',money(expenses)],['Caja neta',money(collected-expenses)]].map(([a,b])=>`<div class="kpi"><span>${a}</span><strong>${b}</strong></div>`).join('');$('planExperience').innerHTML=`<div class="experience"><b>${plan().badge}: ${plan().name}</b><span>${plan().features.join(' · ')}</span><div class="quota"><i style="width:${Math.min(100,(state.clients.length/(unlimited(limit('clients'))?Math.max(1,state.clients.length):limit('clients')))*100)}%"></i></div><button id="upgradeBtn" type="button">Ver planes</button></div>`;$('recentList').innerHTML=[...state.services.slice(-3).map(x=>`Servicio: ${x.clientName} · ${money(x.amount)}`),...state.payroll.slice(-2).map(x=>`Nómina: ${x.teamName} · ${money(x.net)}`),...state.supplierPayments.slice(-2).map(x=>`Suplidor: ${x.supplierName} · ${money(x.amount)}`)].map(x=>`<div class="list-item">${esc(x)}</div>`).join('')||'<p class="muted">Sin actividad.</p>'; $('upgradeBtn')&&($('upgradeBtn').onclick=()=>show('plans'));}
+function kpis(){
+  const billed=sum(state.invoices,'total'), collected=sum(state.payments,'amount'), expenses=state.cashflow.filter(x=>x.type==='Gasto').reduce((a,x)=>a+Number(x.amount||0),0), payroll=sum(state.payroll,'net'), supp=sum(state.supplierPayments,'amount');
+  const balances=state.invoices.reduce((a,inv)=>a+invoiceBalance(inv),0);
+  const todayServices=state.services.filter(s=>s.date===today()).length;
+  const completed=state.services.filter(s=>String(s.status||'').toLowerCase()==='completado').length;
+  $('kpis').innerHTML=[['Clientes',state.clients.length],['Servicios hoy',todayServices],['Facturado',money(billed)],['Cobrado',money(collected)],['Balance por cobrar',money(balances)],['Nómina pagada',money(payroll)],['Suplidores pagados',money(supp)],['Caja neta',money(collected-expenses)]].map(([a,b])=>`<div class="kpi"><span>${a}</span><strong>${b}</strong></div>`).join('');
+  const alerts=dashboardAlerts();
+  if($('alertList')) $('alertList').innerHTML=alerts.length?alerts.map(x=>`<div class="alert-item">${esc(x)}</div>`).join(''):'<p class="muted">Sin alertas.</p>';
+  if($('quickActions')) $('quickActions').innerHTML=[['clients','Nuevo cliente'],['services','Nuevo servicio'],['billing','Facturar'],['payments','Registrar cobro'],['reports','Reportes']].filter(([v])=>!lockedModule(v)).map(([v,l])=>`<button type="button" data-quick-view="${v}">${l}</button>`).join('');
+  document.querySelectorAll('[data-quick-view]').forEach(b=>b.onclick=()=>show(b.dataset.quickView));
+  $('planExperience').innerHTML=`<div class="experience"><b>${plan().badge}: ${plan().name}</b><span>${plan().features.join(' · ')}</span><div class="quota"><i style="width:${Math.min(100,(state.clients.length/(unlimited(limit('clients'))?Math.max(1,state.clients.length):limit('clients')))*100)}%"></i></div><button id="upgradeBtn" type="button">Ver planes</button></div>`;
+  $('recentList').innerHTML=[...state.services.slice(-4).map(x=>`Servicio: ${x.clientName} · ${serviceTitle(x)} · ${money(serviceAmount(x))}`),...state.payments.slice(-3).map(x=>`Cobro: ${x.invoiceNumber} · ${money(x.amount)}`),...state.payroll.slice(-2).map(x=>`Nómina: ${x.teamName} · ${money(x.net)}`)].map(x=>`<div class="list-item">${esc(x)}</div>`).join('')||'<p class="muted">Sin actividad.</p>'; 
+  $('upgradeBtn')&&($('upgradeBtn').onclick=()=>show('plans'));
+}
 
 function tables(){const i=industry();
-  $('clientsTable').innerHTML=table(['Nombre','Teléfono','Municipio','Activos','Acción'],state.clients.map(c=>{const ac=state.assets.filter(a=>a.clientId===c.id).length;return `<tr><td><b>${esc(c.name)}</b><br><span class="muted">${esc(c.email)}</span></td><td>${esc(c.phone)}</td><td>${esc(c.city)}</td><td>${ac}</td><td>${action('clients',c.id)}</td></tr>`;}));
+  $('clientsTable').innerHTML=table(['Cliente','Contacto','Etiquetas','Historial','Acción'],state.clients.map(c=>{const cs=clientSummary(c);return `<tr><td><b>${esc(c.name)}</b><br><span class="muted">${esc(c.email)} · ${esc(c.city)}</span><br>${clientTagHtml(c)}</td><td>${esc(c.phone)}<br><span class="muted">${esc(c.altName||'')} ${c.altPhone?'· '+esc(c.altPhone):''}</span></td><td>${clientTagHtml(c)||'<span class="muted">Sin etiquetas</span>'}</td><td><b>${cs.assets}</b> activos · <b>${cs.services}</b> servicios<br><span class="muted">Balance ${money(cs.balance)}</span></td><td><div class="actions"><button data-client-summary="${c.id}" type="button">Ver historial</button>${action('clients',c.id)}</div></td></tr>`;}));
   $('teamTable').innerHTML=table([i.team,'Comisión generada','Retención','Nómina pagada','Balance por pagar','Acción'],state.team.map(t=>`<tr><td><b>${esc(t.name)}</b><br><span class="muted">${esc(t.role)} · ${Number(t.rate||0)}% comisión</span></td><td>${money(teamCommission(t.id))}</td><td>${money(teamRetention(t.id))}</td><td>${money(payrollPaid(t.id))}</td><td><b>${money(teamBalance(t.id))}</b></td><td>${action('team',t.id)}</td></tr>`));
   $('payrollTable').innerHTML=table(['Fecha',i.team,'Periodo','Bruto','Deducciones','Neto','Método','Acción'],state.payroll.map(p=>`<tr><td>${esc(p.date)}</td><td>${esc(p.teamName)}</td><td>${esc(p.period)}</td><td>${money(p.gross)}</td><td>${money(p.deductions)}</td><td><b>${money(p.net)}</b></td><td>${esc(p.method)}</td><td>${action('payroll',p.id)}</td></tr>`));
   $('assetsTable').innerHTML=table(['Activo','Cliente','Categoría','Ubicación','Estado','Garantía','Acción'],state.assets.map(a=>`<tr><td><b>${esc(assetName(a))}</b><br><span class="muted">${esc(a.notes||'')}</span></td><td>${esc(a.clientName||'Sin cliente')}</td><td>${esc(assetCategory(a))}</td><td>${esc(assetLocation(a))}</td><td>${esc(assetStatus(a))}</td><td>${esc(a.warranty||'')}</td><td>${action('assets',a.id)}</td></tr>`));
   $('suppliersTable').innerHTML=table(['Suplidor','Contacto','Balance inicial','Pagado','Balance','Acción'],state.suppliers.map(s=>`<tr><td><b>${esc(s.name)}</b><br><span class="muted">${(s.fields||[]).map(esc).join(' · ')}</span></td><td>${esc(s.phone)}<br><span class="muted">${esc(s.email)}</span></td><td>${money(s.openingBalance)}</td><td>${money(supplierPaid(s.id))}</td><td><b>${money(supplierBalance(s.id))}</b></td><td>${action('suppliers',s.id)}</td></tr>`));
   $('supplierPaymentsTable').innerHTML=table(['Fecha','Suplidor','Método','Monto','Nota','Acción'],state.supplierPayments.map(p=>`<tr><td>${esc(p.date)}</td><td>${esc(p.supplierName)}</td><td>${esc(p.method)}</td><td>${money(p.amount)}</td><td>${esc(p.note)}</td><td>${action('supplierPayments',p.id)}</td></tr>`));
-  $('servicesTable').innerHTML=table(['ID','Fecha',i.client,'Activo',i.team,'Detalle','Monto','Comisión','Factura','Acción'],state.services.map(s=>{const t=teamBy(s.teamId),inv=state.invoices.find(x=>x.serviceId===s.id),amount=serviceAmount(s),comm=amount*Number(t.rate||0)/100;return `<tr><td><code>${esc(String(s.id).slice(0,7))}</code></td><td>${esc(s.date)}</td><td>${esc(s.clientName)}</td><td>${esc(s.assetName||'')}</td><td>${esc(s.teamName)}</td><td><b>${esc(serviceTitle(s))}</b><br>${isTransport()?(()=>{const r=transportRouteFromService(s);return `<span class="muted">${esc(r.origin||'')} → ${esc(r.destination||'')} ${r.miles?`· ${Number(r.miles).toFixed(2)} mi`:''}</span><br>${routeLink(r.origin,r.destination,'Abrir ruta')}`})():`<span class="muted">${esc((s.fields||[]).filter(Boolean).slice(0,3).join(' · '))}</span>`}</td><td>${money(amount)}</td><td>${money(comm)}</td><td>${inv?esc(inv.number):`<button data-invoice="${s.id}" type="button">Facturar</button>`}</td><td>${action('services',s.id)}</td></tr>`}));
+  $('servicesTable').innerHTML=table(['Fecha',i.client,'Activo','Servicio','Estado','Monto','Factura','Acción'],state.services.map(s=>{const inv=state.invoices.find(x=>x.serviceId===s.id),amount=serviceAmount(s);return `<tr><td>${esc(s.date)}<br><span class="tag">${esc(s.priority||'Normal')}</span></td><td>${esc(s.clientName)}</td><td>${esc(s.assetName||'')}</td><td><b>${esc(serviceTitle(s))}</b><br>${isTransport()?(()=>{const r=transportRouteFromService(s);return `<span class="muted">${esc(r.origin||'')} → ${esc(r.destination||'')} ${r.miles?`· ${Number(r.miles).toFixed(2)} mi`:''}</span><br>${routeLink(r.origin,r.destination,'Abrir ruta')}`})():`<span class="muted">${esc((s.fields||[]).filter(Boolean).slice(0,3).join(' · '))}</span>`}</td><td><span class="status-chip">${esc(s.status||'Pendiente')}</span></td><td>${money(amount)}</td><td>${inv?esc(inv.number):`<button data-invoice="${s.id}" type="button">Facturar</button>`}</td><td><div class="actions"><button data-dup-service="${s.id}" type="button">Duplicar</button>${action('services',s.id)}</div></td></tr>`}));
   document.querySelectorAll('[data-invoice]').forEach(b=>b.onclick=()=>createInvoice(b.dataset.invoice));
+  document.querySelectorAll('[data-client-summary]').forEach(b=>b.onclick=()=>showClientSummary(b.dataset.clientSummary));
+  document.querySelectorAll('[data-dup-service]').forEach(b=>b.onclick=()=>duplicateService(b.dataset.dupService));
   $('invoiceTable').innerHTML=table(['Factura','Cliente','Servicio','Total','Pagado','Balance','Estado','Acción'],state.invoices.map(inv=>{const bal=invoiceBalance(inv),paid=Number(inv.total||0)-bal;return `<tr><td><b>${esc(inv.number)}</b></td><td>${esc(inv.clientName)}</td><td>${esc(inv.serviceTitle)}</td><td>${money(inv.total)}</td><td>${money(paid)}</td><td>${money(bal)}</td><td>${bal<=0?'Pagada':paid>0?'Parcial':'Pendiente'}</td><td><div class="actions"><button data-prev-inv="${inv.id}" type="button">Preview</button>${action('invoices',inv.id)}</div></td></tr>`}));
   document.querySelectorAll('[data-prev-inv]').forEach(b=>b.onclick=()=>previewInvoice(b.dataset.prevInv));
   $('paymentsTable').innerHTML=table(['Fecha','Factura','Método','Monto','Nota','Acción'],state.payments.map(p=>`<tr><td>${esc(p.date)}</td><td>${esc(p.invoiceNumber)}</td><td>${esc(p.method)}</td><td>${money(p.amount)}</td><td>${esc(p.note)}</td><td>${action('payments',p.id)}</td></tr>`));
@@ -498,8 +608,22 @@ function plans(){
   }).join('');
   document.querySelectorAll('[data-plan]').forEach(b=>b.onclick=()=>requestPlanChange(b.dataset.plan));
 }
-function render(){setVisuals();nav();forms();bindServiceItems();if(isTransport()){['sOrigin','sDestination','sRouteMiles','sRouteRate','sRouteBase'].forEach(id=>$(id)&&($(id).oninput=updateTransportTotal));updateTransportTotal();}kpis();tables();plans();enforceModuleView();$('pageTitle').textContent=TITLES[state.activeView]||state.activeView;$('pageSubtitle').textContent='';}
+function render(){setVisuals();nav();forms();bindServiceItems();bindServiceProductivity();if(isTransport()){['sOrigin','sDestination','sRouteMiles','sRouteRate','sRouteBase'].forEach(id=>$(id)&&($(id).oninput=updateTransportTotal));updateTransportTotal();}kpis();tables();plans();enforceModuleView();$('pageTitle').textContent=TITLES[state.activeView]||state.activeView;$('pageSubtitle').textContent='';}
 async function add(c,data){if(!canCreate(c)){alert(`Límite alcanzado en plan ${plan().name}. Mejora tu plan.`);show('plans');return null;}return await addDoc(colPath(c),{...data,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});}
+
+function showClientSummary(id){
+  const c=clientBy(id); if(!c.id) return;
+  const cs=clientSummary(c);
+  alert(`${c.name}\n\nServicios: ${cs.services}\nFacturas: ${cs.invoices}\nActivos: ${cs.assets}\nCobrado: ${money(cs.paid)}\nBalance: ${money(cs.balance)}\n\nContacto: ${c.phone||''}\n${c.email||''}\n${c.address||''}`);
+}
+async function duplicateService(id){
+  const s=state.services.find(x=>x.id===id); if(!s) return;
+  if(!canCreate('services')){alert('Límite de servicios alcanzado.');show('plans');return;}
+  const copy={...s,date:today(),status:'Pendiente',createdAt:serverTimestamp(),updatedAt:serverTimestamp()};
+  delete copy.id; delete copy.createdAt; delete copy.updatedAt;
+  await add('services',copy);
+}
+
 async function remove(c,id){if(confirm('¿Borrar registro?'))await deleteDoc(docPath(c,id));}
 async function editRecord(c,id){const arr=state[c]||[],r=arr.find(x=>x.id===id);if(!r)return;const val=prompt('Editar nombre/título/concepto principal:',r.name||r.title||r.concept||r.supplierName||r.teamName||'');if(val===null)return;const field=r.name!==undefined?'name':r.title!==undefined?'title':r.concept!==undefined?'concept':r.supplierName!==undefined?'supplierName':'teamName';await updateDoc(docPath(c,id),{[field]:val,updatedAt:serverTimestamp()});}
 async function createInvoice(serviceId){if(!canCreate('invoices')){alert('Límite de facturas alcanzado.');show('plans');return;}const s=state.services.find(x=>x.id===serviceId);if(!s)return;const totals=invoiceTotalsFromService(s);const number='INV-'+String(Date.now()).slice(-7);await add('invoices',{number,date:today(),serviceId:s.id,clientId:s.clientId,clientName:s.clientName,serviceTitle:serviceTitle(s),items:s.items||[],fields:s.fields||[],subtotal:totals.subtotal,ivu:totals.ivu,taxPercent:totals.taxPercent,total:totals.total,status:'Pendiente'});}
@@ -513,8 +637,8 @@ function preview(type){let title={executive:'REPORTE EJECUTIVO',invoices:'REPORT
 function fileData(input){return new Promise(res=>{const f=input?.files?.[0];if(!f)return res('');const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(f);});}
 async function saveSettings(){const p={...profile()};['businessName','slogan','phone','whatsapp','email','web','address','merchant','representative','tax','transportRatePerMile','transportBaseCharge','primaryColor','secondaryColor'].forEach(k=>p[k]=$('set_'+k)?.value||'');p.industry=$('set_industry').value;p.customServices={...(p.customServices||{})};p.customServices[p.industry]=($('set_services')?.value||'').split('\n').map(x=>x.trim()).filter(Boolean);for(const k of ['logoDashboard','logoPdf','favicon','signature']){const v=await fileData($('set_'+k));if(v)p[k]=v;}await setDoc(profRef(),p,{merge:true});alert('Guardado.');}
 function bindForms(){
-  $('clientForm').onsubmit=e=>{e.preventDefault();add('clients',{name:$('cName').value,phone:$('cPhone').value,email:$('cEmail').value,city:$('cCity').value,address:$('cAddress').value});e.target.reset();};
-  $('serviceForm').onsubmit=e=>{e.preventDefault();const c=state.clients.find(x=>x.id===$('sClient').value)||{},t=state.team.find(x=>x.id===$('sTeam').value)||{},a=assetBy($('sAsset')?.value||'');const items=getServiceItems();const enteredTitle=($('sTitle')?.value||'').trim();const totalFromItems=serviceItemsTotal(items);const selectedService=$('sServiceType')?.value||industry().service;const title=enteredTitle || items[0]?.description || selectedService;const route=transportRouteFromForm();const serviceFields=industry().serviceFields.map((_,n)=>$('sF'+n)?.value||'');add('services',{clientId:c.id||'',clientName:c.name||'',assetId:a.id||'',assetName:a.id?assetName(a):'',teamId:t.id||'',teamName:t.name||'',date:$('sDate').value,serviceType:selectedService,title,amount:totalFromItems>0?totalFromItems:Number($('sAmount').value||0),items,fields:serviceFields,route});e.target.reset();bindServiceItems();if(isTransport())updateTransportTotal();};
+  $('clientForm').onsubmit=e=>{e.preventDefault();add('clients',{name:$('cName').value,phone:$('cPhone').value,email:$('cEmail').value,city:$('cCity').value,address:$('cAddress').value,altName:$('cAltName')?.value||'',altPhone:$('cAltPhone')?.value||'',altEmail:$('cAltEmail')?.value||'',tags:$('cTags')?.value||'',notes:$('cNotes')?.value||''});e.target.reset();};
+  $('serviceForm').onsubmit=e=>{e.preventDefault();const c=state.clients.find(x=>x.id===$('sClient').value)||{},t=state.team.find(x=>x.id===$('sTeam').value)||{},a=assetBy($('sAsset')?.value||'');const items=getServiceItems();const enteredTitle=($('sTitle')?.value||'').trim();const totalFromItems=serviceItemsTotal(items);const selectedService=$('sServiceType')?.value||industry().service;const title=enteredTitle || items[0]?.description || selectedService;const route=transportRouteFromForm();const serviceFields=industry().serviceFields.map((_,n)=>$('sF'+n)?.value||'');add('services',{clientId:c.id||'',clientName:c.name||'',assetId:a.id||'',assetName:a.id?assetName(a):'',teamId:t.id||'',teamName:t.name||'',date:$('sDate').value,status:$('sStatus')?.value||'Pendiente',priority:$('sPriority')?.value||'Normal',serviceType:selectedService,title,amount:totalFromItems>0?totalFromItems:Number($('sAmount').value||0),items,fields:serviceFields,route});e.target.reset();bindServiceItems();if(isTransport())updateTransportTotal();};
   $('teamForm').onsubmit=e=>{e.preventDefault();add('team',{name:$('tName').value,phone:$('tPhone').value,rate:Number($('tRate').value||0),retention:Number($('tRetention').value||0),role:$('tRole').value});e.target.reset();};
   $('assetForm').onsubmit=e=>{e.preventDefault();const c=clientBy($('aClient')?.value||'');add('assets',{clientId:c.id||'',clientName:c.name||'',industry:profile().industry||'hvac',name:$('aName').value,category:$('aCategory').value,location:$('aLocation').value,status:$('aStatus').value,value:Number($('aValue').value||0),date:$('aDate').value,warranty:$('aWarranty').value,notes:$('aNotes').value});e.target.reset();};
   $('supplierForm').onsubmit=e=>{e.preventDefault();add('suppliers',{name:$('supName').value,phone:$('supPhone').value,email:$('supEmail').value,openingBalance:Number($('supOpening').value||0),fields:industry().supplierFields.map((_,n)=>$('supF'+n)?.value||'')});e.target.reset();};

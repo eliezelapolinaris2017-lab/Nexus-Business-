@@ -576,3 +576,14 @@ button.mini{padding:8px 10px;min-height:38px}
   .auth-card.auth-card-premium .auth-field select{font-size:16px;min-height:52px;}
   .auth-main-btn{min-height:56px;font-size:17px;}
 }
+
+/* V29 Fase 1 — Productividad */
+.quick-actions{display:flex;gap:10px;flex-wrap:wrap}
+.quick-actions button{background:var(--brand);color:#fff}
+.alert-item,.list-item{padding:11px 12px;border:1px solid var(--line);border-radius:14px;background:#fff;margin-bottom:8px}
+.tag{display:inline-flex;align-items:center;width:max-content;margin:3px 4px 0 0;padding:4px 8px;border-radius:999px;background:#eef4ff;color:var(--brand);font-size:11px;font-weight:900}
+.status-chip{display:inline-flex;padding:5px 9px;border-radius:999px;background:#f1f5f9;border:1px solid var(--line);font-weight:800;font-size:12px}
+.quick-template-bar{grid-column:1 / -1;border:1px solid var(--line);border-radius:18px;background:#f8fbff;padding:14px}
+.quick-template-bar label{display:block;margin-bottom:8px}
+.quick-template-bar div{display:flex;gap:8px;flex-wrap:wrap}
+.quick-template-bar button{padding:9px 12px}
