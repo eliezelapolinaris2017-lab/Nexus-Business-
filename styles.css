@@ -587,3 +587,12 @@ button.mini{padding:8px 10px;min-height:38px}
 .quick-template-bar label{display:block;margin-bottom:8px}
 .quick-template-bar div{display:flex;gap:8px;flex-wrap:wrap}
 .quick-template-bar button{padding:9px 12px}
+
+/* v30 Fase 2 Finanzas */
+.status-pagada{background:#dcfce7!important;color:#166534!important;border-color:#86efac!important;}
+.status-parcial{background:#fef9c3!important;color:#854d0e!important;border-color:#fde68a!important;}
+.status-pendiente{background:#e0f2fe!important;color:#075985!important;border-color:#7dd3fc!important;}
+.status-vencida{background:#fee2e2!important;color:#991b1b!important;border-color:#fca5a5!important;}
+.status-cancelada{background:#e5e7eb!important;color:#374151!important;border-color:#d1d5db!important;}
+.invoice-totals .balance-row{border-top:2px solid var(--brand);}
+.report-actions button[data-preview="finance"], .report-actions button[data-preview="receivable"]{font-weight:700;}
