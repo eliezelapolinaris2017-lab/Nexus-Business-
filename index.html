@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Nexus Business PR SaaS</title>
   <link id="faviconLink" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f172a'/%3E%3Ctext x='32' y='41' text-anchor='middle' font-size='30' fill='white' font-family='Arial'%3EN%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=23" />
+  <link rel="stylesheet" href="styles.css?v=28" />
 
   <style id="criticalModuleLayout">
     /* V12 CRITICAL: un módulo visible a la vez. No más módulos apilados. */
@@ -16,17 +16,17 @@
 </head>
 <body>
   <section id="authScreen" class="auth-screen">
-    <div class="auth-card">
-      <div class="auth-mark" id="authLogo">N</div>
-      <h1>Nexus Business PR</h1>
-      
+    <div class="auth-card auth-card-premium">
+      <div class="auth-logo" id="authLogo"><img src="assets/logo.png" alt="Nexus Business PR"></div>
+      <p class="auth-tagline">Gestiona tu negocio de forma simple y eficiente</p>
+
       <div class="auth-switch"><button id="showLogin" class="active" type="button">Entrar</button><button id="showRegister" type="button">Crear cuenta</button></div>
-      <form id="authForm">
-        <input id="authBusiness" class="register-only hidden" placeholder="Nombre del negocio" />
-        <select id="authIndustry" class="register-only hidden"></select>
-        <input id="authEmail" type="email" placeholder="Email" required />
-        <input id="authPassword" type="password" minlength="6" placeholder="Contraseña" required />
-        <button class="primary" id="authSubmit" type="submit">Entrar</button>
+      <form id="authForm" class="auth-form-premium">
+        <div class="auth-field register-only hidden"><span>⌂</span><input id="authBusiness" placeholder="Nombre del negocio" /></div>
+        <div class="auth-field register-only hidden"><span>⚒</span><select id="authIndustry"></select></div>
+        <div class="auth-field"><span>✉</span><input id="authEmail" type="email" placeholder="Email" required /></div>
+        <div class="auth-field"><span>▣</span><input id="authPassword" type="password" minlength="6" placeholder="Contraseña" required /></div>
+        <button class="primary auth-main-btn" id="authSubmit" type="submit"><span>👤</span> Entrar</button>
       </form>
       <small id="authMsg"></small>
     </div>
@@ -78,7 +78,7 @@
     </main>
   </div>
 
-  <script type="module" src="payment-links.js?v=23"></script>
-  <script type="module" src="app.js?v=23"></script>
+  <script type="module" src="payment-links.js?v=28"></script>
+  <script type="module" src="app.js?v=28"></script>
 </body>
 </html>
