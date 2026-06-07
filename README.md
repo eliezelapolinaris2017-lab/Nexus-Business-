@@ -1,17 +1,31 @@
-# Nexus Business PR SaaS V12 — Nómina y Suplidores
+# Nexus Accounting PR v0.6
 
-Actualización acumulativa sobre V11.
+Portal web de contabilidad profesional enfocado en ciclo contable.
 
-## Nuevo
-- Módulo de nómina/pagos por industria.
-- Módulo de suplidores cuando aplica por industria.
-- Módulo de pagos a suplidores.
-- Nómina conectada al flujo de caja como gasto.
-- Pagos a suplidores conectados al flujo de caja como gasto.
-- Balance por empleado/equipo: comisión generada - retención - nómina pagada.
-- Balance por suplidor: balance inicial - pagos realizados.
-- Reportes con preview para nómina y suplidores.
-- Menú dinámico por industria sin apilar módulos.
+## Nuevo en v0.6
+- Motor de Estados Financieros.
+- Balance de Comprobación.
+- Estado de Resultados.
+- Balance General con validación Activos = Pasivos + Capital + Utilidad.
+- Flujo de Efectivo inicial.
+- Validación Contable por período.
+- Cierre Mensual Asistido.
+- Paquete contable exportable JSON.
+- Exportación CSV del Balance de Comprobación.
 
-## Firebase
-Mantiene Firestore seguro por UID bajo `users/{uid}`.
+## Incluye desde versiones anteriores
+- Login demo.
+- Dashboard contable.
+- Catálogo de cuentas.
+- Libro Diario.
+- Libro Mayor.
+- Facturación.
+- Cobros.
+- Gastos.
+- Bancos.
+- Impuestos/IVU.
+- Bandeja de Importación.
+- Reconciliaciones automáticas y manuales.
+
+## Uso
+Abre `index.html` en el navegador. Los datos se guardan localmente en `localStorage`.
