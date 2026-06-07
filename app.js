@@ -198,6 +198,67 @@ function purchaseBalance(p){return Math.max(0,Number(p.total||0)-purchasePaid(p.
 function purchaseStatus(p){if(String(p.status||'')==='Cancelada')return 'Cancelada';const bal=purchaseBalance(p), paid=purchasePaid(p.id);if(bal<=0)return 'Pagada';if(p.dueDate && p.dueDate<today())return 'Vencida';return paid>0?'Parcial':'Pendiente';}
 function supplierBalance(sid){const s=supplierBy(sid);return Math.max(0,Number(s.openingBalance||0)+supplierPurchasesTotal(sid)-supplierPaid(sid));}
 function operationalSummary(){const payrollDue=state.team.reduce((a,t)=>a+teamBalance(t.id),0);const purchaseDebt=state.purchases.reduce((a,p)=>a+purchaseBalance(p),0);const overduePurchases=state.purchases.filter(p=>purchaseStatus(p)==='Vencida').reduce((a,p)=>a+purchaseBalance(p),0);return {employees:state.team.filter(t=>String(t.status||'Activo')!=='Inactivo').length,payrollDue,purchaseDebt,overduePurchases,purchases:state.purchases.length,suppliers:state.suppliers.length};}
+
+function obligationItems(){
+  const items=[];
+  state.payrollRetentions
+    .filter(r=>retentionStatus(r)!=='Pagada' && retentionStatus(r)!=='Aplicada')
+    .forEach(r=>items.push({date:r.dueDate||r.date||today(),type:'Retención',title:`${r.destination||'Destino'} · ${r.type||'Retención'} · ${r.teamName||''}`,amount:retentionAmount(r),view:'payroll',status:retentionStatus(r)}));
+  state.purchases
+    .filter(p=>purchaseBalance(p)>0 && purchaseStatus(p)!=='Cancelada')
+    .forEach(p=>items.push({date:p.dueDate||p.date||today(),type:'Compra',title:`${p.supplierName||'Suplidor'} · ${p.concept||p.number||'Compra'}`,amount:purchaseBalance(p),view:'purchases',status:purchaseStatus(p)}));
+  state.team
+    .map(t=>({team:t,amount:teamBalance(t.id)}))
+    .filter(x=>x.amount>0)
+    .forEach(x=>items.push({date:today(),type:'Nómina',title:x.team.name||'Empleado',amount:x.amount,view:'payroll',status:'Pendiente'}));
+  state.suppliers
+    .map(s=>({supplier:s,amount:supplierBalance(s.id),hasPurchases:state.purchases.some(p=>p.supplierId===s.id)}))
+    .filter(x=>x.amount>0 && !x.hasPurchases)
+    .forEach(x=>items.push({date:today(),type:'Suplidor',title:x.supplier.name||'Suplidor',amount:x.amount,view:'suppliers',status:'Pendiente'}));
+  return items.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')) || String(b.amount-a.amount));
+}
+function obligationSummary(){
+  const items=obligationItems();
+  const t=today(), week=plusDays(7), month=plusDays(30);
+  const total=items.reduce((a,x)=>a+Number(x.amount||0),0);
+  const dueToday=items.filter(x=>String(x.date||'')<=t).reduce((a,x)=>a+Number(x.amount||0),0);
+  const dueWeek=items.filter(x=>String(x.date||'')<=week).reduce((a,x)=>a+Number(x.amount||0),0);
+  const dueMonth=items.filter(x=>String(x.date||'')<=month).reduce((a,x)=>a+Number(x.amount||0),0);
+  const overdue=items.filter(x=>String(x.date||'')<t).reduce((a,x)=>a+Number(x.amount||0),0);
+  return {items,total,dueToday,dueWeek,dueMonth,overdue,count:items.length};
+}
+function financialHubSummary(){
+  const f=financialSummary(), o=obligationSummary();
+  const receivableToday=state.invoices.filter(inv=>invoiceBalance(inv)>0 && String(inv.dueDate||'')<=today()).reduce((a,inv)=>a+invoiceBalance(inv),0);
+  const projectedIncome=f.receivable;
+  const projectedOut=o.total;
+  const projectedNet=f.net + projectedIncome - projectedOut;
+  return {f,o,receivableToday,projectedIncome,projectedOut,projectedNet};
+}
+function renderFinancialHub(){
+  const hub=$('financialHub');
+  if(!hub) return;
+  const h=financialHubSummary();
+  const next=h.o.items.slice(0,6);
+  const dueClass=h.o.overdue>0?'danger':h.o.dueWeek>0?'warn':'ok';
+  hub.innerHTML=`
+    <div class="financial-hub-head">
+      <div><h3>Financial Hub</h3><p>Qué debes cobrar y qué debes pagar.</p></div>
+      <span class="health-badge ${dueClass}">${h.o.overdue>0?'🔴 Vencido':h.o.dueWeek>0?'🟡 Próximo':'🟢 Al día'}</span>
+    </div>
+    <div class="financial-hub-grid">
+      <button type="button" class="finance-tile" data-finance-view="billing"><span>Debes cobrar</span><b>${money(h.f.receivable)}</b><small>Hoy / vencido: ${money(h.receivableToday)}</small></button>
+      <button type="button" class="finance-tile" data-finance-view="payroll"><span>Debes pagar</span><b>${money(h.o.total)}</b><small>${h.o.count} obligaciones</small></button>
+      <button type="button" class="finance-tile" data-finance-view="cashflow"><span>Flujo proyectado</span><b>${money(h.projectedNet)}</b><small>Caja + cobros - pagos</small></button>
+      <button type="button" class="finance-tile" data-finance-view="purchases"><span>Esta semana</span><b>${money(h.o.dueWeek)}</b><small>Próximos vencimientos</small></button>
+    </div>
+    <div class="obligation-box">
+      <div class="section-head mini"><h4>Próximas obligaciones</h4><span>${money(h.o.dueMonth)}</span></div>
+      <div class="obligation-list">${next.length?next.map(x=>`<button type="button" class="obligation-row" data-obligation-view="${esc(x.view)}"><span><b>${esc(x.date||'—')}</b><small>${esc(x.type)} · ${esc(x.title)}</small></span><strong>${money(x.amount)}</strong></button>`).join(''):'<p class="muted">Sin obligaciones pendientes.</p>'}</div>
+    </div>`;
+  document.querySelectorAll('[data-finance-view]').forEach(b=>b.onclick=()=>show(b.dataset.financeView));
+  document.querySelectorAll('[data-obligation-view]').forEach(b=>b.onclick=()=>show(b.dataset.obligationView));
+}
 function imgOrText(data,text){return data?`<img src="${data}" alt="Logo" class="logo-img">`:esc(text);}
 
 function isTransport(){return (profile().industry||'')==='transport';}
@@ -321,6 +382,8 @@ function dashboardAlerts(){
   if(payrollBalance>0) alerts.push(`Nómina pendiente: ${money(payrollBalance)}`);
   const ops=operationalSummary();
   if(ops.purchaseDebt>0) alerts.push(`Cuentas por pagar: ${money(ops.purchaseDebt)}`);
+  const retPend=retentionPendingAmount();
+  if(retPend>0) alerts.push(`Retenciones pendientes: ${money(retPend)}`);
   if(ops.overduePurchases>0) alerts.push(`Compras vencidas: ${money(ops.overduePurchases)}`);
   if(pendingPlans) alerts.push('Solicitud de plan pendiente');
   return alerts;
@@ -426,6 +489,7 @@ function agendaItems(){
   state.services.filter(x=>x.date && x.date>=today()).forEach(x=>items.push({date:x.date,type:'Servicio',title:`${x.clientName||'Cliente'} · ${serviceTitle(x)}`,view:'services'}));
   state.invoices.filter(x=>invoiceBalance(x)>0 && x.dueDate).forEach(x=>items.push({date:x.dueDate,type:'Factura',title:`${x.number} · ${x.clientName} · ${money(invoiceBalance(x))}`,view:'billing'}));
   state.purchases.filter(x=>purchaseBalance(x)>0 && x.dueDate).forEach(x=>items.push({date:x.dueDate,type:'Compra',title:`${x.number||x.concept} · ${x.supplierName} · ${money(purchaseBalance(x))}`,view:'purchases'}));
+  state.payrollRetentions.filter(x=>retentionStatus(x)==='Pendiente' && x.dueDate).forEach(x=>items.push({date:x.dueDate,type:'Retención',title:`${x.destination||x.type} · ${money(retentionAmount(x))}`,view:'payroll'}));
   state.payroll.filter(x=>x.date).slice(-8).forEach(x=>items.push({date:x.date,type:'Nómina',title:`${x.teamName} · ${money(x.net)}`,view:'payroll'}));
   return items.sort((a,b)=>String(a.date).localeCompare(String(b.date))).slice(0,8);
 }
@@ -457,11 +521,13 @@ function controlCenter(){
     ['Por cobrar',money(f.receivable),'billing'],
     ['Vencido',money(f.overdue),'billing'],
     ['Por pagar',money(o.purchaseDebt),'purchases'],
-    ['Nómina',money(o.payrollDue),'payroll']
+    ['Nómina',money(o.payrollDue),'payroll'],
+    ['Obligaciones',money(obligationSummary().total),'payroll']
   ].map(([a,b,v])=>`<button class="control-card" type="button" data-control-view="${v}"><span>${a}</span><b>${b}</b></button>`).join('');
   document.querySelectorAll('[data-control-view]').forEach(b=>b.onclick=()=>show(b.dataset.controlView));
   if($('agendaList')){const ag=agendaItems();$('agendaList').innerHTML=ag.length?ag.map(x=>`<button class="agenda-item" type="button" data-agenda-view="${esc(x.view)}"><b>${esc(x.date)}</b><span>${esc(x.type)}</span><small>${esc(x.title)}</small></button>`).join(''):'<p class="muted">Sin eventos próximos.</p>';document.querySelectorAll('[data-agenda-view]').forEach(b=>b.onclick=()=>show(b.dataset.agendaView));}
   renderGlobalSearch();
+  renderFinancialHub();
 }
 
 function enforceModuleView(){const active=state.activeView||'dashboard';document.querySelectorAll('.main > section.view').forEach(view=>{const ok=view.id===active;view.classList.toggle('active',ok);view.hidden=!ok;view.setAttribute('aria-hidden',ok?'false':'true');view.style.display=ok?'block':'none';view.style.visibility=ok?'visible':'hidden';view.style.height=ok?'auto':'0px';view.style.overflow=ok?'visible':'hidden';});}
@@ -933,7 +999,8 @@ function renderHomePolish(){
     ['Por cobrar',money(f.receivable),'billing'],
     ['Vencido',money(f.overdue),'billing'],
     ['Por pagar',money(o.purchaseDebt),'purchases'],
-    ['Nómina',money(o.payrollDue),'payroll']
+    ['Nómina',money(o.payrollDue),'payroll'],
+    ['Obligaciones',money(obligationSummary().total),'payroll']
   ].map(([a,b,v])=>`<button class="control-card" type="button" data-control-view="${v}"><span>${T(a)}</span><b>${b}</b></button>`).join('');
   document.querySelectorAll('[data-control-view]').forEach(b=>b.onclick=()=>show(b.dataset.controlView));
 }
