@@ -150,6 +150,15 @@ function assetCategory(a){return a?.category || (a?.fields?.[1]) || 'General';}
 function assetLocation(a){return a?.location || (a?.fields?.[4]) || ''; }
 function assetStatus(a){return a?.status || (a?.fields?.[2]) || 'Activo';}
 function assetLabel(a){const client=a?.clientName?` · ${a.clientName}`:'';return `${assetName(a)}${client}`;}
+function clientTagOptions(){return ['VIP','Corporativo','Residencial','Comercial','Moroso','Garantía','Contrato','Prospecto','Recurrente','Prioridad','Inactivo','Otro'];}
+function clientTagsArray(v){return String(v||'').split(',').map(x=>x.trim()).filter(Boolean);}
+function clientTagsSelectHtml(id,val=''){
+  const selected=clientTagsArray(val);
+  return `<div><label>Etiquetas</label><select id="${id}" class="tag-scroll-select" multiple size="5">${clientTagOptions().map(x=>`<option value="${esc(x)}" ${selected.includes(x)?'selected':''}>${esc(x)}</option>`).join('')}</select><small class="muted">Selecciona una o varias etiquetas.</small></div>`;
+}
+function readClientTags(id){const el=$(id); return el ? [...el.selectedOptions].map(o=>o.value).join(', ') : '';}
+function vehicleAssetOptions(){return state.assets.filter(a=>String(assetCategory(a)).toLowerCase().includes('veh') || String(assetName(a)).toLowerCase().includes('veh'))}
+
 function invoicePaid(inv){return state.payments.filter(p=>p.invoiceId===inv.id).reduce((t,p)=>t+Number(p.amount||0),0);}
 function invoiceBalance(inv){return Math.max(0,Number(inv.total||0)-invoicePaid(inv));}
 function dateValue(d){return d ? new Date(String(d)+'T00:00:00').getTime() : 0;}
@@ -887,9 +896,9 @@ function bindDemoSettings(){
 
 function forms(){const i=industry();
   $('clientsTitle').textContent=i.clients;$('servicesTitle').textContent=i.services;$('teamTitle').textContent=i.team;$('assetsTitle').textContent=i.assets;$('payrollTitle').textContent=i.payroll;$('suppliersTitle').textContent=i.suppliers;$('supplierPaymentsTitle').textContent=i.supplierPayments;
-  $('clientForm').innerHTML=input('Nombre','cName')+input('Teléfono','cPhone')+input('Email','cEmail')+input('Municipio','cCity')+input('Dirección','cAddress','text','','wide')+input('Contacto alterno','cAltName')+input('Tel. alterno','cAltPhone')+input('Email alterno','cAltEmail')+input('Etiquetas','cTags','text','VIP, Corporativo')+input('Notas administrativas','cNotes','text','','wide')+'<button class="primary" type="submit">Guardar</button>';
+  $('clientForm').innerHTML=input('Nombre','cName')+input('Teléfono','cPhone')+input('Email','cEmail')+input('Municipio','cCity')+input('Dirección','cAddress','text','','wide')+input('Contacto alterno','cAltName')+input('Tel. alterno','cAltPhone')+input('Email alterno','cAltEmail')+clientTagsSelectHtml('cTags','VIP')+input('Notas administrativas','cNotes','text','','wide')+'<button class="primary" type="submit">Guardar</button>';
   $('serviceForm').innerHTML=`<div class="wide quick-template-bar"><label>Plantillas rápidas</label><div>${serviceTemplates().map((t,n)=>`<button type="button" class="ghost" data-service-template="${n}">${esc(t.name)}</button>`).join('')}<button type="button" class="ghost" id="duplicateLastService">Duplicar último</button></div></div>`+select(i.client,'sClient',state.clients.map(c=>({value:c.id,label:c.name})))+select('Activo relacionado','sAsset',[{value:'',label:'Sin activo'}].concat(state.assets.map(a=>({value:a.id,label:assetLabel(a)}))),'')+select(i.team,'sTeam',state.team.map(t=>({value:t.id,label:t.name})))+input('Fecha','sDate','date',today())+select('Estado','sStatus',[{value:'Pendiente',label:'Pendiente'},{value:'En proceso',label:'En proceso'},{value:'Completado',label:'Completado'},{value:'Facturado',label:'Facturado'}],'Pendiente')+select('Prioridad','sPriority',[{value:'Normal',label:'Normal'},{value:'Alta',label:'Alta'},{value:'Urgente',label:'Urgente'}],'Normal')+select('Servicio','sServiceType',serviceOptions().map(x=>({value:x,label:x})))+input('Descripción principal','sTitle','text','','wide')+input('Monto facturado','sAmount','number')+transportRouteFormHtml()+i.serviceFields.map((f,n)=>input(f,'sF'+n,'text','','wide')).join('')+`<div id="serviceEditBanner" class="wide edit-banner hidden"></div><div class="wide service-lines-card"><div class="line-head"><div><b>Partidas</b></div><strong id="sItemsTotal">$0.00</strong></div><div id="serviceItemsBox">${itemRowsHtml()}</div><button id="addServiceLine" class="ghost" type="button">+ Añadir servicio</button></div><div class="wide form-actions"><button id="serviceSubmitBtn" class="primary" type="submit">Guardar</button><button id="cancelServiceEdit" class="ghost hidden" type="button">Cancelar edición</button></div>`;
-  $('teamForm').innerHTML=input('Nombre','tName')+input('Teléfono','tPhone')+input('Email','tEmail')+input('Puesto / Rol','tRole')+select('Estado','tStatus',['Activo','Inactivo','Contratista'].map(x=>({value:x,label:x})))+input('Salario base','tSalary','number','0')+input('% Comisión','tRate','number','0')+input('% Retención','tRetention','number','0')+input('Fecha ingreso','tStart','date',today())+'<button class="primary" type="submit">Guardar</button>';
+  $('teamForm').innerHTML=input('Nombre','tName')+input('Teléfono','tPhone')+input('Email','tEmail')+input('Identificación personal ID','tPersonalId')+input('Licencia de conducir','tDriverLicense')+select('Vehículo asignado','tAssignedVehicle',[{value:'',label:'Sin vehículo'}].concat(vehicleAssetOptions().map(a=>({value:a.id,label:assetLabel(a)}))))+input('Puesto / Rol','tRole')+select('Estado','tStatus',['Activo','Inactivo','Contratista'].map(x=>({value:x,label:x})))+input('Salario base','tSalary','number','0')+input('% Comisión','tRate','number','0')+input('% Retención','tRetention','number','0')+input('Fecha ingreso','tStart','date',today())+'<button class="primary" type="submit">Guardar</button>';
   $('assetForm').innerHTML=select('Cliente asignado','aClient',[{value:'',label:'Sin cliente'}].concat(state.clients.map(c=>({value:c.id,label:c.name}))))+input('Nombre del activo','aName')+select('Categoría','aCategory',['Equipo','Vehículo','Herramienta','Mobiliario','Infraestructura','Tecnología','Inventario Especial','Otro'].map(x=>({value:x,label:x})))+input('Ubicación','aLocation')+select('Estado','aStatus',['Activo','En uso','En garantía','Inactivo','Baja'].map(x=>({value:x,label:x})))+input('Valor estimado','aValue','number')+input('Fecha de registro','aDate','date',today())+input('Garantía / vigencia','aWarranty','text','','wide')+input('Notas administrativas','aNotes','text','','wide')+'<button class="primary" type="submit">Guardar activo</button>';
   $('supplierForm').innerHTML=input('Nombre suplidor','supName')+input('Teléfono','supPhone')+input('WhatsApp','supWhatsapp')+input('Email','supEmail')+input('Contacto','supContact')+input('Categoría','supCategory')+input('Límite crédito','supCredit','number','0')+input('Balance inicial / deuda','supOpening','number','0')+i.supplierFields.map((f,n)=>input(f,'supF'+n,'text','','wide')).join('')+'<button class="primary" type="submit">Guardar suplidor</button>';
   $('supplierPaymentForm').innerHTML=select('Suplidor','spSupplier',state.suppliers.map(s=>({value:s.id,label:`${s.name} · balance ${money(supplierBalance(s.id))}`})))+select('Compra relacionada','spPurchase',[{value:'',label:'Pago general'}].concat(state.purchases.filter(p=>purchaseBalance(p)>0).map(p=>({value:p.id,label:`${p.number||p.concept} · ${p.supplierName} · ${money(purchaseBalance(p))}`}))))+input('Fecha','spDate','date',today())+select('Método','spMethod',['ATH Móvil','Stripe','PayPal','Transferencia','Cheque','Efectivo','Tarjeta'].map(x=>({value:x,label:x})))+input('Monto','spAmount','number')+input('Nota','spNote','text','','wide')+'<button class="primary" type="submit">Registrar pago</button>';
@@ -918,7 +927,7 @@ function kpis(){
 
 function tables(){const i=industry();
   $('clientsTable').innerHTML=table(['Cliente','Contacto','Etiquetas','Historial','Acción'],state.clients.map(c=>{const cs=clientSummary(c);return `<tr><td><b>${esc(c.name)}</b><br><span class="muted">${esc(c.email)} · ${esc(c.city)}</span><br>${clientTagHtml(c)}</td><td>${esc(c.phone)}<br><span class="muted">${esc(c.altName||'')} ${c.altPhone?'· '+esc(c.altPhone):''}</span></td><td>${clientTagHtml(c)||'<span class="muted">Sin etiquetas</span>'}</td><td><b>${cs.assets}</b> activos · <b>${cs.services}</b> servicios<br><span class="muted">Balance ${money(cs.balance)}</span></td><td><div class="actions"><button data-client-summary="${c.id}" type="button">Ver historial</button>${action('clients',c.id)}</div></td></tr>`;}));
-  $('teamTable').innerHTML=table([i.team,'Estado','Comisión','Nómina pagada','Balance','Acción'],state.team.map(t=>`<tr><td><b>${esc(t.name)}</b><br><span class="muted">${esc(t.role)} · ${esc(t.phone||'')}</span></td><td>${statusChip(t.status||'Activo')}</td><td>${money(teamCommission(t.id))}<br><span class="muted">Ret. ${money(teamRetention(t.id))}</span></td><td>${money(payrollPaid(t.id))}</td><td><b>${money(teamBalance(t.id))}</b></td><td>${action('team',t.id)}</td></tr>`));
+  $('teamTable').innerHTML=table([i.team,'Información personal','Vehículo','Estado','Comisión','Nómina pagada','Balance','Acción'],state.team.map(t=>`<tr><td><b>${esc(t.name)}</b><br><span class="muted">${esc(t.role)} · ${esc(t.phone||'')}</span></td><td><span class="muted">ID: ${esc(t.personalId||'—')}</span><br><span class="muted">Lic.: ${esc(t.driverLicense||'—')}</span></td><td>${esc(t.assignedVehicleName||'Sin vehículo')}</td><td>${statusChip(t.status||'Activo')}</td><td>${money(teamCommission(t.id))}<br><span class="muted">Ret. ${money(teamRetention(t.id))}</span></td><td>${money(payrollPaid(t.id))}</td><td><b>${money(teamBalance(t.id))}</b></td><td>${action('team',t.id)}</td></tr>`));
   $('payrollTable').innerHTML=table(['Fecha',i.team,'Periodo','Bruto','Bonos','Retención / salida','Adelantos / otros','Neto','Acción'],state.payroll.map(p=>`<tr><td>${esc(p.date)}</td><td>${esc(p.teamName)}</td><td>${esc(p.period)}<br><span class="muted">${Number(p.hours||0)}h + ${Number(p.overtime||0)}h extra</span></td><td>${money(p.gross)}</td><td>${money(p.bonus)}</td><td>${money(payrollRetention(p))}<br><span class="muted">${esc(p.retentionType||'')} ${p.retentionDestination?'→ '+esc(p.retentionDestination):''}</span></td><td>${money(payrollAdvance(p)+payrollOtherDeductions(p))}</td><td><b>${money(payrollNet(p))}</b><br><span class="muted">${esc(p.method)}</span></td><td><div class="actions"><button data-paystub="${p.id}" type="button">PDF</button>${action('payroll',p.id)}</div></td></tr>`));
   if($('retentionsTable')) $('retentionsTable').innerHTML=`<div class="section-head"><h3>Retenciones por pagar</h3><span class="limit-chip">Pendiente ${money(retentionPendingAmount())}</span></div>`+table(['Fecha','Empleado','Tipo','Destino','Monto','Estado','Fecha límite','Pagado','Acción'],state.payrollRetentions.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(r.teamName)}</td><td>${esc(r.type)}</td><td>${esc(r.destination)}</td><td><b>${money(r.amount)}</b></td><td>${statusChip(retentionStatus(r))}</td><td>${esc(r.dueDate||'—')}</td><td>${esc(r.paidAt||'—')}</td><td><div class="actions">${retentionStatus(r)==='Pendiente'?`<button data-pay-retention="${r.id}" type="button">Marcar pagada</button>`:''}${action('payrollRetentions',r.id)}</div></td></tr>`));
   $('assetsTable').innerHTML=table(['Activo','Cliente','Categoría','Ubicación','Estado','Garantía','Acción'],state.assets.map(a=>`<tr><td><b>${esc(assetName(a))}</b><br><span class="muted">${esc(a.notes||'')}</span></td><td>${esc(a.clientName||'Sin cliente')}</td><td>${esc(assetCategory(a))}</td><td>${esc(assetLocation(a))}</td><td>${esc(assetStatus(a))}</td><td>${esc(a.warranty||'')}</td><td>${action('assets',a.id)}</td></tr>`));
@@ -1044,7 +1053,7 @@ async function markRetentionPaid(id){
 async function remove(c,id){if(confirm('¿Borrar registro?'))await deleteDoc(docPath(c,id));}
 
 const EDIT_LABELS={
-  name:'Nombre',phone:'Teléfono',email:'Email',city:'Ciudad',address:'Dirección',altName:'Contacto alterno',altPhone:'Teléfono alterno',altEmail:'Email alterno',tags:'Etiquetas',notes:'Notas',
+  name:'Nombre',phone:'Teléfono',email:'Email',city:'Ciudad',address:'Dirección',altName:'Contacto alterno',altPhone:'Teléfono alterno',altEmail:'Email alterno',tags:'Etiquetas',notes:'Notas',personalId:'Identificación personal ID',driverLicense:'Licencia de conducir',assignedVehicleId:'Vehículo asignado',assignedVehicleName:'Vehículo asignado',
   clientId:'Cliente',clientName:'Cliente',assetId:'Activo',assetName:'Activo',teamId:'Empleado / Equipo',teamName:'Empleado / Equipo',date:'Fecha',dueDate:'Vencimiento',status:'Estado',priority:'Prioridad',serviceType:'Tipo de servicio',title:'Título / Descripción',amount:'Monto',subtotal:'Subtotal',tax:'Impuesto',total:'Total',
   role:'Cargo',salary:'Salario',rate:'Tarifa',retention:'Retención',startDate:'Fecha de ingreso',category:'Categoría',location:'Ubicación',value:'Valor',warranty:'Garantía',industry:'Industria',
   whatsapp:'WhatsApp',contact:'Contacto',creditLimit:'Límite de crédito',openingBalance:'Balance inicial',supplierId:'Suplidor',supplierName:'Suplidor',purchaseId:'Compra',purchaseNumber:'Compra',method:'Método',note:'Nota',
@@ -1054,7 +1063,7 @@ const EDIT_LABELS={
 const EDIT_ORDER={
   clients:['name','phone','email','city','address','altName','altPhone','altEmail','tags','notes'],
   services:['clientId','assetId','teamId','date','status','priority','serviceType','title','amount','items','fields','route'],
-  team:['name','phone','email','role','status','salary','rate','retention','startDate'],
+  team:['name','phone','email','personalId','driverLicense','assignedVehicleId','role','status','salary','rate','retention','startDate'],
   assets:['clientId','industry','name','category','location','status','value','date','warranty','notes'],
   suppliers:['name','phone','whatsapp','email','contact','category','creditLimit','openingBalance','fields'],
   supplierPayments:['supplierId','purchaseId','date','method','amount','note'],
@@ -1087,6 +1096,7 @@ function editOptions(c,k,val){
   if(k==='clientId') return state.clients.map(x=>({value:x.id,label:x.name}));
   if(k==='assetId') return [{value:'',label:'Sin activo'},...state.assets.map(x=>({value:x.id,label:assetName(x)}))];
   if(k==='teamId') return [{value:'',label:'Sin equipo'},...state.team.map(x=>({value:x.id,label:x.name}))];
+  if(k==='assignedVehicleId') return [{value:'',label:'Sin vehículo'},...vehicleAssetOptions().map(x=>({value:x.id,label:assetLabel(x)}))];
   if(k==='supplierId') return state.suppliers.map(x=>({value:x.id,label:x.name}));
   if(k==='purchaseId') return [{value:'',label:'Sin compra'},...state.purchases.map(x=>({value:x.id,label:x.number||x.concept||x.id}))];
   if(k==='invoiceId') return state.invoices.map(x=>({value:x.id,label:x.number||x.id}));
@@ -1110,6 +1120,7 @@ function editSelectHtml(label,id,opts,val='',cls=''){
   return select(label,id,full,val,cls);
 }
 function editFieldHtml(c,k,v){
+  if(c==='clients' && k==='tags') return clientTagsSelectHtml('edit_tags',v);
   const label=EDIT_LABELS[k]||k;
   const opts=editOptions(c,k,v);
   if(opts) return editSelectHtml(label,'edit_'+k,opts,v,'');
@@ -1141,6 +1152,7 @@ function editKeys(c,r){
   return [...base,...extras];
 }
 function readEditValue(k,original){
+  if(k==='tags') return readClientTags('edit_tags');
   const el=$('edit_'+k); if(!el) return undefined;
   const type=editType(k,original);
   const raw=el.value;
@@ -1253,6 +1265,7 @@ async function editRecord(c,id){
       if(data.clientId){const cl=clientBy(data.clientId); data.clientName=cl.name||data.clientName||'';}
       if(data.assetId!==undefined){const a=assetBy(data.assetId); data.assetName=a.id?assetName(a):'';}
       if(data.teamId!==undefined){const t=teamBy(data.teamId); data.teamName=t.name||'';}
+      if(data.assignedVehicleId!==undefined){const v=assetBy(data.assignedVehicleId); data.assignedVehicleName=v.id?assetName(v):'';}
       if(data.supplierId){const s=supplierBy(data.supplierId); data.supplierName=s.name||data.supplierName||'';}
       if(data.purchaseId){const p=state.purchases.find(x=>x.id===data.purchaseId)||{}; data.purchaseNumber=p.number||p.reference||'';}
       if(data.invoiceId){const inv=state.invoices.find(x=>x.id===data.invoiceId)||{}; data.invoiceNumber=inv.number||'';}
@@ -1350,7 +1363,7 @@ function downloadCurrentPreview(){
 }
 
 function bindForms(){
-  $('clientForm').onsubmit=e=>{e.preventDefault();add('clients',{name:$('cName').value,phone:$('cPhone').value,email:$('cEmail').value,city:$('cCity').value,address:$('cAddress').value,altName:$('cAltName')?.value||'',altPhone:$('cAltPhone')?.value||'',altEmail:$('cAltEmail')?.value||'',tags:$('cTags')?.value||'',notes:$('cNotes')?.value||''});e.target.reset();};
+  $('clientForm').onsubmit=e=>{e.preventDefault();add('clients',{name:$('cName').value,phone:$('cPhone').value,email:$('cEmail').value,city:$('cCity').value,address:$('cAddress').value,altName:$('cAltName')?.value||'',altPhone:$('cAltPhone')?.value||'',altEmail:$('cAltEmail')?.value||'',tags:readClientTags('cTags'),notes:$('cNotes')?.value||''});e.target.reset();};
   $('serviceForm').onsubmit=async e=>{
     e.preventDefault();
     const c=state.clients.find(x=>x.id===$('sClient').value)||{},t=state.team.find(x=>x.id===$('sTeam').value)||{},a=assetBy($('sAsset')?.value||'');
@@ -1374,7 +1387,7 @@ function bindForms(){
     if(isTransport()) updateTransportTotal();
   };
   $('cancelServiceEdit') && ($('cancelServiceEdit').onclick=()=>{ $('serviceForm').reset(); if($('sDate')) $('sDate').value=today(); setServiceItems([]); resetServiceEditMode(); if(isTransport()) updateTransportTotal(); });
-  $('teamForm').onsubmit=e=>{e.preventDefault();add('team',{name:$('tName').value,phone:$('tPhone').value,email:$('tEmail')?.value||'',role:$('tRole').value,status:$('tStatus')?.value||'Activo',salary:Number($('tSalary')?.value||0),rate:Number($('tRate').value||0),retention:Number($('tRetention').value||0),startDate:$('tStart')?.value||today()});e.target.reset();};
+  $('teamForm').onsubmit=e=>{e.preventDefault();const v=assetBy($('tAssignedVehicle')?.value||'');add('team',{name:$('tName').value,phone:$('tPhone').value,email:$('tEmail').value,personalId:$('tPersonalId')?.value||'',driverLicense:$('tDriverLicense')?.value||'',assignedVehicleId:v.id||'',assignedVehicleName:v.id?assetName(v):'',role:$('tRole').value,status:$('tStatus')?.value||'Activo',salary:Number($('tSalary').value||0),rate:Number($('tRate').value||0),retention:Number($('tRetention').value||0),startDate:$('tStart').value});e.target.reset();};
   $('assetForm').onsubmit=e=>{e.preventDefault();const c=clientBy($('aClient')?.value||'');add('assets',{clientId:c.id||'',clientName:c.name||'',industry:profile().industry||'hvac',name:$('aName').value,category:$('aCategory').value,location:$('aLocation').value,status:$('aStatus').value,value:Number($('aValue').value||0),date:$('aDate').value,warranty:$('aWarranty').value,notes:$('aNotes').value});e.target.reset();};
   $('supplierForm').onsubmit=e=>{e.preventDefault();add('suppliers',{name:$('supName').value,phone:$('supPhone').value,whatsapp:$('supWhatsapp')?.value||'',email:$('supEmail').value,contact:$('supContact')?.value||'',category:$('supCategory')?.value||'',creditLimit:Number($('supCredit')?.value||0),openingBalance:Number($('supOpening').value||0),fields:industry().supplierFields.map((_,n)=>$('supF'+n)?.value||'')});e.target.reset();};
   $('supplierPaymentForm').onsubmit=e=>{e.preventDefault();const s=supplierBy($('spSupplier').value);if(!s.id)return alert('Selecciona suplidor.');const pu=state.purchases.find(x=>x.id===($('spPurchase')?.value||''))||{};const amount=Number($('spAmount').value||0);add('supplierPayments',{supplierId:s.id,supplierName:s.name,purchaseId:pu.id||'',purchaseNumber:pu.number||pu.reference||'',date:$('spDate').value,method:$('spMethod').value,amount,note:$('spNote').value});add('cashflow',{date:$('spDate').value,type:'Gasto',concept:`Pago suplidor ${s.name}${pu.id?' · '+(pu.number||pu.concept):''}`,amount});e.target.reset();};
