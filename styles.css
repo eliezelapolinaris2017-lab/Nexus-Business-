@@ -900,3 +900,11 @@ th{position:sticky;top:0;z-index:2;background:#f8fafc}td,th{padding:10px 11px}td
   :root{--card-pad:14px;--field-h:43px}.main{padding:12px}.topbar{align-items:flex-start}.topbar>div:nth-child(2){min-width:0}.top-actions{width:100%;justify-content:flex-end;flex-wrap:wrap}.top-actions input.global-search{order:3;width:100%;min-width:100%}.form-grid{grid-template-columns:1fr}.form-grid .wide,.form-grid .full{grid-column:1/-1}button{min-height:38px}.actions button{flex:1;min-width:96px}.hero{align-items:flex-start}.hero-logo{width:64px;height:64px}.section-head{align-items:flex-start;flex-direction:column}.limit-chip{white-space:normal}.report-selected-actions{display:grid;grid-template-columns:repeat(3,1fr)}.report-selected-actions button{min-width:0;padding:8px}.doc-page{padding:24px}.paper{padding:12px}.invoice-title-row,.invoice-client-grid,.invoice-lower{grid-template-columns:1fr!important}.financial-hub-grid{grid-template-columns:1fr!important}.obligation-row{align-items:flex-start;flex-direction:column}.obligation-row strong{white-space:normal}
 }
 @media print{.topbar,.sidebar,.toolbar,.report-actions,.report-selected-actions,button{display:none!important}.main{max-width:none;padding:0}.card,.paper{box-shadow:none;border:0;padding:0}.doc-page{box-shadow:none;border:0;border-radius:0}}
+
+
+/* V48 Cotizaciones Pro */
+.quote-pro .invoice-title-row h2{letter-spacing:.08em;}
+.quote-lines-card{border-color:rgba(37,99,235,.28)!important;background:linear-gradient(180deg,rgba(37,99,235,.06),rgba(15,23,42,.03));}
+.status-chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 9px;background:rgba(15,23,42,.08);font-weight:700;font-size:12px;}
+#quotesTable .actions{display:flex;gap:6px;flex-wrap:wrap;}
+#quoteForm textarea{min-height:76px;}
