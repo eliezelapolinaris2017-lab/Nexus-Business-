@@ -387,7 +387,11 @@ function dashboardAlerts(){
   const pendingPlans=latestPlanRequest()?1:0;
   const servicesToday=state.services.filter(s=>s.date===today()).length;
   const payrollBalance=state.team.reduce((a,t)=>a+teamBalance(t.id),0);
+  const q=quoteSummary();
   const alerts=[];
+  if(q.open>0) alerts.push(`Cotizaciones abiertas: ${q.open} · ${money(q.openValue)}`);
+  if(q.approved>0) alerts.push(`Cotizaciones aprobadas sin facturar: ${q.approved} · ${money(q.approvedValue)}`);
+  if(q.expired>0) alerts.push(`Cotizaciones vencidas: ${q.expired}`);
   if(unpaid>0) alerts.push(`Facturas con balance: ${pendingInvoices.length} · ${money(unpaid)}`);
   if(overdueInvoices.length) alerts.push(`Facturas vencidas: ${overdueInvoices.length} · ${money(overdueInvoices.reduce((a,inv)=>a+invoiceBalance(inv),0))}`);
   if(servicesToday>0) alerts.push(`Servicios para hoy: ${servicesToday}`);
@@ -407,6 +411,7 @@ function businessDayStats(){
   const tomorrow=plusDays(1);
   const f=financialSummary();
   const o=operationalSummary();
+  const q=quoteSummary();
   const todayServices=state.services.filter(s=>String(s.date||'')===t);
   const tomorrowServices=state.services.filter(s=>String(s.date||'')===tomorrow);
   const weekServices=state.services.filter(s=>String(s.date||'')>=t && String(s.date||'')<=plusDays(7));
@@ -417,7 +422,7 @@ function businessDayStats(){
   const paymentsToday=state.payments.filter(p=>String(p.date||'')===t).reduce((a,p)=>a+Number(p.amount||0),0);
   const invoicesDueToday=state.invoices.filter(i=>invoiceBalance(i)>0 && String(i.dueDate||'')===t);
   const purchasesDueToday=state.purchases.filter(p=>purchaseBalance(p)>0 && String(p.dueDate||'')===t);
-  return {t,tomorrow,f,o,todayServices,tomorrowServices,weekServices,pendingInvoices,overdueInvoices,pendingPurchases,overduePurchases,paymentsToday,invoicesDueToday,purchasesDueToday};
+  return {t,tomorrow,f,o,q,todayServices,tomorrowServices,weekServices,pendingInvoices,overdueInvoices,pendingPurchases,overduePurchases,paymentsToday,invoicesDueToday,purchasesDueToday};
 }
 function greetingText(){
   const h=new Date().getHours();
@@ -468,11 +473,12 @@ function renderNexusDaily(){
   if($('businessHealth')){$('businessHealth').className=`health-badge ${h.className}`;$('businessHealth').textContent=`${h.icon} ${T(h.label)}`;}
   if($('dailyDate')) $('dailyDate').textContent=new Date().toLocaleDateString('es-PR');
   if($('dailyStrip')) $('dailyStrip').innerHTML=[
-    ['Servicios',s.todayServices.length,'services'],['Cotizaciones',state.quotes.filter(q=>quoteStatus(q)==='Enviada').length,'quotes'],['Cobros',money(s.paymentsToday),'payments'],['Facturas',s.pendingInvoices.length,'billing'],['Compras',s.pendingPurchases.length,'purchases'],['Nómina',money(s.o.payrollDue),'payroll']
+    ['Servicios',s.todayServices.length,'services'],['Cotizaciones',s.q.open,'quotes'],['Potencial COT',money(s.q.openValue),'quotes'],['Cobros',money(s.paymentsToday),'payments'],['Facturas',s.pendingInvoices.length,'billing'],['Compras',s.pendingPurchases.length,'purchases'],['Nómina',money(s.o.payrollDue),'payroll']
   ].filter(([_,__,v])=>!lockedModule(v)).map(([a,b,v])=>`<button class="daily-card" type="button" data-daily-view="${v}"><span>${T(a)}</span><b>${esc(b)}</b></button>`).join('');
   document.querySelectorAll('[data-daily-view]').forEach(b=>b.onclick=()=>show(b.dataset.dailyView));
   if($('myDayList')) $('myDayList').innerHTML=[
     ['Servicios de hoy',`${s.todayServices.length}`,s.todayServices.length?'services':''],
+    ['Cotizaciones abiertas',`${s.q.open} · ${money(s.q.openValue)}`,s.q.open?'quotes':''],
     ['Facturas vencidas',`${s.overdueInvoices.length}`,s.overdueInvoices.length?'billing':''],
     ['Cobros recibidos hoy',money(s.paymentsToday),'payments'],
     ['Compras por pagar',`${s.pendingPurchases.length}`,s.pendingPurchases.length?'purchases':''],
@@ -530,14 +536,16 @@ function renderGlobalSearch(){
   document.querySelectorAll('[data-search-view]').forEach(b=>b.onclick=()=>show(b.dataset.searchView));
 }
 function controlCenter(){
-  const f=financialSummary(), o=operationalSummary();
+  const f=financialSummary(), o=operationalSummary(), q=quoteSummary();
   if($('controlStrip')) $('controlStrip').innerHTML=[
+    ['Cotizaciones abiertas',q.open,'quotes'],
+    ['Potencial COT',money(q.openValue+q.approvedValue),'quotes'],
     ['Por cobrar',money(f.receivable),'billing'],
     ['Vencido',money(f.overdue),'billing'],
     ['Por pagar',money(o.purchaseDebt),'purchases'],
     ['Nómina',money(o.payrollDue),'payroll'],
     ['Obligaciones',money(obligationSummary().total),'payroll']
-  ].map(([a,b,v])=>`<button class="control-card" type="button" data-control-view="${v}"><span>${a}</span><b>${b}</b></button>`).join('');
+  ].map(([a,b,v])=>`<button class="control-card" type="button" data-control-view="${v}"><span>${T(a)}</span><b>${b}</b></button>`).join('');
   document.querySelectorAll('[data-control-view]').forEach(b=>b.onclick=()=>show(b.dataset.controlView));
   if($('agendaList')){const ag=agendaItems();$('agendaList').innerHTML=ag.length?ag.map(x=>`<button class="agenda-item" type="button" data-agenda-view="${esc(x.view)}"><b>${esc(x.date)}</b><span>${esc(x.type)}</span><small>${esc(x.title)}</small></button>`).join(''):'<p class="muted">Sin eventos próximos.</p>';document.querySelectorAll('[data-agenda-view]').forEach(b=>b.onclick=()=>show(b.dataset.agendaView));}
   renderGlobalSearch();
@@ -610,6 +618,24 @@ function table(head,rows){return `<div class="table-wrap"><table><thead><tr>${he
 function action(c,id){return `<div class="actions"><button data-edit="${c}:${id}" type="button">Editar</button><button class="danger" data-del="${c}:${id}" type="button">Borrar</button></div>`;}
 
 
+function quoteSummary(){
+  const quotes=state.quotes||[];
+  const ym=today().slice(0,7);
+  const converted=quotes.filter(q=>q.convertedInvoiceId || q.convertedServiceId || String(q.status||'')==='Convertida');
+  const open=quotes.filter(q=>['Borrador','Enviada'].includes(quoteStatus(q)));
+  const approved=quotes.filter(q=>quoteStatus(q)==='Aprobada' && !q.convertedInvoiceId);
+  const expired=quotes.filter(q=>quoteStatus(q)==='Vencida');
+  const rejected=quotes.filter(q=>quoteStatus(q)==='Rechazada');
+  const month=quotes.filter(q=>String(q.date||q.createdAt?.seconds||'').slice(0,7)===ym);
+  const value=quotes.reduce((a,q)=>a+quoteTotals(q).total,0);
+  const monthValue=month.reduce((a,q)=>a+quoteTotals(q).total,0);
+  const openValue=open.reduce((a,q)=>a+quoteTotals(q).total,0);
+  const approvedValue=approved.reduce((a,q)=>a+quoteTotals(q).total,0);
+  const convertedValue=converted.reduce((a,q)=>a+quoteTotals(q).total,0);
+  const conversionRate=quotes.length?Math.round((converted.length/quotes.length)*100):0;
+  return {total:quotes.length,month:month.length,open:open.length,approved:approved.length,expired:expired.length,rejected:rejected.length,converted:converted.length,value,monthValue,openValue,approvedValue,convertedValue,conversionRate};
+}
+
 function quoteTotals(q){
   const subtotal = Number(q?.subtotal ?? serviceItemsTotal(q?.items||[]) ?? 0);
   const taxPercentValue = Number(q?.taxPercent ?? profile().tax ?? 0);
@@ -619,13 +645,14 @@ function quoteTotals(q){
 }
 function quoteStatus(q){
   if(!q) return 'Borrador';
+  if(q.convertedInvoiceId || q.convertedServiceId || String(q.status||'')==='Convertida') return 'Convertida';
+  if(q.validUntil && String(q.validUntil)<today() && !['Aprobada','Rechazada'].includes(String(q.status||''))) return 'Vencida';
   if(q.status) return q.status;
-  if(q.convertedServiceId) return 'Convertida';
-  if(q.validUntil && String(q.validUntil)<today()) return 'Vencida';
   return 'Borrador';
 }
 function quoteNumber(){return 'COT-'+new Date().getFullYear()+'-'+String(Date.now()).slice(-6);}
-function quoteCanConvert(q){return q && !q.convertedServiceId && ['Aprobada','Enviada','Borrador'].includes(quoteStatus(q));}
+function quoteCanConvert(q){return q && !q.convertedServiceId && !q.convertedInvoiceId && ['Aprobada','Enviada','Borrador'].includes(quoteStatus(q));}
+function quoteCanInvoice(q){return q && !q.convertedInvoiceId && ['Aprobada','Enviada','Borrador','Convertida'].includes(quoteStatus(q));}
 function quoteItemsFallback(q){return (q?.items&&q.items.length)?q.items:[{description:q?.title||'Servicio profesional',qty:1,price:Number(q?.subtotal||0)}];}
 function serviceTitle(s){
   return s?.title || (Array.isArray(s?.items) && s.items[0]?.description) || industry().service;
@@ -1015,7 +1042,21 @@ function kpis(){
   const todayServices=state.services.filter(s=>s.date===today()).length;
   const completed=state.services.filter(s=>String(s.status||'').toLowerCase()==='completado').length;
   const ops=operationalSummary();
-  $('kpis').innerHTML=[['Clientes',state.clients.length],['Servicios hoy',todayServices],['Cotizaciones',state.quotes.length],['Cotizaciones abiertas',state.quotes.filter(q=>['Borrador','Enviada'].includes(quoteStatus(q))).length],['Facturado',money(billed)],['Cobrado',money(collected)],['Balance por cobrar',money(balances)],['Nómina pendiente',money(ops.payrollDue)],['Cuentas por pagar',money(ops.purchaseDebt)],['Caja neta',money(collected-expenses)]].map(([a,b])=>`<div class="kpi"><span>${T(a)}</span><strong>${b}</strong></div>`).join('');
+  const q=quoteSummary();
+  $('kpis').innerHTML=[
+    ['Clientes',state.clients.length],
+    ['Servicios hoy',todayServices],
+    ['Cotizaciones',q.total],
+    ['COT mes',q.month],
+    ['COT abiertas',q.open],
+    ['COT aprobadas',q.approved],
+    ['Potencial COT',money(q.openValue+q.approvedValue)],
+    ['Conversión COT',q.conversionRate+'%'],
+    ['Facturado',money(billed)],
+    ['Cobrado',money(collected)],
+    ['Balance por cobrar',money(balances)],
+    ['Caja neta',money(collected-expenses)]
+  ].map(([a,b])=>`<div class="kpi"><span>${T(a)}</span><strong>${b}</strong></div>`).join('');
   const alerts=dashboardAlerts();
   if($('alertList')) $('alertList').innerHTML=alerts.length?alerts.map(x=>`<div class="alert-item">${esc(x)}</div>`).join(''):'<p class="muted">Sin alertas.</p>';
   if($('planExperience')) $('planExperience').innerHTML=`<div class="experience"><b>${plan().badge}: ${plan().name}</b><span>${plan().features.map(T).join(' · ')}</span><div class="quota"><i style="width:${Math.min(100,(state.clients.length/(unlimited(limit('clients'))?Math.max(1,state.clients.length):limit('clients')))*100)}%"></i></div><button id="upgradeBtn" type="button">${T('Ver planes')}</button></div>`;
@@ -1026,10 +1067,11 @@ function kpis(){
 
 function renderQuotesTable(){
   const box=$('quotesTable'); if(!box) return;
-  box.innerHTML=table(['Cotización','Cliente','Válida','Total','Estado','Acción'],state.quotes.map(q=>{const t=quoteTotals(q), st=quoteStatus(q);return `<tr><td><b>${esc(q.number||'')}</b><br><span class="muted">${esc(q.title||q.serviceType||'')}</span></td><td>${esc(q.clientName||'')}</td><td>${esc(q.validUntil||'—')}</td><td>${money(t.total)}</td><td>${statusChip(st)}</td><td><div class="actions"><button data-prev-quote="${q.id}" type="button">Preview</button><button data-edit-quote="${q.id}" type="button">Editar</button>${quoteCanConvert(q)?`<button data-convert-quote="${q.id}" type="button">Crear servicio</button>`:''}<button class="danger" data-del="quotes:${q.id}" type="button">Borrar</button></div></td></tr>`;}));
+  box.innerHTML=table(['Cotización','Cliente','Válida','Total','Estado','Acción'],state.quotes.map(q=>{const t=quoteTotals(q), st=quoteStatus(q);return `<tr><td><b>${esc(q.number||'')}</b><br><span class="muted">${esc(q.title||q.serviceType||'')}</span></td><td>${esc(q.clientName||'')}</td><td>${esc(q.validUntil||'—')}</td><td>${money(t.total)}</td><td>${statusChip(st)}</td><td><div class="actions"><button data-prev-quote="${q.id}" type="button">Preview</button><button data-edit-quote="${q.id}" type="button">Editar</button>${quoteCanInvoice(q)?`<button data-invoice-quote="${q.id}" type="button">Convertir a factura</button>`:''}${quoteCanConvert(q)?`<button data-convert-quote="${q.id}" type="button">Crear servicio</button>`:''}<button class="danger" data-del="quotes:${q.id}" type="button">Borrar</button></div></td></tr>`;}));
   document.querySelectorAll('[data-prev-quote]').forEach(b=>b.onclick=()=>previewQuote(b.dataset.prevQuote));
   document.querySelectorAll('[data-edit-quote]').forEach(b=>b.onclick=()=>editQuoteRecord(b.dataset.editQuote));
   document.querySelectorAll('[data-convert-quote]').forEach(b=>b.onclick=()=>convertQuoteToService(b.dataset.convertQuote));
+  document.querySelectorAll('[data-invoice-quote]').forEach(b=>b.onclick=()=>convertQuoteToInvoice(b.dataset.invoiceQuote));
 }
 async function convertQuoteToService(id){
   const q=state.quotes.find(x=>x.id===id); if(!q)return;
@@ -1039,6 +1081,48 @@ async function convertQuoteToService(id){
   const ref=await add('services',{clientId:q.clientId||'',clientName:q.clientName||'',assetId:q.assetId||'',assetName:q.assetName||'',teamId:q.teamId||'',teamName:q.teamName||'',date:today(),status:'Pendiente',priority:q.priority||'Normal',serviceType:q.serviceType||'',title:q.title||q.serviceType||'Servicio aprobado',amount:t.subtotal,items:quoteItemsFallback(q),fields:q.fields||[],quoteId:q.id,quoteNumber:q.number||''});
   if(ref?.id) await updateDoc(docPath('quotes',id),{status:'Convertida',convertedServiceId:ref.id,approvedAt:q.approvedAt||today(),updatedAt:serverTimestamp()});
   show('services');
+}
+async function convertQuoteToInvoice(id){
+  const q=state.quotes.find(x=>x.id===id); if(!q)return;
+  if(!quoteCanInvoice(q)) return alert('Esta cotización ya tiene factura o no está disponible.');
+  if(!canCreate('invoices')){alert('Límite de facturas alcanzado.');show('plans');return;}
+  const existing=state.invoices.find(inv=>inv.quoteId===q.id || inv.quoteNumber===q.number);
+  if(existing){
+    await updateDoc(docPath('quotes',id),{status:'Convertida',convertedInvoiceId:existing.id,updatedAt:serverTimestamp()});
+    show('billing');
+    alert('Esta cotización ya tenía factura. Te llevé a Facturación.');
+    return;
+  }
+  const t=quoteTotals(q);
+  const number='INV-'+String(Date.now()).slice(-7);
+  const ref=await add('invoices',{
+    number,
+    date:today(),
+    quoteId:q.id,
+    quoteNumber:q.number||'',
+    sourceType:'quote',
+    serviceId:q.convertedServiceId||'',
+    clientId:q.clientId||'',
+    clientName:q.clientName||'',
+    serviceTitle:q.title||q.serviceType||'Servicio cotizado',
+    items:quoteItemsFallback(q),
+    fields:q.fields||[],
+    subtotal:t.subtotal,
+    ivu:t.ivu,
+    taxPercent:t.taxPercent,
+    total:t.total,
+    status:'Pendiente',
+    dueDate:plusDays(15),
+    notes:q.notes||'Factura generada desde cotización aprobada.',
+    terms:q.terms||'Pago según acuerdo.'
+  });
+  if(ref?.id){
+    await updateDoc(docPath('quotes',id),{status:'Convertida',convertedInvoiceId:ref.id,approvedAt:q.approvedAt||today(),updatedAt:serverTimestamp()});
+    show('billing');
+    alert('Factura creada desde la cotización. Ya está en Facturación lista para cobrar.');
+  }else{
+    show('billing');
+  }
 }
 function previewQuote(id){
   const q=state.quotes.find(x=>x.id===id); if(!q)return;
@@ -1127,7 +1211,10 @@ function renderHomePolish(){
   renderNexusDaily();
   const ct=$('controlStrip'); if(!ct) return;
   const f=financialSummary(), o=operationalSummary();
+  const q=quoteSummary();
   ct.innerHTML=[
+    ['Cotizaciones abiertas',q.open,'quotes'],
+    ['Potencial COT',money(q.openValue+q.approvedValue),'quotes'],
     ['Por cobrar',money(f.receivable),'billing'],
     ['Vencido',money(f.overdue),'billing'],
     ['Por pagar',money(o.purchaseDebt),'purchases'],
