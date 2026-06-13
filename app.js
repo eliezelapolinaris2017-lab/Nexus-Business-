@@ -121,7 +121,7 @@ const PLANS = {
 
 const TITLES = {dashboard:'Home',clients:'Clientes',services:'Servicios',quotes:'Cotizaciones Pro',team:'Equipo',payroll:'Nómina',assets:'Activos',suppliers:'Suplidores',supplierPayments:'Pagos suplidores',purchases:'Compras',billing:'Facturación',payments:'Cobros',cashflow:'Flujo de caja',reports:'Reportes',plans:'Planes',settings:'Configuración'};
 let mode = 'login', unsub = [];
-let state = {profile:null,clients:[],services:[],quotes:[],team:[],assets:[],suppliers:[],supplierPayments:[],payroll:[],payrollRetentions:[],purchases:[],invoices:[],payments:[],cashflow:[],planRequests:[],previewHtml:'',activeView:'dashboard',editingServiceId:null};
+let state = {profile:null,clients:[],services:[],quotes:[],team:[],assets:[],suppliers:[],supplierPayments:[],payroll:[],payrollRetentions:[],purchases:[],invoices:[],payments:[],cashflow:[],planRequests:[],previewHtml:'',activeView:'dashboard',editingServiceId:null,editingQuoteId:null};
 
 function defaultProfile(){return {businessName:'Mi Negocio',industry:'hvac',language:'es',plan:'free',planStatus:'active',planChangeMode:'manual',pendingPlan:'',pendingPlanStatus:'none',phone:'',whatsapp:'',email:auth.currentUser?.email||'',address:'',web:'',tax:'11.5',merchant:'',representative:'',slogan:'',logoDashboard:'',logoPdf:'',favicon:'',signature:'',primaryColor:'#2563eb',secondaryColor:'#0f172a',customServices:{},transportRatePerMile:'2.50',transportBaseCharge:'0',dailyGoal:'1000',onboardingComplete:false,onboardingSkipped:false,createdAt:new Date().toISOString()};}
 function profile(){return state.profile || defaultProfile();}
@@ -720,15 +720,23 @@ function bindQuoteItems(){
   box.querySelectorAll('.svc-desc,.svc-qty,.svc-price').forEach(el=>el.oninput=updateQuoteTotal);
   updateQuoteTotal();
 }
+function normalizeLineItems(items){
+  return (items&&items.length?items:[{description:'',qty:1,price:''}]).map(it=>{
+    if(Array.isArray(it)){ const [description,qty,price]=it; return {description,qty,price}; }
+    return {description:it?.description||'', qty:it?.qty ?? 1, price:it?.price ?? ''};
+  });
+}
 function setServiceItems(items){
   const box=$('serviceItemsBox');
   if(!box) return;
-  const normalized=(items&&items.length?items:[{description:'',qty:1,price:''}]).map(it=>{
-    if(Array.isArray(it)){ const [description,qty,price]=it; return {description,qty,price}; }
-    return {description:it.description||'', qty:it.qty ?? 1, price:it.price ?? ''};
-  });
-  box.innerHTML=itemRowsHtml(normalized);
+  box.innerHTML=itemRowsHtml(normalizeLineItems(items));
   bindServiceItems();
+}
+function setQuoteItems(items){
+  const box=$('quoteItemsBox');
+  if(!box) return;
+  box.innerHTML=itemRowsHtml(normalizeLineItems(items));
+  bindQuoteItems();
 }
 
 function resetServiceEditMode(){
@@ -737,6 +745,52 @@ function resetServiceEditMode(){
   const cancel=$('cancelServiceEdit'); if(cancel) cancel.classList.add('hidden');
   const banner=$('serviceEditBanner'); if(banner) banner.classList.add('hidden');
 }
+
+function resetQuoteEditMode(){
+  state.editingQuoteId=null;
+  const btn=$('quoteSubmitBtn'); if(btn) btn.textContent='Guardar cotización';
+  const cancel=$('cancelQuoteEdit'); if(cancel) cancel.classList.add('hidden');
+  const banner=$('quoteEditBanner'); if(banner) banner.classList.add('hidden');
+}
+function fillQuoteForm(q){
+  if(!q) return;
+  if($('qClient')) $('qClient').value=q.clientId||'';
+  if($('qAsset')) $('qAsset').value=q.assetId||'';
+  if($('qTeam')) $('qTeam').value=q.teamId||'';
+  if($('qDate')) $('qDate').value=q.date||today();
+  if($('qValid')) $('qValid').value=q.validUntil||plusDays(15);
+  if($('qStatus')){
+    const st=quoteStatus(q)||'Borrador';
+    if(![...$('qStatus').options].some(o=>o.value===st)) $('qStatus').insertAdjacentHTML('beforeend',`<option value="${esc(st)}">${esc(st)}</option>`);
+    $('qStatus').value=st;
+  }
+  if($('qPriority')) $('qPriority').value=q.priority||'Normal';
+  if($('qServiceType')){
+    const val=q.serviceType||q.title||serviceOptions()[0]||'';
+    if(val && ![...$('qServiceType').options].some(o=>o.value===val)) $('qServiceType').insertAdjacentHTML('beforeend',`<option value="${esc(val)}">${esc(val)}</option>`);
+    $('qServiceType').value=val;
+  }
+  if($('qTitle')) $('qTitle').value=q.title||'';
+  if($('qNotes')) $('qNotes').value=q.notes||'';
+  if($('qTerms')) $('qTerms').value=q.terms||'Precios válidos hasta la fecha indicada. Aprobación requerida para iniciar servicio.';
+  setQuoteItems(quoteItemsFallback(q));
+}
+function startQuoteEdit(id){
+  const q=state.quotes.find(x=>x.id===id);
+  if(!q) return alert('No se encontró la cotización.');
+  show('quotes');
+  state.editingQuoteId=id;
+  fillQuoteForm(q);
+  const btn=$('quoteSubmitBtn'); if(btn) btn.textContent='Actualizar cotización';
+  const cancel=$('cancelQuoteEdit'); if(cancel) cancel.classList.remove('hidden');
+  const banner=$('quoteEditBanner');
+  if(banner){ banner.classList.remove('hidden'); banner.innerHTML=`Editando <b>${esc(q.number||'Cotización')}</b>. Puedes cambiar cliente, estado, partidas, notas y términos.`; }
+  $('quoteForm')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function editQuoteRecord(id){
+  startQuoteEdit(id);
+}
+
 function fillServiceForm(s){
   if(!s) return;
   if($('sClient')) $('sClient').value=s.clientId||'';
@@ -941,7 +995,7 @@ function forms(){const i=industry();
   $('clientsTitle').textContent=i.clients;$('servicesTitle').textContent=i.services;if($('quotesTitle'))$('quotesTitle').textContent='Cotizaciones Pro';$('teamTitle').textContent=i.team;$('assetsTitle').textContent=i.assets;$('payrollTitle').textContent=i.payroll;$('suppliersTitle').textContent=i.suppliers;$('supplierPaymentsTitle').textContent=i.supplierPayments;
   $('clientForm').innerHTML=input('Nombre','cName')+input('Teléfono','cPhone')+input('Email','cEmail')+input('Municipio','cCity')+input('Dirección','cAddress','text','','wide')+input('Contacto alterno','cAltName')+input('Tel. alterno','cAltPhone')+input('Email alterno','cAltEmail')+clientTagsSelectHtml('cTags','VIP')+input('Notas administrativas','cNotes','text','','wide')+'<button class="primary" type="submit">Guardar</button>';
   $('serviceForm').innerHTML=`<div class="wide quick-template-bar"><label>Plantillas rápidas</label><div>${serviceTemplates().map((t,n)=>`<button type="button" class="ghost" data-service-template="${n}">${esc(t.name)}</button>`).join('')}<button type="button" class="ghost" id="duplicateLastService">Duplicar último</button></div></div>`+select(i.client,'sClient',state.clients.map(c=>({value:c.id,label:c.name})))+select('Activo relacionado','sAsset',[{value:'',label:'Sin activo'}].concat(state.assets.map(a=>({value:a.id,label:assetLabel(a)}))),'')+select(i.team,'sTeam',state.team.map(t=>({value:t.id,label:t.name})))+input('Fecha','sDate','date',today())+select('Estado','sStatus',[{value:'Pendiente',label:'Pendiente'},{value:'En proceso',label:'En proceso'},{value:'Completado',label:'Completado'},{value:'Facturado',label:'Facturado'}],'Pendiente')+select('Prioridad','sPriority',[{value:'Normal',label:'Normal'},{value:'Alta',label:'Alta'},{value:'Urgente',label:'Urgente'}],'Normal')+select('Servicio','sServiceType',serviceOptions().map(x=>({value:x,label:x})))+input('Descripción principal','sTitle','text','','wide')+input('Monto facturado','sAmount','number')+transportRouteFormHtml()+i.serviceFields.map((f,n)=>input(f,'sF'+n,'text','','wide')).join('')+`<div id="serviceEditBanner" class="wide edit-banner hidden"></div><div class="wide service-lines-card"><div class="line-head"><div><b>Partidas</b></div><strong id="sItemsTotal">$0.00</strong></div><div id="serviceItemsBox">${itemRowsHtml()}</div><button id="addServiceLine" class="ghost" type="button">+ Añadir servicio</button></div><div class="wide form-actions"><button id="serviceSubmitBtn" class="primary" type="submit">Guardar</button><button id="cancelServiceEdit" class="ghost hidden" type="button">Cancelar edición</button></div>`;
-  if($('quoteForm')) $('quoteForm').innerHTML=select(i.client,'qClient',state.clients.map(c=>({value:c.id,label:c.name})))+select('Activo relacionado','qAsset',[{value:'',label:'Sin activo'}].concat(state.assets.map(a=>({value:a.id,label:assetLabel(a)}))),'')+select(i.team,'qTeam',[{value:'',label:'Sin asignar'}].concat(state.team.map(t=>({value:t.id,label:t.name}))))+input('Fecha','qDate','date',today())+input('Válida hasta','qValid','date',plusDays(15))+select('Estado','qStatus',['Borrador','Enviada','Aprobada','Rechazada','Convertida'].map(x=>({value:x,label:x})),'Borrador')+select('Prioridad','qPriority',['Normal','Alta','Urgente'].map(x=>({value:x,label:x})),'Normal')+select('Servicio','qServiceType',serviceOptions().map(x=>({value:x,label:x})))+input('Descripción profesional','qTitle','text','','wide')+input('Notas','qNotes','text','','wide')+input('Términos','qTerms','text','Precios válidos hasta la fecha indicada. Aprobación requerida para iniciar servicio.','wide')+`<div class="wide service-lines-card quote-lines-card"><div class="line-head"><div><b>Partidas de cotización</b><small class="muted">Servicio, materiales, mano de obra y extras.</small></div><strong id="qItemsTotal">$0.00</strong></div><div id="quoteItemsBox">${itemRowsHtml()}</div><button id="addQuoteLine" class="ghost" type="button">+ Añadir partida</button></div><button class="primary" type="submit">Guardar cotización</button>`;
+  if($('quoteForm')) $('quoteForm').innerHTML=select(i.client,'qClient',state.clients.map(c=>({value:c.id,label:c.name})))+select('Activo relacionado','qAsset',[{value:'',label:'Sin activo'}].concat(state.assets.map(a=>({value:a.id,label:assetLabel(a)}))),'')+select(i.team,'qTeam',[{value:'',label:'Sin asignar'}].concat(state.team.map(t=>({value:t.id,label:t.name}))))+input('Fecha','qDate','date',today())+input('Válida hasta','qValid','date',plusDays(15))+select('Estado','qStatus',['Borrador','Enviada','Aprobada','Rechazada','Convertida'].map(x=>({value:x,label:x})),'Borrador')+select('Prioridad','qPriority',['Normal','Alta','Urgente'].map(x=>({value:x,label:x})),'Normal')+select('Servicio','qServiceType',serviceOptions().map(x=>({value:x,label:x})))+input('Descripción profesional','qTitle','text','','wide')+input('Notas','qNotes','text','','wide')+input('Términos','qTerms','text','Precios válidos hasta la fecha indicada. Aprobación requerida para iniciar servicio.','wide')+`<div id="quoteEditBanner" class="wide edit-banner hidden"></div><div class="wide service-lines-card quote-lines-card"><div class="line-head"><div><b>Partidas de cotización</b><small class="muted">Servicio, materiales, mano de obra y extras.</small></div><strong id="qItemsTotal">$0.00</strong></div><div id="quoteItemsBox">${itemRowsHtml()}</div><button id="addQuoteLine" class="ghost" type="button">+ Añadir partida</button></div><div class="wide form-actions"><button id="quoteSubmitBtn" class="primary" type="submit">Guardar cotización</button><button id="cancelQuoteEdit" class="ghost hidden" type="button">Cancelar edición</button></div>`;
   $('teamForm').innerHTML=input('Nombre','tName')+input('Teléfono','tPhone')+input('Email','tEmail')+input('Identificación personal ID','tPersonalId')+input('Seguro Social','tSsn','text','','','')+input('Licencia de conducir','tDriverLicense')+select('Vehículo asignado','tAssignedVehicle',[{value:'',label:'Sin vehículo'}].concat(vehicleAssetOptions().map(a=>({value:a.id,label:assetLabel(a)}))))+input('Puesto / Rol','tRole')+select('Estado','tStatus',['Activo','Inactivo','Contratista'].map(x=>({value:x,label:x})))+input('Salario base','tSalary','number','0')+input('% Comisión','tRate','number','0')+input('% Retención','tRetention','number','0')+input('Fecha ingreso','tStart','date',today())+'<button class="primary" type="submit">Guardar</button>';
   $('assetForm').innerHTML=select('Cliente asignado','aClient',[{value:'',label:'Sin cliente'}].concat(state.clients.map(c=>({value:c.id,label:c.name}))))+input('Nombre del activo','aName')+select('Categoría','aCategory',['Equipo','Vehículo','Herramienta','Mobiliario','Infraestructura','Tecnología','Inventario Especial','Otro'].map(x=>({value:x,label:x})))+input('Ubicación','aLocation')+select('Estado','aStatus',['Activo','En uso','En garantía','Inactivo','Baja'].map(x=>({value:x,label:x})))+input('Valor estimado','aValue','number')+input('Fecha de registro','aDate','date',today())+input('Garantía / vigencia','aWarranty','text','','wide')+input('Notas administrativas','aNotes','text','','wide')+'<button class="primary" type="submit">Guardar activo</button>';
   $('supplierForm').innerHTML=input('Nombre suplidor','supName')+input('Teléfono','supPhone')+input('WhatsApp','supWhatsapp')+input('Email','supEmail')+input('Contacto','supContact')+input('Categoría','supCategory')+input('Límite crédito','supCredit','number','0')+input('Balance inicial / deuda','supOpening','number','0')+i.supplierFields.map((f,n)=>input(f,'supF'+n,'text','','wide')).join('')+'<button class="primary" type="submit">Guardar suplidor</button>';
@@ -972,8 +1026,9 @@ function kpis(){
 
 function renderQuotesTable(){
   const box=$('quotesTable'); if(!box) return;
-  box.innerHTML=table(['Cotización','Cliente','Válida','Total','Estado','Acción'],state.quotes.map(q=>{const t=quoteTotals(q), st=quoteStatus(q);return `<tr><td><b>${esc(q.number||'')}</b><br><span class="muted">${esc(q.title||q.serviceType||'')}</span></td><td>${esc(q.clientName||'')}</td><td>${esc(q.validUntil||'—')}</td><td>${money(t.total)}</td><td>${statusChip(st)}</td><td><div class="actions"><button data-prev-quote="${q.id}" type="button">Preview</button>${quoteCanConvert(q)?`<button data-convert-quote="${q.id}" type="button">Crear servicio</button>`:''}${action('quotes',q.id)}</div></td></tr>`;}));
+  box.innerHTML=table(['Cotización','Cliente','Válida','Total','Estado','Acción'],state.quotes.map(q=>{const t=quoteTotals(q), st=quoteStatus(q);return `<tr><td><b>${esc(q.number||'')}</b><br><span class="muted">${esc(q.title||q.serviceType||'')}</span></td><td>${esc(q.clientName||'')}</td><td>${esc(q.validUntil||'—')}</td><td>${money(t.total)}</td><td>${statusChip(st)}</td><td><div class="actions"><button data-prev-quote="${q.id}" type="button">Preview</button><button data-edit-quote="${q.id}" type="button">Editar</button>${quoteCanConvert(q)?`<button data-convert-quote="${q.id}" type="button">Crear servicio</button>`:''}<button class="danger" data-del="quotes:${q.id}" type="button">Borrar</button></div></td></tr>`;}));
   document.querySelectorAll('[data-prev-quote]').forEach(b=>b.onclick=()=>previewQuote(b.dataset.prevQuote));
+  document.querySelectorAll('[data-edit-quote]').forEach(b=>b.onclick=()=>editQuoteRecord(b.dataset.editQuote));
   document.querySelectorAll('[data-convert-quote]').forEach(b=>b.onclick=()=>convertQuoteToService(b.dataset.convertQuote));
 }
 async function convertQuoteToService(id){
@@ -1170,6 +1225,7 @@ function editOptions(c,k,val){
   if(k==='purchaseId') return [{value:'',label:'Sin compra'},...state.purchases.map(x=>({value:x.id,label:x.number||x.concept||x.id}))];
   if(k==='invoiceId') return state.invoices.map(x=>({value:x.id,label:x.number||x.id}));
   if(k==='status'){
+    if(c==='quotes') return ['Borrador','Enviada','Aprobada','Rechazada','Convertida','Vencida'].map(x=>({value:x,label:x}));
     if(c==='payrollRetentions') return ['Pendiente','Pagada','Aplicada','Cancelada'].map(x=>({value:x,label:x}));
     if(c==='invoices') return ['Pendiente','Parcial','Pagada','Vencida','Cancelada'].map(x=>({value:x,label:x}));
     if(c==='team') return ['Activo','Inactivo','Suspendido'].map(x=>({value:x,label:x}));
@@ -1209,6 +1265,7 @@ function normalizeEditRecord(c,r){
   if(!x.purchaseId && x.purchaseNumber){const pu=state.purchases.find(p=>String(p.number||p.reference||'')===String(x.purchaseNumber)); if(pu)x.purchaseId=pu.id;}
   if(!x.invoiceId && x.invoiceNumber){const inv=state.invoices.find(i=>String(i.number||'')===String(x.invoiceNumber)); if(inv)x.invoiceId=inv.id;}
   if(c==='services' && x.items===undefined) x.items=[];
+  if(c==='quotes' && x.items===undefined) x.items=[];
   if(c==='services' && x.fields===undefined) x.fields=[];
   if(c==='invoices' && x.items===undefined) x.items=[];
   if(c==='invoices' && x.terms===undefined) x.terms='Pago según acuerdo.';
@@ -1322,6 +1379,7 @@ async function editServiceRecord(id){
 
 async function editRecord(c,id){
   if(c==='services') return editServiceRecord(id);
+  if(c==='quotes') return editQuoteRecord(id);
   const arr=state[c]||[],original=arr.find(x=>x.id===id); if(!original)return;
   const r=normalizeEditRecord(c,original);
   const m=ensureEditModal(); state.editing={c,id};
@@ -1459,7 +1517,8 @@ function bindForms(){
     if(isTransport()) updateTransportTotal();
   };
   $('cancelServiceEdit') && ($('cancelServiceEdit').onclick=()=>{ $('serviceForm').reset(); if($('sDate')) $('sDate').value=today(); setServiceItems([]); resetServiceEditMode(); if(isTransport()) updateTransportTotal(); });
-  if($('quoteForm')) $('quoteForm').onsubmit=e=>{e.preventDefault();const c=clientBy($('qClient')?.value||'');if(!c.id)return alert('Selecciona cliente.');const a=assetBy($('qAsset')?.value||'');const t=teamBy($('qTeam')?.value||'');const items=getQuoteItems();const subtotal=serviceItemsTotal(items);const ivu=subtotal*taxRate();add('quotes',{number:quoteNumber(),clientId:c.id,clientName:c.name,assetId:a.id||'',assetName:a.id?assetName(a):'',teamId:t.id||'',teamName:t.name||'',date:$('qDate').value,validUntil:$('qValid').value,status:$('qStatus').value,priority:$('qPriority').value,serviceType:$('qServiceType').value,title:$('qTitle').value,items,subtotal,ivu,taxPercent:taxPercent(),total:subtotal+ivu,notes:$('qNotes').value,terms:$('qTerms').value});e.target.reset();bindQuoteItems();};
+  if($('quoteForm')) $('quoteForm').onsubmit=async e=>{e.preventDefault();const c=clientBy($('qClient')?.value||'');if(!c.id)return alert('Selecciona cliente.');const a=assetBy($('qAsset')?.value||'');const t=teamBy($('qTeam')?.value||'');const items=getQuoteItems();const subtotal=serviceItemsTotal(items);const ivu=subtotal*taxRate();const payload={clientId:c.id,clientName:c.name,assetId:a.id||'',assetName:a.id?assetName(a):'',teamId:t.id||'',teamName:t.name||'',date:$('qDate').value,validUntil:$('qValid').value,status:$('qStatus').value,priority:$('qPriority').value,serviceType:$('qServiceType').value,title:$('qTitle').value,items,subtotal,ivu,taxPercent:taxPercent(),total:subtotal+ivu,notes:$('qNotes').value,terms:$('qTerms').value,updatedAt:serverTimestamp()};if(state.editingQuoteId){await updateDoc(docPath('quotes',state.editingQuoteId),payload);resetQuoteEditMode();}else{await add('quotes',{number:quoteNumber(),...payload});}e.target.reset();setQuoteItems([{description:'',qty:1,price:''}]);};
+  if($('cancelQuoteEdit')) $('cancelQuoteEdit').onclick=()=>{resetQuoteEditMode();$('quoteForm')?.reset();setQuoteItems([{description:'',qty:1,price:''}]);};
   $('teamForm').onsubmit=e=>{e.preventDefault();const v=assetBy($('tAssignedVehicle')?.value||'');add('team',{name:$('tName').value,phone:$('tPhone').value,email:$('tEmail').value,personalId:$('tPersonalId')?.value||'',ssn:formatSSNInput($('tSsn')?.value||''),driverLicense:$('tDriverLicense')?.value||'',assignedVehicleId:v.id||'',assignedVehicleName:v.id?assetName(v):'',role:$('tRole').value,status:$('tStatus')?.value||'Activo',salary:Number($('tSalary').value||0),rate:Number($('tRate').value||0),retention:Number($('tRetention').value||0),startDate:$('tStart').value});e.target.reset();};
   $('assetForm').onsubmit=e=>{e.preventDefault();const c=clientBy($('aClient')?.value||'');add('assets',{clientId:c.id||'',clientName:c.name||'',industry:profile().industry||'hvac',name:$('aName').value,category:$('aCategory').value,location:$('aLocation').value,status:$('aStatus').value,value:Number($('aValue').value||0),date:$('aDate').value,warranty:$('aWarranty').value,notes:$('aNotes').value});e.target.reset();};
   $('supplierForm').onsubmit=e=>{e.preventDefault();add('suppliers',{name:$('supName').value,phone:$('supPhone').value,whatsapp:$('supWhatsapp')?.value||'',email:$('supEmail').value,contact:$('supContact')?.value||'',category:$('supCategory')?.value||'',creditLimit:Number($('supCredit')?.value||0),openingBalance:Number($('supOpening').value||0),fields:industry().supplierFields.map((_,n)=>$('supF'+n)?.value||'')});e.target.reset();};
