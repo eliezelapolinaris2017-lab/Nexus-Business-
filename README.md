@@ -1,31 +1,18 @@
-# Nexus Accounting PR v0.6
+# Nexus Business PR v50 — Customer Success Center
 
-Portal web de contabilidad profesional enfocado en ciclo contable.
+Base oficial: v48D Dashboard Cotizaciones KPI Fix.
 
-## Nuevo en v0.6
-- Motor de Estados Financieros.
-- Balance de Comprobación.
-- Estado de Resultados.
-- Balance General con validación Activos = Pasivos + Capital + Utilidad.
-- Flujo de Efectivo inicial.
-- Validación Contable por período.
-- Cierre Mensual Asistido.
-- Paquete contable exportable JSON.
-- Exportación CSV del Balance de Comprobación.
+## Incluye
+- Auth Email/Password con datos privados por usuario en Firestore.
+- Clientes, Servicios, Cotizaciones Pro, Facturación, Cobros y Flujo de Caja.
+- Dashboard con KPIs de cotizaciones.
+- Nuevo módulo Seguimiento para mantenimientos, cotizaciones e instalaciones.
+- Mantenimiento preventivo estándar cada 6 meses.
+- Botón WhatsApp para seguimiento al cliente.
+- Firestore Rules con colección `followups`.
 
-## Incluye desde versiones anteriores
-- Login demo.
-- Dashboard contable.
-- Catálogo de cuentas.
-- Libro Diario.
-- Libro Mayor.
-- Facturación.
-- Cobros.
-- Gastos.
-- Bancos.
-- Impuestos/IVU.
-- Bandeja de Importación.
-- Reconciliaciones automáticas y manuales.
+## Flujo recomendado
+Cliente → Cotización → Factura/Servicio → Cobro → Seguimiento → Próximo mantenimiento 6 meses.
 
-## Uso
-Abre `index.html` en el navegador. Los datos se guardan localmente en `localStorage`.
+## Publicación
+Subir todos los archivos a GitHub Pages y publicar `firestore.rules` en Firebase.
