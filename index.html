@@ -83,6 +83,7 @@
       <section id="clients" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2 id="clientsTitle">Clientes</h2><span id="clientsLimit" class="limit-chip"></span></div><form id="clientForm" class="form-grid"></form><div id="clientsTable"></div></div></section>
       <section id="services" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2 id="servicesTitle">Servicios</h2><span id="servicesLimit" class="limit-chip"></span></div><form id="serviceForm" class="form-grid"></form><div id="servicesTable"></div></div></section>
       <section id="quotes" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><div><h2 id="quotesTitle">Cotizaciones Pro</h2><p class="muted">Cotización → aprobación → servicio → factura.</p></div><span id="quotesLimit" class="limit-chip"></span></div><form id="quoteForm" class="form-grid"></form><div id="quotesTable"></div></div></section>
+      <section id="followups" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><div><h2>Seguimiento</h2><p class="muted">Mantenimientos cada 6 meses, cotizaciones e instalaciones.</p></div><span id="followupsLimit" class="limit-chip"></span></div><form id="followupForm" class="form-grid"></form><div id="followupsTable"></div></div></section>
       <section id="team" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2 id="teamTitle">Equipo</h2><span id="teamLimit" class="limit-chip"></span></div><form id="teamForm" class="form-grid"></form><div id="teamTable"></div></div></section>
       <section id="assets" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2 id="assetsTitle">Activos</h2><span id="assetsLimit" class="limit-chip"></span></div><form id="assetForm" class="form-grid"></form><div id="assetsTable"></div></div></section>
       <section id="payroll" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2 id="payrollTitle">Nómina / Pagos equipo</h2><span id="payrollLimit" class="limit-chip"></span></div><form id="payrollForm" class="form-grid"></form><div id="payrollTable"></div><div id="retentionsTable" class="retention-center"></div></div></section>
@@ -107,6 +108,7 @@
           <div class="report-scroll-box" id="reportCenterList" role="listbox" aria-label="Reportes disponibles">
             <button class="report-option selected" type="button" data-report-type="executive" data-report-name="ejecutivo dashboard executive general clientes ventas">Ejecutivo</button>
             <button class="report-option" type="button" data-report-type="services" data-report-name="servicios services trabajos jobs clientes activos montos">Servicios</button>
+            <button class="report-option" type="button" data-report-type="followups" data-report-name="seguimiento followups mantenimiento cotizaciones instalaciones vencidos agenda">Seguimiento</button>
             <button class="report-option" type="button" data-report-type="quotes" data-report-name="cotizaciones quotes estimates propuestas ventas proyectadas aprobadas vencidas">Cotizaciones</button>
             <button class="report-option" type="button" data-report-type="assetsClient" data-report-name="activos assets cliente customer">Activos por Cliente</button>
             <button class="report-option" type="button" data-report-type="assetsStatus" data-report-name="activos assets estado status">Activos por Estado</button>
@@ -129,18 +131,6 @@
 
           <div id="reportPreview" class="paper"></div>
           <div class="report-actions report-preview-actions"><button id="printPreview" type="button">Imprimir</button><button id="downloadPreview" type="button">Descargar PDF</button></div>
-        </div>
-      </section>
-      <section id="importData" class="view" hidden aria-hidden="true">
-        <div class="card import-card">
-          <div class="section-head">
-            <div><h2>Importar datos</h2><p class="muted">Convierte facturaciones, cotizaciones y clientes históricos para Nexus Business.</p></div>
-            <span class="limit-chip">Business Data Engine</span>
-          </div>
-          <div id="importSummary"></div>
-          <div id="importResult" class="import-result"></div>
-          <div class="section-head"><h3>Historial de importaciones</h3></div>
-          <div id="importHistory"></div>
         </div>
       </section>
       <section id="plans" class="view" hidden aria-hidden="true"><div class="card"><h2>Planes</h2><div id="plansGrid" class="plans"></div></div></section>
@@ -169,7 +159,7 @@
 
   </div>
 
-  <script type="module" src="payment-links.js?v=48d"></script>
+  <script type="module" src="payment-links.js?v=49"></script>
   <script type="module" src="app.js?v=49"></script>
 </body>
 </html>
