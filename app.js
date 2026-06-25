@@ -886,6 +886,36 @@ function startServiceEdit(id){
     $('serviceForm')?.scrollIntoView({behavior:'smooth',block:'start'});
   },0);
 }
+
+function applyServiceTemplate(index){
+  const tpl=serviceTemplates()[Number(index)]||{};
+  if($('sServiceType') && tpl.name) $('sServiceType').value = serviceOptions().includes(tpl.name)?tpl.name:($('sServiceType').value||serviceOptions()[0]);
+  if($('sTitle')) $('sTitle').value = tpl.name||'';
+  (tpl.fields||[]).forEach((v,n)=>{const el=$('sF'+n); if(el) el.value=v||'';});
+  setServiceItems(tpl.items||[]);
+}
+function duplicateLastService(){
+  const last=[...state.services].sort((a,b)=>String(b.createdAt?.seconds||b.date||'').localeCompare(String(a.createdAt?.seconds||a.date||'')))[0];
+  if(!last) return alert('No hay servicios para duplicar.');
+  if($('sClient')) $('sClient').value=last.clientId||'';
+  if($('sAsset')) $('sAsset').value=last.assetId||'';
+  if($('sTeam')) $('sTeam').value=last.teamId||'';
+  if($('sServiceType')) $('sServiceType').value=last.serviceType||serviceOptions()[0];
+  if($('sTitle')) $('sTitle').value=serviceTitle(last);
+  if($('sStatus')) $('sStatus').value='Pendiente';
+  if($('sPriority')) $('sPriority').value=last.priority||'Normal';
+  (last.fields||[]).forEach((v,n)=>{const el=$('sF'+n); if(el) el.value=v||'';});
+  if(last.route){
+    if($('sOrigin')) $('sOrigin').value=last.route.origin||'';
+    if($('sDestination')) $('sDestination').value=last.route.destination||'';
+    if($('sRouteMiles')) $('sRouteMiles').value=last.route.miles||'';
+    if($('sRouteRate')) $('sRouteRate').value=last.route.rate||'';
+    if($('sRouteBase')) $('sRouteBase').value=last.route.base||'';
+  }
+  setServiceItems((last.items||[]).map(it=>({description:it.description,qty:it.qty,price:it.price})));
+  if(isTransport()) updateTransportTotal(); else updateServiceTotal();
+}
+
 function bindServiceProductivity(){
   document.querySelectorAll('[data-service-template]').forEach(btn=>btn.onclick=()=>{
     const tpl=serviceTemplates()[Number(btn.dataset.serviceTemplate)]||{};
@@ -1669,6 +1699,67 @@ function bindForms(){
   $('downloadPreview').onclick=()=>{const {jsPDF}=window.jspdf;const docp=new jsPDF({unit:'pt',format:'a4'});docp.html(state.previewHtml||$('reportPreview').innerHTML,{callback:d=>{const pages=d.getNumberOfPages();for(let n=1;n<=pages;n++){d.setPage(n);d.setFontSize(8);d.setTextColor(100);d.text(`Página ${n} de ${pages}`,d.internal.pageSize.getWidth()/2,d.internal.pageSize.getHeight()-18,{align:'center'});}d.save('nexus-documento.pdf');},x:18,y:18,width:559,windowWidth:900,autoPaging:'text'});};
   $('sideUpgrade').onclick=()=>show('plans');$('mobileMenu').onclick=()=>document.querySelector('.sidebar').classList.toggle('open');$('logoutBtn').onclick=()=>signOut(auth);if($('globalSearch')) $('globalSearch').oninput=renderGlobalSearch;
 }
+
+
+// V49C: Delegación global de botones.
+// Evita que los botones de tablas/formularios dejen de funcionar cuando Firebase re-renderiza el DOM.
+function installButtonDelegation(){
+  if(window.__nexusButtonDelegationInstalled) return;
+  window.__nexusButtonDelegationInstalled = true;
+  document.addEventListener('click', (ev)=>{
+    const b = ev.target.closest('button');
+    if(!b) return;
+    const d = b.dataset || {};
+    let handled = true;
+    try{
+      if(d.view) show(d.view);
+      else if(d.financeView) show(d.financeView);
+      else if(d.obligationView) show(d.obligationView);
+      else if(d.dailyView) show(d.dailyView);
+      else if(d.dayView) show(d.dayView);
+      else if(d.priorityView) show(d.priorityView);
+      else if(d.quickView) show(d.quickView);
+      else if(d.activityView) show(d.activityView);
+      else if(d.searchView) show(d.searchView);
+      else if(d.controlView) show(d.controlView);
+      else if(d.agendaView) show(d.agendaView);
+      else if(d.prevQuote) previewQuote(d.prevQuote);
+      else if(d.editQuote) editQuoteRecord(d.editQuote);
+      else if(d.convertQuote) convertQuoteToService(d.convertQuote);
+      else if(d.invoiceQuote) convertQuoteToInvoice(d.invoiceQuote);
+      else if(d.completeFollowup) completeFollowup(d.completeFollowup);
+      else if(d.invoice) createInvoice(d.invoice);
+      else if(d.clientSummary) showClientSummary(d.clientSummary);
+      else if(d.dupService) duplicateService(d.dupService);
+      else if(d.paystub) previewPaystub(d.paystub);
+      else if(d.payRetention) markRetentionPaid(d.payRetention);
+      else if(d.prevInv) previewInvoice(d.prevInv);
+      else if(d.dupInv) duplicateInvoice(d.dupInv);
+      else if(d.cancelInv) cancelInvoice(d.cancelInv);
+      else if(d.del){ const [c,id]=String(d.del).split(':'); remove(c,id); }
+      else if(d.edit){ const [c,id]=String(d.edit).split(':'); editRecord(c,id); }
+      else if(d.plan) requestPlanChange(d.plan);
+      else if(d.serviceTemplate !== undefined) applyServiceTemplate(Number(d.serviceTemplate));
+      else if(b.id==='addServiceLine') { const box=$('serviceItemsBox'); if(box){ box.insertAdjacentHTML('beforeend', itemRowsHtml([{description:'',qty:1,price:''}])); bindServiceItems(); updateServiceTotal(); } }
+      else if(b.id==='addQuoteLine') { const box=$('quoteItemsBox'); if(box){ box.insertAdjacentHTML('beforeend', itemRowsHtml([{description:'',qty:1,price:''}])); bindQuoteItems(); updateQuoteTotal(); } }
+      else if(b.id==='cancelServiceEdit') { $('serviceForm')?.reset(); if($('sDate')) $('sDate').value=today(); setServiceItems([]); resetServiceEditMode(); if(isTransport()) updateTransportTotal(); }
+      else if(b.id==='cancelQuoteEdit') { resetQuoteEditMode(); $('quoteForm')?.reset(); setQuoteItems([{description:'',qty:1,price:''}]); }
+      else if(b.id==='duplicateLastService') duplicateLastService();
+      else if(b.id==='invoiceFromService') { const s=state.services.find(s=>!state.invoices.some(i=>i.serviceId===s.id)); if(s) createInvoice(s.id); else alert('No hay servicios pendientes de facturar.'); }
+      else if(b.id==='reportViewBtn') { if(lockedModule('reports')){alert('Reportes es premium.');show('plans');return;} preview(currentReportType()); }
+      else if(b.id==='reportPdfBtn') { if(lockedModule('reports')){alert('Reportes es premium.');show('plans');return;} preview(currentReportType()); setTimeout(downloadCurrentPreview,250); }
+      else if(b.id==='reportExportBtn') exportReport(currentReportType());
+      else if(b.id==='printPreview') { const html=state.previewHtml||$('reportPreview')?.innerHTML||''; const w=open('','_blank'); w.document.write(`<html><head><title>Documento</title><link rel="stylesheet" href="styles.css"></head><body>${html}</body></html>`); w.document.close(); setTimeout(()=>{w.focus();w.print();},700); }
+      else if(b.id==='downloadPreview') downloadCurrentPreview();
+      else if(b.id==='sideUpgrade') show('plans');
+      else if(b.id==='mobileMenu') document.querySelector('.sidebar')?.classList.toggle('open');
+      else if(b.id==='logoutBtn') signOut(auth);
+      else handled = false;
+    }catch(err){ console.error('Nexus button error:', err); alert('No se pudo ejecutar esta acción. Revisa consola o permisos de Firebase.'); }
+    if(handled){ ev.preventDefault(); ev.stopPropagation(); }
+  }, true);
+}
+
 function authUI(){$('authIndustry').innerHTML=Object.entries(INDUSTRIES).map(([id,x])=>`<option value="${id}">${T(x.name)}</option>`).join('');$('showLogin').onclick=()=>{mode='login';document.querySelectorAll('.register-only').forEach(x=>x.classList.add('hidden'));$('authSubmit').textContent=T('Entrar');$('showLogin').classList.add('active');$('showRegister').classList.remove('active');};$('showRegister').onclick=()=>{mode='register';document.querySelectorAll('.register-only').forEach(x=>x.classList.remove('hidden'));$('authSubmit').textContent=T('Crear cuenta');$('showRegister').classList.add('active');$('showLogin').classList.remove('active');};$('authForm').onsubmit=async e=>{e.preventDefault();$('authMsg').textContent=T('Procesando...');try{if(mode==='register'){const cred=await createUserWithEmailAndPassword(auth,$('authEmail').value,$('authPassword').value);await setDoc(doc(db,'users',cred.user.uid),{...defaultProfile(),businessName:$('authBusiness').value||'Mi Negocio',industry:$('authIndustry').value,email:$('authEmail').value});}else await signInWithEmailAndPassword(auth,$('authEmail').value,$('authPassword').value);$('authMsg').textContent='';}catch(err){$('authMsg').textContent=err.message;}};}
 async function load(){unsub.forEach(x=>x());unsub=[];const snap=await getDoc(profRef());if(!snap.exists())await setDoc(profRef(),defaultProfile());unsub.push(onSnapshot(profRef(),s=>{state.profile=s.data()||defaultProfile();render();}));COLS.forEach(c=>unsub.push(onSnapshot(colPath(c),s=>{state[c]=s.docs.map(d=>({...d.data(),id:d.id}));$('syncStatus').textContent=T('Sincronizado');render();},e=>{$('syncStatus').textContent=T('Firebase bloqueado');console.error(e);})));}
-authUI();bindForms();onAuthStateChanged(auth,u=>{if(u){$('authScreen').classList.add('hidden');$('appShell').classList.remove('hidden');load();}else{$('authScreen').classList.remove('hidden');$('appShell').classList.add('hidden');}});
+installButtonDelegation();authUI();bindForms();onAuthStateChanged(auth,u=>{if(u){$('authScreen').classList.add('hidden');$('appShell').classList.remove('hidden');load();}else{$('authScreen').classList.remove('hidden');$('appShell').classList.add('hidden');}});
