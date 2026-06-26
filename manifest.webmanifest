@@ -5,8 +5,8 @@
   "start_url":"./mobile.html",
   "scope":"./",
   "display":"standalone",
-  "background_color":"#07111f",
-  "theme_color":"#0f172a",
+  "background_color":"#f3f6fb",
+  "theme_color":"#ffffff",
   "orientation":"portrait-primary",
   "categories":["business","productivity","finance"],
   "icons":[

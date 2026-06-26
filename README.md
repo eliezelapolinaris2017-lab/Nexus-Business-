@@ -44,3 +44,11 @@ Esta versión convierte `mobile.html` en una PWA más completa para iPhone y iPa
 - La vista móvil ahora genera el documento de factura con el mismo HTML/CSS del PDF premium de escritorio.
 - Ver documento, Vista previa e Imprimir/PDF usan el diseño corporativo idéntico: logo, estado, cliente, tabla, totales, pagado y balance.
 - Service Worker actualizado a `v54` para forzar actualización en iPhone/iPad.
+
+
+## v55 Mobile Light UI Fix
+- Mobile cambia a tema blanco estilo desktop.
+- Se corrige el bug visual de barras blancas en Líneas de factura.
+- Se elimina conflicto CSS entre `.invoice-line` del editor móvil y el separador del PDF.
+- Formularios optimizados para Safari en iPhone/iPad.
+- PWA cache actualizado a v55.

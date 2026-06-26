@@ -30,7 +30,7 @@
 .status-card{justify-self:end;width:1.35in;border:1px solid #cfd6df;border-radius:8px;overflow:hidden;text-align:center;background:#fff;}
 .status-card b{display:block;background:var(--invoice-navy);color:#fff;padding:.08in;font-size:12px;letter-spacing:.03em;}
 .status-card span{display:block;color:var(--invoice-blue);font-weight:900;padding:.12in .06in;font-size:14px;}
-.invoice-line{height:1px;background:#9ca3af;margin:.08in 0 .25in;}
+.invoice-rule{height:1px;background:#9ca3af;margin:.08in 0 .25in;}
 .invoice-client-grid{display:grid;grid-template-columns:1fr 1fr;gap:.16in;margin-bottom:.28in;}
 .invoice-box{border:1px solid #d9dee7;border-radius:10px;padding:.16in;background:#fff;min-height:.72in;}
 .invoice-box b{display:block;color:var(--invoice-blue);font-size:13px;margin-bottom:.1in;}
@@ -58,3 +58,165 @@
 .invoice-footer span+span:before{content:'|';margin-right:.18in;color:#9ca3af;}
 @media(max-width:700px){.doc-preview{padding:10px;}.invoice-pro{width:8.1in;max-width:none;transform:scale(.43);transform-origin:top left;margin-bottom:-5.8in;}.doc-shell{overflow-x:auto;}.doc-shell .doc-preview{min-width:calc(8.1in * .43 + 20px);}}
 @media print{html,body{margin:0!important;padding:0!important;background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}body{display:block!important;}.mobile-top,.mobile-tabs,.mobile-view,.doc-actions{display:none!important}.doc-modal{position:static!important;background:#fff!important;padding:0!important;backdrop-filter:none!important;}.doc-modal.hidden{display:block!important}.doc-preview{background:#fff!important;border-radius:0!important;overflow:visible!important;padding:0!important}.invoice-pro{width:100%!important;min-height:calc(11in - .9in)!important;padding:0!important;border:0!important;box-shadow:none!important;transform:none!important;margin:0!important;}.invoice-top{margin-top:0!important;}.invoice-items th{background:#08264d!important;color:#fff!important;}.status-card b,.invoice-totals .balance-row{background:#08264d!important;color:#fff!important;}}
+
+
+/* v55 Mobile Light UI + Invoice Lines Fix
+   - White/desktop-style mobile app
+   - Fixes class collision that created white bars over invoice lines
+   - Hardens iOS/iPadOS Safari form controls
+*/
+:root{
+  --bg:#f3f6fb;
+  --panel:#ffffff;
+  --card:#ffffff;
+  --soft:#edf2f7;
+  --text:#0f172a;
+  --muted:#64748b;
+  --brand:#0ea5e9;
+  --brand-dark:#2563eb;
+  --ok:#16a34a;
+  --warn:#d97706;
+  --danger:#dc2626;
+  --line:rgba(15,23,42,.12);
+}
+html,body{background:var(--bg)!important;color:var(--text)!important;}
+body{overscroll-behavior-y:none;}
+button,input,select,textarea{
+  -webkit-appearance:none;
+  appearance:none;
+  font:inherit;
+}
+input,select,textarea{
+  background:#fff!important;
+  color:var(--text)!important;
+  border:1px solid #d8e0ea!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7);
+}
+input::placeholder,textarea::placeholder{color:#94a3b8!important;}
+select{
+  background-image:linear-gradient(45deg,transparent 50%,#64748b 50%),linear-gradient(135deg,#64748b 50%,transparent 50%)!important;
+  background-position:calc(100% - 18px) calc(50% - 3px),calc(100% - 12px) calc(50% - 3px)!important;
+  background-size:6px 6px,6px 6px!important;
+  background-repeat:no-repeat!important;
+  padding-right:36px!important;
+}
+.mobile-auth{background:linear-gradient(180deg,#f8fbff,#edf4fb)!important;}
+.auth-panel,.mobile-card,.row-card,.metric,.type-chip,.install-box{
+  background:#fff!important;
+  color:var(--text)!important;
+  border:1px solid #dce5ef!important;
+  box-shadow:0 12px 28px rgba(15,23,42,.07)!important;
+}
+.auth-panel input,.mobile-form input,.mobile-form select,.mobile-form textarea,.search{
+  background:#fff!important;
+  color:var(--text)!important;
+  border:1px solid #d8e0ea!important;
+}
+.mobile-app{background:var(--bg)!important;}
+.mobile-top{
+  background:rgba(255,255,255,.92)!important;
+  border-bottom:1px solid #dce5ef!important;
+  box-shadow:0 8px 24px rgba(15,23,42,.06)!important;
+}
+.mobile-top h1{color:#0f172a!important;}
+.mobile-top p,.mobile-form label,.summary-row,.timeline-item p,.row-card p{color:#475569!important;}
+.sync-pill{background:#e0f2fe!important;color:#0369a1!important;border:1px solid #bae6fd!important;}
+.sync-pill::before{content:'● ';color:#22c55e;}
+.mobile-top button,#mobileLogout{background:#eaf1f8!important;color:#0f172a!important;border:1px solid #d8e0ea!important;}
+.mobile-hero{
+  background:linear-gradient(135deg,#0ea5e9,#2563eb)!important;
+  color:#fff!important;
+  box-shadow:0 18px 42px rgba(37,99,235,.22)!important;
+}
+.mobile-hero p,.mobile-hero span{color:#e0f2fe!important;}
+.metric small,.type-chip small,.muted,.summary-side span,.summary-side small{color:#64748b!important;}
+.metric b,.type-chip b{color:#0f172a!important;}
+.step-bar{
+  background:rgba(255,255,255,.94)!important;
+  border:1px solid #dce5ef!important;
+  box-shadow:0 8px 20px rgba(15,23,42,.06)!important;
+}
+.step-bar span{color:#64748b!important;}
+.step-bar .active{background:#dbeafe!important;color:#1d4ed8!important;}
+.section-row h3{color:#0f172a!important;}
+.status-toggle button{background:#fff!important;border:1px solid #d8e0ea!important;color:#475569!important;}
+.status-toggle button.active[data-invoice-status="Pendiente"]{border-color:#f59e0b!important;color:#b45309!important;background:#fff7ed!important;}
+.status-toggle button.active[data-invoice-status="Pagada"]{border-color:#22c55e!important;color:#15803d!important;background:#f0fdf4!important;}
+/* Critical fix: invoice editor rows are real cards, not the PDF separator */
+.invoice-lines{display:grid!important;gap:14px!important;width:100%!important;overflow:visible!important;}
+.invoice-lines .invoice-line{
+  height:auto!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:14px!important;
+  display:grid!important;
+  gap:12px!important;
+  background:#ffffff!important;
+  border:1px solid #dce5ef!important;
+  border-radius:20px!important;
+  box-shadow:0 10px 24px rgba(15,23,42,.06)!important;
+}
+.invoice-lines .invoice-line *{max-width:100%;}
+.invoice-lines .invoice-line input,
+.invoice-lines .invoice-line textarea,
+.invoice-lines .invoice-line select{
+  background:#f8fafc!important;
+  color:#0f172a!important;
+  border:1px solid #d8e0ea!important;
+  border-radius:14px!important;
+  min-height:46px!important;
+  box-shadow:none!important;
+}
+.invoice-lines .invoice-line textarea{
+  min-height:76px!important;
+  resize:vertical!important;
+  line-height:1.35!important;
+}
+.line-head,.line-footer{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;}
+.line-head span{color:#2563eb!important;}
+.line-head .danger,.actions .danger{background:#fee2e2!important;color:#b91c1c!important;border:1px solid #fecaca!important;}
+.three-col{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important;}
+.tax-check{display:flex!important;align-items:center!important;gap:8px!important;color:#64748b!important;}
+.tax-check input{
+  width:18px!important;height:18px!important;min-height:18px!important;padding:0!important;
+  border-radius:5px!important;background:#fff!important;border:1px solid #94a3b8!important;
+}
+.tax-check input:checked{background:#2563eb!important;border-color:#2563eb!important;box-shadow:inset 0 0 0 4px #fff!important;}
+.line-footer b{color:#16a34a!important;font-size:18px!important;}
+.ghost-btn{
+  background:#f8fbff!important;
+  border:1px dashed #38bdf8!important;
+  color:#0369a1!important;
+}
+.summary-card{background:#fff!important;}
+.summary-row.total{border-top:1px solid #dce5ef!important;}
+.summary-row.total b{color:#16a34a!important;}
+.summary-side{border-left:1px solid #dce5ef!important;}
+.summary-side strong{color:#d97706!important;}
+.action-strip button{background:#fff!important;border:1px solid #d8e0ea!important;color:#1d4ed8!important;}
+.big-save,.primary{background:linear-gradient(135deg,#0ea5e9,#2563eb)!important;color:#fff!important;}
+.mobile-tabs{
+  background:rgba(255,255,255,.95)!important;
+  border-top:1px solid #dce5ef!important;
+  box-shadow:0 -10px 28px rgba(15,23,42,.08)!important;
+}
+.mobile-tabs button{color:#64748b!important;background:transparent!important;}
+.mobile-tabs button.active{background:#dbeafe!important;color:#1d4ed8!important;}
+.filter-bar{background:rgba(243,246,251,.92)!important;}
+.filter-bar button.active{background:#2563eb!important;color:#fff!important;}
+.timeline-item div{background:#fff!important;border:1px solid #dce5ef!important;}
+.doc-modal{background:rgba(15,23,42,.35)!important;}
+.doc-actions{background:rgba(255,255,255,.9)!important;}
+.doc-actions button{background:#eaf1f8!important;color:#0f172a!important;border:1px solid #d8e0ea!important;}
+.doc-preview{background:#fff!important;}
+.update-toast{background:#fff!important;border:1px solid #bae6fd!important;color:#0f172a!important;}
+@media(max-width:700px){
+  .three-col{grid-template-columns:1fr 1fr!important;}
+  .invoice-lines .invoice-line{padding:12px!important;}
+  .summary-card{grid-template-columns:1fr!important;}
+  .summary-side{border-left:0!important;border-top:1px solid #dce5ef!important;padding-left:0!important;padding-top:12px!important;}
+}
+@media(max-width:430px){
+  .two-col,.three-col,.action-strip{grid-template-columns:1fr!important;}
+  .mobile-app{padding-left:10px!important;padding-right:10px!important;}
+}
