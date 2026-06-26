@@ -19,6 +19,7 @@
     <div class="auth-card auth-card-premium">
       <div class="auth-logo" id="authLogo"><img src="assets/logo.png" alt="Nexus Business PR"></div>
       <p class="auth-tagline">Gestiona tu negocio de forma simple y eficiente</p>
+      <p class="auth-mobile-link"><a href="mobile.html">Abrir versión móvil iPhone/iPad</a></p>
 
       <div class="auth-switch"><button id="showLogin" class="active" type="button">Entrar</button><button id="showRegister" type="button">Crear cuenta</button></div>
       <form id="authForm" class="auth-form-premium">
@@ -83,8 +84,7 @@
       <section id="clients" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2 id="clientsTitle">Clientes</h2><span id="clientsLimit" class="limit-chip"></span></div><form id="clientForm" class="form-grid"></form><div id="clientsTable"></div></div></section>
       <section id="services" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2 id="servicesTitle">Servicios</h2><span id="servicesLimit" class="limit-chip"></span></div><form id="serviceForm" class="form-grid"></form><div id="servicesTable"></div></div></section>
       <section id="quotes" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><div><h2 id="quotesTitle">Cotizaciones Pro</h2><p class="muted">Cotización → aprobación → servicio → factura.</p></div><span id="quotesLimit" class="limit-chip"></span></div><form id="quoteForm" class="form-grid"></form><div id="quotesTable"></div></div></section>
-
-      <section id="followups" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><div><h2 id="followupsTitle">Seguimiento</h2><p class="muted">Mantenimientos 6 meses, cotizaciones e instalaciones.</p></div><span id="followupsLimit" class="limit-chip"></span></div><form id="followupForm" class="form-grid"></form><div id="followupsTable"></div></div></section>
+      <section id="followups" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><div><h2 id="followupsTitle">Seguimiento</h2><p class="muted">Mantenimientos cada 6 meses, cotizaciones, instalaciones y recordatorios.</p></div><span id="followupsLimit" class="limit-chip"></span></div><form id="followupForm" class="form-grid"></form><div id="followupsTable"></div></div></section>
       <section id="team" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2 id="teamTitle">Equipo</h2><span id="teamLimit" class="limit-chip"></span></div><form id="teamForm" class="form-grid"></form><div id="teamTable"></div></div></section>
       <section id="assets" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2 id="assetsTitle">Activos</h2><span id="assetsLimit" class="limit-chip"></span></div><form id="assetForm" class="form-grid"></form><div id="assetsTable"></div></div></section>
       <section id="payroll" class="view" hidden aria-hidden="true"><div class="card"><div class="section-head"><h2 id="payrollTitle">Nómina / Pagos equipo</h2><span id="payrollLimit" class="limit-chip"></span></div><form id="payrollForm" class="form-grid"></form><div id="payrollTable"></div><div id="retentionsTable" class="retention-center"></div></div></section>
@@ -104,12 +104,15 @@
 
           <div class="report-center-tools">
             <input id="reportSearch" type="search" placeholder="Buscar reporte..." autocomplete="off">
+            <input id="reportFrom" type="date" title="Desde">
+            <input id="reportTo" type="date" title="Hasta">
           </div>
 
           <div class="report-scroll-box" id="reportCenterList" role="listbox" aria-label="Reportes disponibles">
             <button class="report-option selected" type="button" data-report-type="executive" data-report-name="ejecutivo dashboard executive general clientes ventas">Ejecutivo</button>
             <button class="report-option" type="button" data-report-type="services" data-report-name="servicios services trabajos jobs clientes activos montos">Servicios</button>
             <button class="report-option" type="button" data-report-type="quotes" data-report-name="cotizaciones quotes estimates propuestas ventas proyectadas aprobadas vencidas">Cotizaciones</button>
+            <button class="report-option" type="button" data-report-type="followups" data-report-name="seguimiento followups mantenimientos cotizaciones instalaciones recordatorios vencidos proximos">Seguimiento</button>
             <button class="report-option" type="button" data-report-type="assetsClient" data-report-name="activos assets cliente customer">Activos por Cliente</button>
             <button class="report-option" type="button" data-report-type="assetsStatus" data-report-name="activos assets estado status">Activos por Estado</button>
             <button class="report-option" type="button" data-report-type="invoices" data-report-name="facturacion facturas invoices pagos balance estado">Facturación</button>
@@ -159,7 +162,7 @@
 
   </div>
 
-  <script type="module" src="payment-links.js?v=48d"></script>
-  <script type="module" src="app.js?v=48"></script>
+  <script type="module" src="payment-links.js?v=51"></script>
+  <script type="module" src="app.js?v=51"></script>
 </body>
 </html>

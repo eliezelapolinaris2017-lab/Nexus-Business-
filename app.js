@@ -113,15 +113,15 @@ const DEMOS = {
 };
 
 const PLANS = {
-  free:{name:'Free',price:'$0',badge:'Básico',limits:{clients:5,services:10,quotes:10,team:1,assets:0,suppliers:0,supplierPayments:0,payroll:0,purchases:0,invoices:3,payments:3,cashflow:5,followups:25},modules:['dashboard','clients','services','quotes','followups','billing','plans','settings'],features:['5 clientes','10 servicios','3 facturas','Sin nómina','Sin suplidores','Sin reportes avanzados']},
-  pro:{name:'Pro',price:'$19.99/mes',badge:'Profesional',limits:{clients:500,services:1000,quotes:1000,team:10,assets:100,suppliers:25,supplierPayments:100,payroll:100,purchases:100,invoices:500,payments:500,cashflow:1000,followups:1000},modules:['dashboard','clients','services','quotes','followups','team','payroll','assets','suppliers','supplierPayments','purchases','billing','payments','cashflow','reports','plans','settings'],features:['Nómina básica','Suplidores','Logo en facturas','Reportes PDF','500 clientes']},
-  business:{name:'Business',price:'$39.99/mes',badge:'Premium',limits:{clients:5000,services:10000,quotes:10000,team:50,assets:1000,suppliers:500,supplierPayments:2000,payroll:2000,purchases:2000,invoices:5000,payments:5000,cashflow:10000,followups:10000},modules:['dashboard','clients','services','quotes','followups','team','payroll','assets','suppliers','supplierPayments','purchases','billing','payments','cashflow','reports','plans','settings'],features:['White-label completo','Nómina avanzada','Control de suplidores','Firma digital','Reportes ejecutivos']},
-  enterprise:{name:'Enterprise',price:'Custom',badge:'Corporativo',limits:{clients:Infinity,services:Infinity,quotes:Infinity,team:Infinity,assets:Infinity,suppliers:Infinity,supplierPayments:Infinity,payroll:Infinity,purchases:Infinity,invoices:Infinity,payments:Infinity,cashflow:Infinity,followups:Infinity},modules:['dashboard','clients','services','quotes','followups','team','payroll','assets','suppliers','supplierPayments','purchases','billing','payments','cashflow','reports','plans','settings'],features:['Ilimitado','Dominio personalizado','Roles futuros','Soporte corporativo']}
+  free:{name:'Free',price:'$0',badge:'Básico',limits:{clients:5,services:10,quotes:10,followups:25,team:1,assets:0,suppliers:0,supplierPayments:0,payroll:0,purchases:0,invoices:3,payments:3,cashflow:5},modules:['dashboard','clients','services','quotes','followups','billing','plans','settings'],features:['5 clientes','10 servicios','3 facturas','Sin nómina','Sin suplidores','Sin reportes avanzados']},
+  pro:{name:'Pro',price:'$19.99/mes',badge:'Profesional',limits:{clients:500,services:1000,quotes:1000,followups:1000,team:10,assets:100,suppliers:25,supplierPayments:100,payroll:100,purchases:100,invoices:500,payments:500,cashflow:1000},modules:['dashboard','clients','services','quotes','followups','team','payroll','assets','suppliers','supplierPayments','purchases','billing','payments','cashflow','reports','plans','settings'],features:['Nómina básica','Suplidores','Logo en facturas','Reportes PDF','500 clientes']},
+  business:{name:'Business',price:'$39.99/mes',badge:'Premium',limits:{clients:5000,services:10000,quotes:10000,followups:10000,team:50,assets:1000,suppliers:500,supplierPayments:2000,payroll:2000,purchases:2000,invoices:5000,payments:5000,cashflow:10000},modules:['dashboard','clients','services','quotes','followups','team','payroll','assets','suppliers','supplierPayments','purchases','billing','payments','cashflow','reports','plans','settings'],features:['White-label completo','Nómina avanzada','Control de suplidores','Firma digital','Reportes ejecutivos']},
+  enterprise:{name:'Enterprise',price:'Custom',badge:'Corporativo',limits:{clients:Infinity,services:Infinity,quotes:Infinity,followups:Infinity,team:Infinity,assets:Infinity,suppliers:Infinity,supplierPayments:Infinity,payroll:Infinity,purchases:Infinity,invoices:Infinity,payments:Infinity,cashflow:Infinity},modules:['dashboard','clients','services','quotes','followups','team','payroll','assets','suppliers','supplierPayments','purchases','billing','payments','cashflow','reports','plans','settings'],features:['Ilimitado','Dominio personalizado','Roles futuros','Soporte corporativo']}
 };
 
 const TITLES = {dashboard:'Home',clients:'Clientes',services:'Servicios',quotes:'Cotizaciones Pro',followups:'Seguimiento',team:'Equipo',payroll:'Nómina',assets:'Activos',suppliers:'Suplidores',supplierPayments:'Pagos suplidores',purchases:'Compras',billing:'Facturación',payments:'Cobros',cashflow:'Flujo de caja',reports:'Reportes',plans:'Planes',settings:'Configuración'};
 let mode = 'login', unsub = [];
-let state = {profile:null,clients:[],services:[],quotes:[],followups:[],team:[],assets:[],suppliers:[],supplierPayments:[],payroll:[],payrollRetentions:[],purchases:[],invoices:[],payments:[],cashflow:[],planRequests:[],previewHtml:'',activeView:'dashboard',editingServiceId:null,editingQuoteId:null,editingFollowupId:null};
+let state = {profile:null,clients:[],services:[],quotes:[],followups:[],team:[],assets:[],suppliers:[],supplierPayments:[],payroll:[],payrollRetentions:[],purchases:[],invoices:[],payments:[],cashflow:[],planRequests:[],previewHtml:'',activeView:'dashboard',editingServiceId:null,editingQuoteId:null};
 
 function defaultProfile(){return {businessName:'Mi Negocio',industry:'hvac',language:'es',plan:'free',planStatus:'active',planChangeMode:'manual',pendingPlan:'',pendingPlanStatus:'none',phone:'',whatsapp:'',email:auth.currentUser?.email||'',address:'',web:'',tax:'11.5',merchant:'',representative:'',slogan:'',logoDashboard:'',logoPdf:'',favicon:'',signature:'',primaryColor:'#2563eb',secondaryColor:'#0f172a',customServices:{},transportRatePerMile:'2.50',transportBaseCharge:'0',dailyGoal:'1000',onboardingComplete:false,onboardingSkipped:false,createdAt:new Date().toISOString()};}
 function profile(){return state.profile || defaultProfile();}
@@ -520,7 +520,6 @@ function globalSearchResults(q){
   state.clients.forEach(x=>hit(x.name,x.phone,x.email,x.city,x.tags)&&rows.push({type:'Cliente',title:x.name,meta:[x.phone,x.city].filter(Boolean).join(' · '),view:'clients'}));
   state.services.forEach(x=>hit(x.clientName,serviceTitle(x),x.assetName,x.status)&&rows.push({type:'Servicio',title:`${x.clientName} · ${serviceTitle(x)}`,meta:[x.date,money(serviceAmount(x))].join(' · '),view:'services'}));
   state.quotes.forEach(x=>hit(x.number,x.clientName,x.title,quoteStatus(x))&&rows.push({type:'Cotización',title:`${x.number} · ${x.clientName}`,meta:`${quoteStatus(x)} · ${money(quoteTotals(x).total)}`,view:'quotes'}));
-  state.followups.forEach(x=>hit(x.type,x.clientName,x.assetName,x.notes)&&rows.push({type:'Seguimiento',title:`${x.type} · ${x.clientName}`,meta:`${followupStatus(x)} · ${x.dueDate||''}`,view:'followups'}));
   state.invoices.forEach(x=>hit(x.number,x.clientName,x.serviceTitle,invoiceStatus(x))&&rows.push({type:'Factura',title:`${x.number} · ${x.clientName}`,meta:`${invoiceStatus(x)} · ${money(invoiceBalance(x))}`,view:'billing'}));
   state.assets.forEach(x=>hit(assetName(x),x.clientName,assetCategory(x),assetLocation(x),assetStatus(x))&&rows.push({type:'Activo',title:assetName(x),meta:[x.clientName,assetStatus(x)].filter(Boolean).join(' · '),view:'assets'}));
   state.team.forEach(x=>hit(x.name,x.role,x.phone,x.email,x.personalId,cleanSSN(x.ssn).slice(-4))&&rows.push({type:'Empleado',title:x.name,meta:[x.role,x.status,maskSSN(x.ssn)].filter(Boolean).join(' · '),view:'team'}));
@@ -537,12 +536,9 @@ function renderGlobalSearch(){
   document.querySelectorAll('[data-search-view]').forEach(b=>b.onclick=()=>show(b.dataset.searchView));
 }
 function controlCenter(){
-  const f=financialSummary(), o=operationalSummary(), q=quoteSummary(), fu=followupSummary();
+  const f=financialSummary(), o=operationalSummary(), q=quoteSummary();
   if($('controlStrip')) $('controlStrip').innerHTML=[
     ['Cotizaciones abiertas',q.open,'quotes'],
-    ['Seguimientos activos',fu.active,'followups'],
-    ['Mantenimientos próximos',fu.upcoming,'followups'],
-    ['Seguimientos vencidos',fu.overdue,'followups'],
     ['Potencial COT',money(q.openValue+q.approvedValue),'quotes'],
     ['Por cobrar',money(f.receivable),'billing'],
     ['Vencido',money(f.overdue),'billing'],
@@ -658,84 +654,6 @@ function quoteNumber(){return 'COT-'+new Date().getFullYear()+'-'+String(Date.no
 function quoteCanConvert(q){return q && !q.convertedServiceId && !q.convertedInvoiceId && ['Aprobada','Enviada','Borrador'].includes(quoteStatus(q));}
 function quoteCanInvoice(q){return q && !q.convertedInvoiceId && ['Aprobada','Enviada','Borrador','Convertida'].includes(quoteStatus(q));}
 function quoteItemsFallback(q){return (q?.items&&q.items.length)?q.items:[{description:q?.title||'Servicio profesional',qty:1,price:Number(q?.subtotal||0)}];}
-
-function addMonths(dateStr, months){
-  const d = dateStr ? new Date(dateStr+'T12:00:00') : new Date();
-  const day = d.getDate();
-  d.setMonth(d.getMonth()+Number(months||6));
-  if(d.getDate()!==day) d.setDate(0);
-  return d.toISOString().slice(0,10);
-}
-function followupStatus(f){
-  const st=String(f?.status||'Pendiente');
-  if(['Completado','Cancelado'].includes(st)) return st;
-  const due=String(f?.dueDate||'');
-  if(due && due<today()) return 'Vencido';
-  if(due && due<=plusDays(14)) return 'Próximo';
-  return st;
-}
-function followupSummary(){
-  const list=state.followups||[];
-  const active=list.filter(f=>!['Completado','Cancelado'].includes(String(f.status||'')));
-  const maintenance=active.filter(f=>String(f.type||'').includes('Mantenimiento'));
-  const quotes=active.filter(f=>String(f.type||'').includes('Cotización'));
-  const installs=active.filter(f=>String(f.type||'').includes('Instalación'));
-  const overdue=active.filter(f=>followupStatus(f)==='Vencido');
-  const upcoming=active.filter(f=>followupStatus(f)==='Próximo');
-  return {total:list.length,active:active.length,maintenance:maintenance.length,quotes:quotes.length,installs:installs.length,overdue:overdue.length,upcoming:upcoming.length};
-}
-function followupTypeOptions(){return ['Mantenimiento 6 meses','Cotización','Instalación','Garantía','Llamada','Otro'];}
-function followupMsg(f){
-  const business=profile().businessName||'Oasis Services';
-  if(String(f.type||'').includes('Mantenimiento')) return `Hola ${f.clientName||''}, le saluda ${business}. Según nuestro registro, ya corresponde coordinar el mantenimiento preventivo de su aire acondicionado. ¿Qué día le funciona mejor para agendar?`;
-  if(String(f.type||'').includes('Cotización')) return `Hola ${f.clientName||''}, le saluda ${business}. Le damos seguimiento a la cotización ${f.referenceNumber||''}. ¿Desea que coordinemos el próximo paso?`;
-  if(String(f.type||'').includes('Instalación')) return `Hola ${f.clientName||''}, le saluda ${business}. Estamos dando seguimiento a la instalación realizada para confirmar que todo esté funcionando correctamente y coordinar mantenimiento preventivo.`;
-  return `Hola ${f.clientName||''}, le saluda ${business}. Le damos seguimiento a su servicio. ¿Cómo podemos asistirle?`;
-}
-function followupWaLink(f){
-  const client=clientBy(f.clientId||'')||{};
-  const phone=String(f.phone||client.phone||client.whatsapp||'').replace(/\D/g,'');
-  return phone ? `https://wa.me/${phone}?text=${encodeURIComponent(followupMsg(f))}` : '';
-}
-async function createFollowupFromService(id){
-  const s=state.services.find(x=>x.id===id); if(!s)return;
-  const due=addMonths(s.date||today(),6);
-  await add('followups',{type:'Mantenimiento 6 meses',clientId:s.clientId||'',clientName:s.clientName||'',assetId:s.assetId||'',assetName:s.assetName||'',teamId:s.teamId||'',teamName:s.teamName||'',source:'service',sourceId:s.id,referenceNumber:s.quoteNumber||'',createdDate:today(),dueDate:due,status:'Pendiente',priority:'Normal',notes:`Seguimiento automático por servicio completado: ${serviceTitle(s)}`});
-  alert('Seguimiento de mantenimiento creado para '+due);
-}
-async function createFollowupFromQuote(id){
-  const q=state.quotes.find(x=>x.id===id); if(!q)return;
-  await add('followups',{type:'Cotización',clientId:q.clientId||'',clientName:q.clientName||'',assetId:q.assetId||'',assetName:q.assetName||'',teamId:q.teamId||'',teamName:q.teamName||'',source:'quote',sourceId:q.id,referenceNumber:q.number||'',createdDate:today(),dueDate:plusDays(3),status:'Pendiente',priority:q.priority||'Normal',notes:`Seguimiento comercial de cotización: ${q.title||q.serviceType||''}`});
-  alert('Seguimiento de cotización creado.');
-}
-async function completeFollowup(id){
-  const f=state.followups.find(x=>x.id===id); if(!f)return;
-  await updateDoc(docPath('followups',id),{status:'Completado',completedAt:today(),updatedAt:serverTimestamp()});
-  if(String(f.type||'').includes('Mantenimiento')){
-    const next={...f,status:'Pendiente',createdDate:today(),dueDate:addMonths(f.dueDate||today(),6),previousFollowupId:id,notes:`Próximo mantenimiento automático cada 6 meses. ${f.notes||''}`,updatedAt:serverTimestamp()};
-    delete next.id; delete next.createdAt; delete next.completedAt;
-    await add('followups',next);
-  }
-}
-function editFollowup(id){
-  const f=state.followups.find(x=>x.id===id); if(!f)return;
-  show('followups'); state.editingFollowupId=id;
-  setTimeout(()=>{
-    if($('fClient')) $('fClient').value=f.clientId||'';
-    if($('fAsset')) $('fAsset').value=f.assetId||'';
-    if($('fTeam')) $('fTeam').value=f.teamId||'';
-    if($('fType')) $('fType').value=f.type||'Mantenimiento 6 meses';
-    if($('fDue')) $('fDue').value=f.dueDate||today();
-    if($('fStatus')) $('fStatus').value=f.status||'Pendiente';
-    if($('fPriority')) $('fPriority').value=f.priority||'Normal';
-    if($('fRef')) $('fRef').value=f.referenceNumber||'';
-    if($('fNotes')) $('fNotes').value=f.notes||'';
-    if($('followupSubmitBtn')) $('followupSubmitBtn').textContent='Actualizar seguimiento';
-    if($('cancelFollowupEdit')) $('cancelFollowupEdit').classList.remove('hidden');
-    $('followupForm')?.scrollIntoView({behavior:'smooth',block:'start'});
-  },0);
-}
-function resetFollowupEdit(){state.editingFollowupId=null;if($('followupSubmitBtn'))$('followupSubmitBtn').textContent='Guardar seguimiento';if($('cancelFollowupEdit'))$('cancelFollowupEdit').classList.add('hidden');}
 function serviceTitle(s){
   return s?.title || (Array.isArray(s?.items) && s.items[0]?.description) || industry().service;
 }
@@ -1105,8 +1023,7 @@ function forms(){const i=industry();
   $('clientForm').innerHTML=input('Nombre','cName')+input('Teléfono','cPhone')+input('Email','cEmail')+input('Municipio','cCity')+input('Dirección','cAddress','text','','wide')+input('Contacto alterno','cAltName')+input('Tel. alterno','cAltPhone')+input('Email alterno','cAltEmail')+clientTagsSelectHtml('cTags','VIP')+input('Notas administrativas','cNotes','text','','wide')+'<button class="primary" type="submit">Guardar</button>';
   $('serviceForm').innerHTML=`<div class="wide quick-template-bar"><label>Plantillas rápidas</label><div>${serviceTemplates().map((t,n)=>`<button type="button" class="ghost" data-service-template="${n}">${esc(t.name)}</button>`).join('')}<button type="button" class="ghost" id="duplicateLastService">Duplicar último</button></div></div>`+select(i.client,'sClient',state.clients.map(c=>({value:c.id,label:c.name})))+select('Activo relacionado','sAsset',[{value:'',label:'Sin activo'}].concat(state.assets.map(a=>({value:a.id,label:assetLabel(a)}))),'')+select(i.team,'sTeam',state.team.map(t=>({value:t.id,label:t.name})))+input('Fecha','sDate','date',today())+select('Estado','sStatus',[{value:'Pendiente',label:'Pendiente'},{value:'En proceso',label:'En proceso'},{value:'Completado',label:'Completado'},{value:'Facturado',label:'Facturado'}],'Pendiente')+select('Prioridad','sPriority',[{value:'Normal',label:'Normal'},{value:'Alta',label:'Alta'},{value:'Urgente',label:'Urgente'}],'Normal')+select('Servicio','sServiceType',serviceOptions().map(x=>({value:x,label:x})))+input('Descripción principal','sTitle','text','','wide')+input('Monto facturado','sAmount','number')+transportRouteFormHtml()+i.serviceFields.map((f,n)=>input(f,'sF'+n,'text','','wide')).join('')+`<div id="serviceEditBanner" class="wide edit-banner hidden"></div><div class="wide service-lines-card"><div class="line-head"><div><b>Partidas</b></div><strong id="sItemsTotal">$0.00</strong></div><div id="serviceItemsBox">${itemRowsHtml()}</div><button id="addServiceLine" class="ghost" type="button">+ Añadir servicio</button></div><div class="wide form-actions"><button id="serviceSubmitBtn" class="primary" type="submit">Guardar</button><button id="cancelServiceEdit" class="ghost hidden" type="button">Cancelar edición</button></div>`;
   if($('quoteForm')) $('quoteForm').innerHTML=select(i.client,'qClient',state.clients.map(c=>({value:c.id,label:c.name})))+select('Activo relacionado','qAsset',[{value:'',label:'Sin activo'}].concat(state.assets.map(a=>({value:a.id,label:assetLabel(a)}))),'')+select(i.team,'qTeam',[{value:'',label:'Sin asignar'}].concat(state.team.map(t=>({value:t.id,label:t.name}))))+input('Fecha','qDate','date',today())+input('Válida hasta','qValid','date',plusDays(15))+select('Estado','qStatus',['Borrador','Enviada','Aprobada','Rechazada','Convertida'].map(x=>({value:x,label:x})),'Borrador')+select('Prioridad','qPriority',['Normal','Alta','Urgente'].map(x=>({value:x,label:x})),'Normal')+select('Servicio','qServiceType',serviceOptions().map(x=>({value:x,label:x})))+input('Descripción profesional','qTitle','text','','wide')+input('Notas','qNotes','text','','wide')+input('Términos','qTerms','text','Precios válidos hasta la fecha indicada. Aprobación requerida para iniciar servicio.','wide')+`<div id="quoteEditBanner" class="wide edit-banner hidden"></div><div class="wide service-lines-card quote-lines-card"><div class="line-head"><div><b>Partidas de cotización</b><small class="muted">Servicio, materiales, mano de obra y extras.</small></div><strong id="qItemsTotal">$0.00</strong></div><div id="quoteItemsBox">${itemRowsHtml()}</div><button id="addQuoteLine" class="ghost" type="button">+ Añadir partida</button></div><div class="wide form-actions"><button id="quoteSubmitBtn" class="primary" type="submit">Guardar cotización</button><button id="cancelQuoteEdit" class="ghost hidden" type="button">Cancelar edición</button></div>`;
-
-  if($('followupForm')) $('followupForm').innerHTML=select('Cliente','fClient',state.clients.map(c=>({value:c.id,label:c.name})))+select('Activo / equipo','fAsset',[{value:'',label:'Sin activo'}].concat(state.assets.map(a=>({value:a.id,label:assetLabel(a)}))),'')+select('Responsable','fTeam',[{value:'',label:'Sin asignar'}].concat(state.team.map(t=>({value:t.id,label:t.name}))))+select('Tipo','fType',followupTypeOptions().map(x=>({value:x,label:x})),'Mantenimiento 6 meses')+input('Fecha próxima','fDue','date',addMonths(today(),6))+select('Estado','fStatus',['Pendiente','Próximo','Completado','Cancelado'].map(x=>({value:x,label:x})),'Pendiente')+select('Prioridad','fPriority',['Normal','Alta','Urgente'].map(x=>({value:x,label:x})),'Normal')+input('Referencia','fRef','text')+input('Notas / próximo paso','fNotes','text','','wide')+`<div class="wide form-actions"><button id="followupSubmitBtn" class="primary" type="submit">Guardar seguimiento</button><button id="cancelFollowupEdit" class="ghost hidden" type="button">Cancelar edición</button></div>`;  $('teamForm').innerHTML=input('Nombre','tName')+input('Teléfono','tPhone')+input('Email','tEmail')+input('Identificación personal ID','tPersonalId')+input('Seguro Social','tSsn','text','','','')+input('Licencia de conducir','tDriverLicense')+select('Vehículo asignado','tAssignedVehicle',[{value:'',label:'Sin vehículo'}].concat(vehicleAssetOptions().map(a=>({value:a.id,label:assetLabel(a)}))))+input('Puesto / Rol','tRole')+select('Estado','tStatus',['Activo','Inactivo','Contratista'].map(x=>({value:x,label:x})))+input('Salario base','tSalary','number','0')+input('% Comisión','tRate','number','0')+input('% Retención','tRetention','number','0')+input('Fecha ingreso','tStart','date',today())+'<button class="primary" type="submit">Guardar</button>';
+  $('teamForm').innerHTML=input('Nombre','tName')+input('Teléfono','tPhone')+input('Email','tEmail')+input('Identificación personal ID','tPersonalId')+input('Seguro Social','tSsn','text','','','')+input('Licencia de conducir','tDriverLicense')+select('Vehículo asignado','tAssignedVehicle',[{value:'',label:'Sin vehículo'}].concat(vehicleAssetOptions().map(a=>({value:a.id,label:assetLabel(a)}))))+input('Puesto / Rol','tRole')+select('Estado','tStatus',['Activo','Inactivo','Contratista'].map(x=>({value:x,label:x})))+input('Salario base','tSalary','number','0')+input('% Comisión','tRate','number','0')+input('% Retención','tRetention','number','0')+input('Fecha ingreso','tStart','date',today())+'<button class="primary" type="submit">Guardar</button>';
   $('assetForm').innerHTML=select('Cliente asignado','aClient',[{value:'',label:'Sin cliente'}].concat(state.clients.map(c=>({value:c.id,label:c.name}))))+input('Nombre del activo','aName')+select('Categoría','aCategory',['Equipo','Vehículo','Herramienta','Mobiliario','Infraestructura','Tecnología','Inventario Especial','Otro'].map(x=>({value:x,label:x})))+input('Ubicación','aLocation')+select('Estado','aStatus',['Activo','En uso','En garantía','Inactivo','Baja'].map(x=>({value:x,label:x})))+input('Valor estimado','aValue','number')+input('Fecha de registro','aDate','date',today())+input('Garantía / vigencia','aWarranty','text','','wide')+input('Notas administrativas','aNotes','text','','wide')+'<button class="primary" type="submit">Guardar activo</button>';
   $('supplierForm').innerHTML=input('Nombre suplidor','supName')+input('Teléfono','supPhone')+input('WhatsApp','supWhatsapp')+input('Email','supEmail')+input('Contacto','supContact')+input('Categoría','supCategory')+input('Límite crédito','supCredit','number','0')+input('Balance inicial / deuda','supOpening','number','0')+i.supplierFields.map((f,n)=>input(f,'supF'+n,'text','','wide')).join('')+'<button class="primary" type="submit">Guardar suplidor</button>';
   $('supplierPaymentForm').innerHTML=select('Suplidor','spSupplier',state.suppliers.map(s=>({value:s.id,label:`${s.name} · balance ${money(supplierBalance(s.id))}`})))+select('Compra relacionada','spPurchase',[{value:'',label:'Pago general'}].concat(state.purchases.filter(p=>purchaseBalance(p)>0).map(p=>({value:p.id,label:`${p.number||p.concept} · ${p.supplierName} · ${money(purchaseBalance(p))}`}))))+input('Fecha','spDate','date',today())+select('Método','spMethod',['ATH Móvil','Stripe','PayPal','Transferencia','Cheque','Efectivo','Tarjeta'].map(x=>({value:x,label:x})))+input('Monto','spAmount','number')+input('Nota','spNote','text','','wide')+'<button class="primary" type="submit">Registrar pago</button>';
@@ -1150,7 +1067,7 @@ function kpis(){
 
 function renderQuotesTable(){
   const box=$('quotesTable'); if(!box) return;
-  box.innerHTML=table(['Cotización','Cliente','Válida','Total','Estado','Acción'],state.quotes.map(q=>{const t=quoteTotals(q), st=quoteStatus(q);return `<tr><td><b>${esc(q.number||'')}</b><br><span class="muted">${esc(q.title||q.serviceType||'')}</span></td><td>${esc(q.clientName||'')}</td><td>${esc(q.validUntil||'—')}</td><td>${money(t.total)}</td><td>${statusChip(st)}</td><td><div class="actions"><button data-prev-quote="${q.id}" type="button">Preview</button><button data-edit-quote="${q.id}" type="button">Editar</button><button data-follow-quote="${q.id}" type="button">Seguimiento</button>${quoteCanInvoice(q)?`<button data-invoice-quote="${q.id}" type="button">Convertir a factura</button>`:''}${quoteCanConvert(q)?`<button data-convert-quote="${q.id}" type="button">Crear servicio</button>`:''}<button class="danger" data-del="quotes:${q.id}" type="button">Borrar</button></div></td></tr>`;}));
+  box.innerHTML=table(['Cotización','Cliente','Válida','Total','Estado','Acción'],state.quotes.map(q=>{const t=quoteTotals(q), st=quoteStatus(q);return `<tr><td><b>${esc(q.number||'')}</b><br><span class="muted">${esc(q.title||q.serviceType||'')}</span></td><td>${esc(q.clientName||'')}</td><td>${esc(q.validUntil||'—')}</td><td>${money(t.total)}</td><td>${statusChip(st)}</td><td><div class="actions"><button data-prev-quote="${q.id}" type="button">Preview</button><button data-edit-quote="${q.id}" type="button">Editar</button>${quoteCanInvoice(q)?`<button data-invoice-quote="${q.id}" type="button">Convertir a factura</button>`:''}${quoteCanConvert(q)?`<button data-convert-quote="${q.id}" type="button">Crear servicio</button>`:''}<button class="danger" data-del="quotes:${q.id}" type="button">Borrar</button></div></td></tr>`;}));
   document.querySelectorAll('[data-prev-quote]').forEach(b=>b.onclick=()=>previewQuote(b.dataset.prevQuote));
   document.querySelectorAll('[data-edit-quote]').forEach(b=>b.onclick=()=>editQuoteRecord(b.dataset.editQuote));
   document.querySelectorAll('[data-convert-quote]').forEach(b=>b.onclick=()=>convertQuoteToService(b.dataset.convertQuote));
@@ -1214,15 +1131,6 @@ function previewQuote(id){
   const html=`<div class="doc-page invoice-pro quote-pro"><div class="doc-body"><div class="invoice-top"><div class="invoice-brand">${logo?`<img class="invoice-logo" src="${logo}">`:''}<div><h1>${esc(p.businessName||'Empresa')}</h1>${p.email?`<p>${esc(p.email)}</p>`:''}</div></div><div class="invoice-contact"><p>${esc(p.address||'')}</p>${p.phone?`<p>${esc(p.phone)}</p>`:''}${p.web?`<p>${esc(p.web)}</p>`:''}</div></div><div class="invoice-title-row"><div class="invoice-number"><p><b>No. Cotización:</b> ${esc(q.number||'')}</p><p><b>Fecha:</b> ${esc(niceDate(q.date||today()))}</p><p><b>Válida hasta:</b> ${esc(q.validUntil?niceDate(q.validUntil):'—')}</p></div><h2>COTIZACIÓN</h2><div class="status-card"><b>ESTADO</b><span>${esc(quoteStatus(q)).toUpperCase()}</span></div></div><div class="invoice-line"></div><div class="invoice-client-grid"><div class="invoice-box"><b>CLIENTE</b><p>${esc(q.clientName||c.name||'')}</p></div><div class="invoice-box"><p><b>Teléfono:</b> ${esc(c.phone||'—')}</p><p><b>Dirección:</b> ${esc(c.address||c.city||'—')}</p></div></div><table class="doc-table invoice-items"><tr><th>Descripción</th><th>Cant.</th><th>Precio Unit.</th><th>Total</th></tr>${rows}</table><div class="invoice-lower"><div><div class="invoice-box note-box"><b>NOTAS</b><p>${esc(q.notes||'Cotización profesional sujeta a evaluación final y disponibilidad.')}</p></div><div class="invoice-box note-box"><b>CONDICIONES</b><p>${esc(q.terms||'Precios válidos hasta la fecha indicada. Aprobación requerida para iniciar servicio.')}</p></div>${p.signature?`<div class="invoice-sign"><img src="${p.signature}"><br>Firma autorizada</div>`:''}</div><div class="invoice-totals"><div><b>SUBTOTAL</b><span>${money(t.subtotal)}</span></div><div><b>IVU (${t.taxPercent}%)</b><span>${money(t.ivu)}</span></div><div class="total-row"><b>TOTAL</b><span>${money(t.total)}</span></div></div></div>`+invoiceDocFooter();
   state.previewHtml=html;$('reportPreview').innerHTML=html;show('reports');
 }
-
-function renderFollowupsTable(){
-  const box=$('followupsTable'); if(!box) return;
-  const rows=[...(state.followups||[])].sort((a,b)=>String(a.dueDate||'').localeCompare(String(b.dueDate||''))).map(f=>{
-    const wa=followupWaLink(f);
-    return `<tr><td><b>${esc(f.type||'')}</b><br><span class="muted">${esc(f.referenceNumber||f.source||'')}</span></td><td>${esc(f.clientName||'')}</td><td>${esc(f.assetName||'')}</td><td>${esc(f.dueDate||'—')}</td><td>${statusChip(followupStatus(f))}</td><td>${esc(f.priority||'Normal')}</td><td><div class="actions">${wa?`<a class="button" href="${wa}" target="_blank">WhatsApp</a>`:''}<button data-complete-followup="${f.id}" type="button">Completar</button><button data-edit-followup="${f.id}" type="button">Editar</button>${action('followups',f.id)}</div></td></tr>`;
-  });
-  box.innerHTML=table(['Tipo','Cliente','Activo','Próxima fecha','Estado','Prioridad','Acción'],rows);
-}
 function tables(){const i=industry();
   $('clientsTable').innerHTML=table(['Cliente','Contacto','Etiquetas','Historial','Acción'],state.clients.map(c=>{const cs=clientSummary(c);return `<tr><td><b>${esc(c.name)}</b><br><span class="muted">${esc(c.email)} · ${esc(c.city)}</span><br>${clientTagHtml(c)}</td><td>${esc(c.phone)}<br><span class="muted">${esc(c.altName||'')} ${c.altPhone?'· '+esc(c.altPhone):''}</span></td><td>${clientTagHtml(c)||'<span class="muted">Sin etiquetas</span>'}</td><td><b>${cs.assets}</b> activos · <b>${cs.services}</b> servicios<br><span class="muted">Balance ${money(cs.balance)}</span></td><td><div class="actions"><button data-client-summary="${c.id}" type="button">Ver historial</button>${action('clients',c.id)}</div></td></tr>`;}));
   $('teamTable').innerHTML=table([i.team,'Información personal','Vehículo','Estado','Comisión','Nómina pagada','Balance','Acción'],state.team.map(t=>`<tr><td><b>${esc(t.name)}</b><br><span class="muted">${esc(t.role)} · ${esc(t.phone||'')}</span></td><td><span class="muted">ID: ${esc(t.personalId||'—')}</span><br><span class="muted">SSN: ${esc(maskSSN(t.ssn||t.socialSecurity||''))}</span><br><span class="muted">Lic.: ${esc(t.driverLicense||'—')}</span></td><td>${esc(t.assignedVehicleName||'Sin vehículo')}</td><td>${statusChip(t.status||'Activo')}</td><td>${money(teamCommission(t.id))}<br><span class="muted">Ret. ${money(teamRetention(t.id))}</span></td><td>${money(payrollPaid(t.id))}</td><td><b>${money(teamBalance(t.id))}</b></td><td>${action('team',t.id)}</td></tr>`));
@@ -1233,15 +1141,10 @@ function tables(){const i=industry();
   $('supplierPaymentsTable').innerHTML=table(['Fecha','Suplidor','Compra','Método','Monto','Nota','Acción'],state.supplierPayments.map(p=>`<tr><td>${esc(p.date)}</td><td>${esc(p.supplierName)}</td><td>${esc(p.purchaseNumber||'General')}</td><td>${esc(p.method)}</td><td>${money(p.amount)}</td><td>${esc(p.note)}</td><td>${action('supplierPayments',p.id)}</td></tr>`));
   $('purchasesTable').innerHTML=table(['Fecha','Suplidor','Concepto','Vence','Total','Pagado','Balance','Estado','Acción'],state.purchases.map(p=>`<tr><td>${esc(p.date)}</td><td>${esc(p.supplierName)}</td><td><b>${esc(p.number||p.reference||'')}</b><br><span class="muted">${esc(p.concept)}</span></td><td>${esc(p.dueDate||'—')}</td><td>${money(p.total)}</td><td>${money(purchasePaid(p.id))}</td><td><b>${money(purchaseBalance(p))}</b></td><td>${statusChip(purchaseStatus(p))}</td><td>${action('purchases',p.id)}</td></tr>`));
   renderQuotesTable();
-  renderFollowupsTable();
-  $('servicesTable').innerHTML=table(['Fecha',i.client,'Activo','Servicio','Estado','Monto','Factura','Acción'],state.services.map(s=>{const inv=state.invoices.find(x=>x.serviceId===s.id),amount=serviceAmount(s);return `<tr><td>${esc(s.date)}<br><span class="tag">${esc(s.priority||'Normal')}</span></td><td>${esc(s.clientName)}</td><td>${esc(s.assetName||'')}</td><td><b>${esc(serviceTitle(s))}</b><br>${isTransport()?(()=>{const r=transportRouteFromService(s);return `<span class="muted">${esc(r.origin||'')} → ${esc(r.destination||'')} ${r.miles?`· ${Number(r.miles).toFixed(2)} mi`:''}</span><br>${routeLink(r.origin,r.destination,'Abrir ruta')}`})():`<span class="muted">${esc((s.fields||[]).filter(Boolean).slice(0,3).join(' · '))}</span>`}</td><td><span class="status-chip">${esc(s.status||'Pendiente')}</span></td><td>${money(amount)}</td><td>${inv?esc(inv.number):`<button data-invoice="${s.id}" type="button">Facturar</button>`}</td><td><div class="actions"><button data-dup-service="${s.id}" type="button">Duplicar</button>${String(s.status||'')==='Completado'?`<button data-maint-followup="${s.id}" type="button">Mantenimiento 6m</button>`:''}${action('services',s.id)}</div></td></tr>`}));
+  $('servicesTable').innerHTML=table(['Fecha',i.client,'Activo','Servicio','Estado','Monto','Factura','Acción'],state.services.map(s=>{const inv=state.invoices.find(x=>x.serviceId===s.id),amount=serviceAmount(s);return `<tr><td>${esc(s.date)}<br><span class="tag">${esc(s.priority||'Normal')}</span></td><td>${esc(s.clientName)}</td><td>${esc(s.assetName||'')}</td><td><b>${esc(serviceTitle(s))}</b><br>${isTransport()?(()=>{const r=transportRouteFromService(s);return `<span class="muted">${esc(r.origin||'')} → ${esc(r.destination||'')} ${r.miles?`· ${Number(r.miles).toFixed(2)} mi`:''}</span><br>${routeLink(r.origin,r.destination,'Abrir ruta')}`})():`<span class="muted">${esc((s.fields||[]).filter(Boolean).slice(0,3).join(' · '))}</span>`}</td><td><span class="status-chip">${esc(s.status||'Pendiente')}</span></td><td>${money(amount)}</td><td>${inv?esc(inv.number):`<button data-invoice="${s.id}" type="button">Facturar</button>`}</td><td><div class="actions"><button data-dup-service="${s.id}" type="button">Duplicar</button>${action('services',s.id)}</div></td></tr>`}));
   document.querySelectorAll('[data-invoice]').forEach(b=>b.onclick=()=>createInvoice(b.dataset.invoice));
   document.querySelectorAll('[data-client-summary]').forEach(b=>b.onclick=()=>showClientSummary(b.dataset.clientSummary));
   document.querySelectorAll('[data-dup-service]').forEach(b=>b.onclick=()=>duplicateService(b.dataset.dupService));
-  document.querySelectorAll('[data-maint-followup]').forEach(b=>b.onclick=()=>createFollowupFromService(b.dataset.maintFollowup));
-  document.querySelectorAll('[data-follow-quote]').forEach(b=>b.onclick=()=>createFollowupFromQuote(b.dataset.followQuote));
-  document.querySelectorAll('[data-complete-followup]').forEach(b=>b.onclick=()=>completeFollowup(b.dataset.completeFollowup));
-  document.querySelectorAll('[data-edit-followup]').forEach(b=>b.onclick=()=>editFollowup(b.dataset.editFollowup));
   document.querySelectorAll('[data-paystub]').forEach(b=>b.onclick=()=>previewPaystub(b.dataset.paystub));
   document.querySelectorAll('[data-pay-retention]').forEach(b=>b.onclick=()=>markRetentionPaid(b.dataset.payRetention));
   $('invoiceTable').innerHTML=table(['Factura','Cliente','Vence','Total','Pagado','Balance','Estado','Acción'],state.invoices.map(inv=>{const bal=invoiceBalance(inv),paid=invoicePaid(inv),st=invoiceStatus(inv);return `<tr><td><b>${esc(inv.number)}</b><br><span class="muted">${esc(inv.serviceTitle||'')}</span></td><td>${esc(inv.clientName)}</td><td>${esc(inv.dueDate||'—')}</td><td>${money(inv.total)}</td><td>${money(paid)}</td><td><b>${money(bal)}</b></td><td>${statusChip(st)}</td><td><div class="actions"><button data-prev-inv="${inv.id}" type="button">Preview</button><button data-dup-inv="${inv.id}" type="button">Duplicar</button>${st!=='Cancelada'?`<button class="danger" data-cancel-inv="${inv.id}" type="button">Cancelar</button>`:''}${action('invoices',inv.id)}</div></td></tr>`}));
@@ -1308,12 +1211,9 @@ function renderHomePolish(){
   renderNexusDaily();
   const ct=$('controlStrip'); if(!ct) return;
   const f=financialSummary(), o=operationalSummary();
-  const q=quoteSummary(), fu=followupSummary();
+  const q=quoteSummary();
   ct.innerHTML=[
     ['Cotizaciones abiertas',q.open,'quotes'],
-    ['Seguimientos activos',fu.active,'followups'],
-    ['Mantenimientos próximos',fu.upcoming,'followups'],
-    ['Seguimientos vencidos',fu.overdue,'followups'],
     ['Potencial COT',money(q.openValue+q.approvedValue),'quotes'],
     ['Por cobrar',money(f.receivable),'billing'],
     ['Vencido',money(f.overdue),'billing'],
@@ -1368,11 +1268,12 @@ const EDIT_LABELS={
   role:'Cargo',salary:'Salario',rate:'Tarifa',retention:'Retención',startDate:'Fecha de ingreso',category:'Categoría',location:'Ubicación',value:'Valor',warranty:'Garantía',industry:'Industria',
   whatsapp:'WhatsApp',contact:'Contacto',creditLimit:'Límite de crédito',openingBalance:'Balance inicial',supplierId:'Suplidor',supplierName:'Suplidor',purchaseId:'Compra',purchaseNumber:'Compra',method:'Método',note:'Nota',
   period:'Periodo',hours:'Horas',overtime:'Horas extra',gross:'Bruto',bonus:'Bono',retention:'Retenciones',advance:'Adelanto',deductions:'Otros descuentos',net:'Neto',concept:'Concepto',reference:'Referencia',number:'Número',
-  invoiceId:'Factura',invoiceNumber:'Factura',type:'Tipo',items:'Partidas / Items',fields:'Campos adicionales',route:'Ruta',terms:'Términos',serviceTitle:'Servicio',quoteId:'Cotización',quoteNumber:'Cotización',validUntil:'Válida hasta',approvedAt:'Aprobada el',convertedServiceId:'Servicio convertido',paid:'Pagado',balance:'Balance',destination:'Destino',dueDate:'Fecha límite',paidAt:'Fecha de pago',reference:'Referencia'
+  invoiceId:'Factura',invoiceNumber:'Factura',type:'Tipo',items:'Partidas / Items',fields:'Campos adicionales',route:'Ruta',terms:'Términos',serviceTitle:'Servicio',quoteId:'Cotización',quoteNumber:'Cotización',validUntil:'Válida hasta',approvedAt:'Aprobada el',convertedServiceId:'Servicio convertido',paid:'Pagado',balance:'Balance',destination:'Destino',dueDate:'Fecha límite',paidAt:'Fecha de pago',intervalMonths:'Intervalo meses',channel:'Canal',sourceType:'Origen',sourceId:'ID origen',completedAt:'Completado el',reference:'Referencia'
 };
 const EDIT_ORDER={
   clients:['name','phone','email','city','address','altName','altPhone','altEmail','tags','notes'],
   services:['clientId','assetId','teamId','date','status','priority','serviceType','title','amount','items','fields','route'],
+  followups:['clientId','assetId','type','title','dueDate','intervalMonths','status','priority','channel','note','sourceType','sourceId','completedAt'],
   quotes:['number','clientId','assetId','teamId','date','validUntil','status','priority','serviceType','title','items','subtotal','ivu','taxPercent','total','notes','terms','convertedServiceId'],
   team:['name','phone','email','personalId','ssn','driverLicense','assignedVehicleId','role','status','salary','rate','retention','startDate'],
   assets:['clientId','industry','name','category','location','status','value','date','warranty','notes'],
@@ -1412,6 +1313,7 @@ function editOptions(c,k,val){
   if(k==='purchaseId') return [{value:'',label:'Sin compra'},...state.purchases.map(x=>({value:x.id,label:x.number||x.concept||x.id}))];
   if(k==='invoiceId') return state.invoices.map(x=>({value:x.id,label:x.number||x.id}));
   if(k==='status'){
+    if(c==='followups') return ['Programado','Próximo','Vencido','Completado','Cancelado'].map(x=>({value:x,label:x}));
     if(c==='quotes') return ['Borrador','Enviada','Aprobada','Rechazada','Convertida','Vencida'].map(x=>({value:x,label:x}));
     if(c==='payrollRetentions') return ['Pendiente','Pagada','Aplicada','Cancelada'].map(x=>({value:x,label:x}));
     if(c==='invoices') return ['Pendiente','Parcial','Pagada','Vencida','Cancelada'].map(x=>({value:x,label:x}));
@@ -1420,6 +1322,8 @@ function editOptions(c,k,val){
     return ['Pendiente','En proceso','Completado','Cancelado'].map(x=>({value:x,label:x}));
   }
   if(k==='priority') return ['Baja','Normal','Alta','Urgente'].map(x=>({value:x,label:x}));
+  if(k==='type' && c==='followups') return ['Mantenimiento','Cotización','Instalación','Servicio','Garantía','Cobro','Otro'].map(x=>({value:x,label:x}));
+  if(k==='channel') return ['WhatsApp','Llamada','Email','Visita'].map(x=>({value:x,label:x}));
   if(k==='method') return ['ATH Móvil','Stripe','PayPal','Transferencia','Cheque','Efectivo','Tarjeta'].map(x=>({value:x,label:x}));
   if(k==='type') return ['Ingreso','Gasto'].map(x=>({value:x,label:x}));
   if(k==='industry') return Object.entries(INDUSTRIES).map(([id,x])=>({value:id,label:x.name}));
@@ -1706,9 +1610,6 @@ function bindForms(){
   $('cancelServiceEdit') && ($('cancelServiceEdit').onclick=()=>{ $('serviceForm').reset(); if($('sDate')) $('sDate').value=today(); setServiceItems([]); resetServiceEditMode(); if(isTransport()) updateTransportTotal(); });
   if($('quoteForm')) $('quoteForm').onsubmit=async e=>{e.preventDefault();const c=clientBy($('qClient')?.value||'');if(!c.id)return alert('Selecciona cliente.');const a=assetBy($('qAsset')?.value||'');const t=teamBy($('qTeam')?.value||'');const items=getQuoteItems();const subtotal=serviceItemsTotal(items);const ivu=subtotal*taxRate();const payload={clientId:c.id,clientName:c.name,assetId:a.id||'',assetName:a.id?assetName(a):'',teamId:t.id||'',teamName:t.name||'',date:$('qDate').value,validUntil:$('qValid').value,status:$('qStatus').value,priority:$('qPriority').value,serviceType:$('qServiceType').value,title:$('qTitle').value,items,subtotal,ivu,taxPercent:taxPercent(),total:subtotal+ivu,notes:$('qNotes').value,terms:$('qTerms').value,updatedAt:serverTimestamp()};if(state.editingQuoteId){await updateDoc(docPath('quotes',state.editingQuoteId),payload);resetQuoteEditMode();}else{await add('quotes',{number:quoteNumber(),...payload});}e.target.reset();setQuoteItems([{description:'',qty:1,price:''}]);};
   if($('cancelQuoteEdit')) $('cancelQuoteEdit').onclick=()=>{resetQuoteEditMode();$('quoteForm')?.reset();setQuoteItems([{description:'',qty:1,price:''}]);};
-
-  if($('followupForm')) $('followupForm').onsubmit=async e=>{e.preventDefault();const c=clientBy($('fClient')?.value||'');if(!c.id)return alert('Selecciona cliente.');const a=assetBy($('fAsset')?.value||'');const t=teamBy($('fTeam')?.value||'');const payload={type:$('fType').value,clientId:c.id,clientName:c.name,assetId:a.id||'',assetName:a.id?assetName(a):'',teamId:t.id||'',teamName:t.name||'',createdDate:today(),dueDate:$('fDue').value,status:$('fStatus').value,priority:$('fPriority').value,referenceNumber:$('fRef').value,notes:$('fNotes').value,updatedAt:serverTimestamp()};if(state.editingFollowupId){await updateDoc(docPath('followups',state.editingFollowupId),payload);resetFollowupEdit();}else{await add('followups',payload);}e.target.reset();if($('fDue'))$('fDue').value=addMonths(today(),6);};
-  if($('cancelFollowupEdit')) $('cancelFollowupEdit').onclick=()=>{resetFollowupEdit();$('followupForm')?.reset();if($('fDue'))$('fDue').value=addMonths(today(),6);};
   $('teamForm').onsubmit=e=>{e.preventDefault();const v=assetBy($('tAssignedVehicle')?.value||'');add('team',{name:$('tName').value,phone:$('tPhone').value,email:$('tEmail').value,personalId:$('tPersonalId')?.value||'',ssn:formatSSNInput($('tSsn')?.value||''),driverLicense:$('tDriverLicense')?.value||'',assignedVehicleId:v.id||'',assignedVehicleName:v.id?assetName(v):'',role:$('tRole').value,status:$('tStatus')?.value||'Activo',salary:Number($('tSalary').value||0),rate:Number($('tRate').value||0),retention:Number($('tRetention').value||0),startDate:$('tStart').value});e.target.reset();};
   $('assetForm').onsubmit=e=>{e.preventDefault();const c=clientBy($('aClient')?.value||'');add('assets',{clientId:c.id||'',clientName:c.name||'',industry:profile().industry||'hvac',name:$('aName').value,category:$('aCategory').value,location:$('aLocation').value,status:$('aStatus').value,value:Number($('aValue').value||0),date:$('aDate').value,warranty:$('aWarranty').value,notes:$('aNotes').value});e.target.reset();};
   $('supplierForm').onsubmit=e=>{e.preventDefault();add('suppliers',{name:$('supName').value,phone:$('supPhone').value,whatsapp:$('supWhatsapp')?.value||'',email:$('supEmail').value,contact:$('supContact')?.value||'',category:$('supCategory')?.value||'',creditLimit:Number($('supCredit')?.value||0),openingBalance:Number($('supOpening').value||0),fields:industry().supplierFields.map((_,n)=>$('supF'+n)?.value||'')});e.target.reset();};
@@ -1727,6 +1628,146 @@ function bindForms(){
   $('downloadPreview').onclick=()=>{const {jsPDF}=window.jspdf;const docp=new jsPDF({unit:'pt',format:'a4'});docp.html(state.previewHtml||$('reportPreview').innerHTML,{callback:d=>{const pages=d.getNumberOfPages();for(let n=1;n<=pages;n++){d.setPage(n);d.setFontSize(8);d.setTextColor(100);d.text(`Página ${n} de ${pages}`,d.internal.pageSize.getWidth()/2,d.internal.pageSize.getHeight()-18,{align:'center'});}d.save('nexus-documento.pdf');},x:18,y:18,width:559,windowWidth:900,autoPaging:'text'});};
   $('sideUpgrade').onclick=()=>show('plans');$('mobileMenu').onclick=()=>document.querySelector('.sidebar').classList.toggle('open');$('logoutBtn').onclick=()=>signOut(auth);if($('globalSearch')) $('globalSearch').oninput=renderGlobalSearch;
 }
+
+
+/* V50 CLEAN: Seguimiento + Report Center por fechas */
+function v50PlusMonths(dateString, months=6){
+  const base=dateString?new Date(String(dateString)+'T12:00:00'):new Date();
+  if(Number.isNaN(base.getTime())) return plusDays(180);
+  const day=base.getDate();
+  base.setMonth(base.getMonth()+Number(months||6));
+  if(base.getDate()<day) base.setDate(0);
+  return base.toISOString().slice(0,10);
+}
+function followupStatus(f){
+  const stored=String(f?.status||'').trim();
+  if(stored==='Completado' || stored==='Cancelado') return stored;
+  const due=String(f?.dueDate||'');
+  if(due && due<today()) return 'Vencido';
+  if(due && due<=plusDays(14)) return 'Próximo';
+  return stored || 'Programado';
+}
+function followupSummary(){
+  const rows=state.followups||[];
+  const open=rows.filter(f=>!['Completado','Cancelado'].includes(followupStatus(f)));
+  const dueSoon=rows.filter(f=>['Programado','Próximo'].includes(followupStatus(f)) && String(f.dueDate||'')>=today() && String(f.dueDate||'')<=plusDays(14));
+  const overdue=rows.filter(f=>followupStatus(f)==='Vencido');
+  return {total:rows.length,open:open.length,dueSoon:dueSoon.length,overdue:overdue.length,maintenance:rows.filter(f=>f.type==='Mantenimiento').length,quotes:rows.filter(f=>f.type==='Cotización').length,installations:rows.filter(f=>f.type==='Instalación').length};
+}
+function followupWhatsappUrl(f){
+  const c=clientBy(f.clientId||'');
+  const raw=String(c.whatsapp||c.phone||profile().whatsapp||'').replace(/\D/g,'');
+  const phone=raw.length===10?'1'+raw:raw;
+  const msg=`Hola ${f.clientName||c.name||''}, le saluda ${profile().businessName||'Nexus Business'}. Tenemos pendiente coordinar: ${f.title||f.type||'seguimiento'} para la fecha ${f.dueDate||''}. ¿Qué disponibilidad tiene?`;
+  return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+}
+async function completeFollowup(id){
+  const f=(state.followups||[]).find(x=>x.id===id); if(!f)return;
+  await updateDoc(docPath('followups',id),{status:'Completado',completedAt:today(),updatedAt:serverTimestamp()});
+  if(String(f.type||'')==='Mantenimiento'){
+    const copy={...f,status:'Programado',dueDate:v50PlusMonths(f.dueDate||today(),Number(f.intervalMonths||6)),completedAt:'',note:f.note||'Mantenimiento recurrente estándar cada 6 meses.'};
+    delete copy.id; delete copy.createdAt; delete copy.updatedAt;
+    await add('followups',copy);
+  }
+}
+async function createMaintenanceFollowupFromService(service){
+  if(!service?.id || !canCreate('followups')) return;
+  const exists=(state.followups||[]).some(f=>f.sourceId===service.id && f.sourceType==='service' && String(f.type||'')==='Mantenimiento' && followupStatus(f)!=='Cancelado');
+  if(exists) return;
+  const a=assetBy(service.assetId||'');
+  await add('followups',{clientId:service.clientId||'',clientName:service.clientName||'',assetId:service.assetId||'',assetName:service.assetName||assetName(a)||'',sourceType:'service',sourceId:service.id,type:'Mantenimiento',title:'Mantenimiento preventivo 6 meses',dueDate:v50PlusMonths(service.date||today(),6),intervalMonths:6,status:'Programado',priority:'Normal',channel:'WhatsApp',note:'Seguimiento automático estándar: mantenimiento preventivo cada 6 meses.'});
+}
+async function ensureQuoteFollowup(quote){
+  if(!quote?.id || !canCreate('followups')) return;
+  const exists=(state.followups||[]).some(f=>f.sourceType==='quote' && f.sourceId===quote.id);
+  if(exists) return;
+  await add('followups',{clientId:quote.clientId||'',clientName:quote.clientName||'',assetId:quote.assetId||'',assetName:quote.assetName||'',sourceType:'quote',sourceId:quote.id,quoteNumber:quote.number||'',type:'Cotización',title:'Seguimiento de cotización '+(quote.number||''),dueDate:plusDays(2),intervalMonths:0,status:'Programado',priority:quote.priority||'Normal',channel:'WhatsApp',note:'Dar seguimiento a cotización enviada.'});
+}
+function renderFollowupForm(){
+  if(!$('followupForm')) return;
+  $('followupForm').innerHTML=select('Cliente','fClient',state.clients.map(c=>({value:c.id,label:c.name})))+select('Activo relacionado','fAsset',[{value:'',label:'Sin activo'}].concat(state.assets.map(a=>({value:a.id,label:assetLabel(a)}))),'')+select('Tipo','fType',['Mantenimiento','Cotización','Instalación','Servicio','Garantía','Cobro','Otro'].map(x=>({value:x,label:x})),'Mantenimiento')+input('Título / asunto','fTitle','text','Mantenimiento preventivo 6 meses','wide')+input('Fecha seguimiento','fDueDate','date',v50PlusMonths(today(),6))+input('Intervalo meses','fInterval','number','6')+select('Estado','fStatus',['Programado','Próximo','Completado','Cancelado'].map(x=>({value:x,label:x})),'Programado')+select('Prioridad','fPriority',['Normal','Alta','Urgente'].map(x=>({value:x,label:x})),'Normal')+select('Canal','fChannel',['WhatsApp','Llamada','Email','Visita'].map(x=>({value:x,label:x})),'WhatsApp')+input('Notas','fNote','text','','wide')+'<button class="primary" type="submit">Guardar seguimiento</button>';
+}
+function renderFollowupsTable(){
+  const box=$('followupsTable'); if(!box) return;
+  const rows=[...(state.followups||[])].sort((a,b)=>String(a.dueDate||'').localeCompare(String(b.dueDate||''))).map(f=>{
+    const c=clientBy(f.clientId||''); const st=followupStatus(f); const phone=c.whatsapp||c.phone||'';
+    return `<tr><td><b>${esc(f.dueDate||'')}</b><br><span class="tag">${esc(f.priority||'Normal')}</span></td><td>${esc(f.clientName||c.name||'')}<br><span class="muted">${esc(phone)}</span></td><td>${esc(f.assetName||'')}</td><td><b>${esc(f.title||f.type||'Seguimiento')}</b><br><span class="muted">${esc(f.type||'')}</span></td><td>${statusChip(st)}</td><td>${esc(f.note||'')}</td><td><div class="actions">${phone?`<button data-whatsapp-followup="${f.id}" type="button">WhatsApp</button>`:''}${st!=='Completado'?`<button data-complete-followup="${f.id}" type="button">Completar</button>`:''}${action('followups',f.id)}</div></td></tr>`;
+  });
+  box.innerHTML=table(['Fecha','Cliente','Activo','Seguimiento','Estado','Notas','Acción'],rows);
+  document.querySelectorAll('[data-whatsapp-followup]').forEach(b=>b.onclick=()=>{const f=state.followups.find(x=>x.id===b.dataset.whatsappFollowup); if(f) open(followupWhatsappUrl(f),'_blank');});
+  document.querySelectorAll('[data-complete-followup]').forEach(b=>b.onclick=()=>completeFollowup(b.dataset.completeFollowup));
+}
+function bindFollowupForm(){
+  if(!$('followupForm') || $('followupForm').dataset.bound==='1') return;
+  $('followupForm').dataset.bound='1';
+  $('followupForm').onsubmit=e=>{e.preventDefault();const c=clientBy($('fClient')?.value||''),a=assetBy($('fAsset')?.value||'');add('followups',{clientId:c.id||'',clientName:c.name||'',assetId:a.id||'',assetName:a.id?assetName(a):'',type:$('fType').value,title:$('fTitle').value,dueDate:$('fDueDate').value,intervalMonths:Number($('fInterval').value||6),status:$('fStatus').value,priority:$('fPriority').value,channel:$('fChannel').value,note:$('fNote').value,sourceType:'manual',sourceId:''});e.target.reset();};
+}
+function reportRange(){return {from:$('reportFrom')?.value||'',to:$('reportTo')?.value||''};}
+function reportDateOf(row,type){
+  if(type==='followups') return row.dueDate||row.date||'';
+  if(type==='receivable') return row.dueDate||row.date||'';
+  if(type==='quotes') return row.date||row.validUntil||'';
+  if(type==='assetsClient'||type==='assetsStatus'||type==='suppliers'||type==='ops') return row.date||row.createdAt?.seconds||'';
+  return row.date||row.dueDate||row.createdAt?.seconds||'';
+}
+function inReportRange(row,type){
+  const {from,to}=reportRange(); if(!from && !to) return true;
+  const d=String(reportDateOf(row,type)||'').slice(0,10); if(!d) return false;
+  if(from && d<from) return false; if(to && d>to) return false; return true;
+}
+function withFilteredState(type,fn){
+  const old={services:state.services,quotes:state.quotes,followups:state.followups,invoices:state.invoices,payments:state.payments,payroll:state.payroll,payrollRetentions:state.payrollRetentions,purchases:state.purchases,supplierPayments:state.supplierPayments,cashflow:state.cashflow,assets:state.assets};
+  try{
+    state.services=old.services.filter(x=>inReportRange(x,'services'));
+    state.quotes=old.quotes.filter(x=>inReportRange(x,'quotes'));
+    state.followups=old.followups.filter(x=>inReportRange(x,'followups'));
+    state.invoices=old.invoices.filter(x=>inReportRange(x,type==='receivable'?'receivable':'invoices'));
+    state.payments=old.payments.filter(x=>inReportRange(x,'payments'));
+    state.payroll=old.payroll.filter(x=>inReportRange(x,'payroll'));
+    state.payrollRetentions=old.payrollRetentions.filter(x=>inReportRange(x,'retentions'));
+    state.purchases=old.purchases.filter(x=>inReportRange(x,'purchases'));
+    state.supplierPayments=old.supplierPayments.filter(x=>inReportRange(x,'supplierPayments'));
+    state.cashflow=old.cashflow.filter(x=>inReportRange(x,'cashflow'));
+    return fn();
+  }finally{Object.assign(state,old);}
+}
+function selectedReportPeriodHtml(){const {from,to}=reportRange();return (from||to)?`<p><b>Periodo:</b> ${esc(from||'Inicio')} al ${esc(to||'Hoy')}</p>`:'';}
+function previewFollowupsReport(){
+  let html=docHeader('REPORTE DE SEGUIMIENTO').replace('</h2>','</h2>'+selectedReportPeriodHtml());
+  const rows=(state.followups||[]).sort((a,b)=>String(a.dueDate||'').localeCompare(String(b.dueDate||''))).map(f=>`<tr><td>${esc(f.dueDate||'')}</td><td>${esc(f.clientName||'')}</td><td>${esc(f.type||'')}</td><td>${esc(f.title||'')}</td><td>${esc(followupStatus(f))}</td><td>${esc(f.note||'')}</td></tr>`).join('');
+  html+=`<table class="doc-table"><tr><th>Fecha</th><th>Cliente</th><th>Tipo</th><th>Seguimiento</th><th>Estado</th><th>Notas</th></tr>${rows}</table>`+docFooter();
+  state.previewHtml=html; $('reportPreview').innerHTML=html;
+}
+const __v50Forms=forms;
+forms=function(){__v50Forms();renderFollowupForm();};
+const __v50Tables=tables;
+tables=function(){__v50Tables();renderFollowupsTable();};
+const __v50BindForms=bindForms;
+bindForms=function(){__v50BindForms();bindFollowupForm();};
+const __v50Kpis=kpis;
+kpis=function(){__v50Kpis();const fu=followupSummary();const k=$('kpis');if(k && state.activeView==='dashboard'){k.insertAdjacentHTML('beforeend',`<div class="kpi" onclick="show('followups')"><span>Seguimientos</span><b>${fu.open}</b><small>${fu.dueSoon} próximos · ${fu.overdue} vencidos</small></div>`);}};
+const __v50Preview=preview;
+preview=function(type){
+  if(type==='followups') return withFilteredState(type,previewFollowupsReport);
+  return withFilteredState(type,()=>__v50Preview(type));
+};
+const __v50ReportRows=reportRows;
+reportRows=function(type){
+  if(type==='followups') return withFilteredState(type,()=>{const rows=[['Fecha','Cliente','Activo','Tipo','Seguimiento','Estado','Prioridad','Canal','Notas']];state.followups.forEach(f=>rows.push([f.dueDate||'',f.clientName||'',f.assetName||'',f.type||'',f.title||'',followupStatus(f),f.priority||'',f.channel||'',f.note||'']));return rows;});
+  return withFilteredState(type,()=>__v50ReportRows(type));
+};
+
+
+const __v50Add=add;
+add=async function(c,data){
+  const ref=await __v50Add(c,data);
+  try{
+    if(ref?.id && c==='quotes') await ensureQuoteFollowup({...data,id:ref.id});
+    if(ref?.id && c==='services' && (data.status==='Completado' || String(data.serviceType||data.title||'').toLowerCase().includes('instal'))) await createMaintenanceFollowupFromService({...data,id:ref.id});
+  }catch(e){console.warn('Seguimiento automático no creado:',e);}
+  return ref;
+};
+
 function authUI(){$('authIndustry').innerHTML=Object.entries(INDUSTRIES).map(([id,x])=>`<option value="${id}">${T(x.name)}</option>`).join('');$('showLogin').onclick=()=>{mode='login';document.querySelectorAll('.register-only').forEach(x=>x.classList.add('hidden'));$('authSubmit').textContent=T('Entrar');$('showLogin').classList.add('active');$('showRegister').classList.remove('active');};$('showRegister').onclick=()=>{mode='register';document.querySelectorAll('.register-only').forEach(x=>x.classList.remove('hidden'));$('authSubmit').textContent=T('Crear cuenta');$('showRegister').classList.add('active');$('showLogin').classList.remove('active');};$('authForm').onsubmit=async e=>{e.preventDefault();$('authMsg').textContent=T('Procesando...');try{if(mode==='register'){const cred=await createUserWithEmailAndPassword(auth,$('authEmail').value,$('authPassword').value);await setDoc(doc(db,'users',cred.user.uid),{...defaultProfile(),businessName:$('authBusiness').value||'Mi Negocio',industry:$('authIndustry').value,email:$('authEmail').value});}else await signInWithEmailAndPassword(auth,$('authEmail').value,$('authPassword').value);$('authMsg').textContent='';}catch(err){$('authMsg').textContent=err.message;}};}
 async function load(){unsub.forEach(x=>x());unsub=[];const snap=await getDoc(profRef());if(!snap.exists())await setDoc(profRef(),defaultProfile());unsub.push(onSnapshot(profRef(),s=>{state.profile=s.data()||defaultProfile();render();}));COLS.forEach(c=>unsub.push(onSnapshot(colPath(c),s=>{state[c]=s.docs.map(d=>({id:d.id,...d.data()}));$('syncStatus').textContent=T('Sincronizado');render();},e=>{$('syncStatus').textContent=T('Firebase bloqueado');console.error(e);})));}
 authUI();bindForms();onAuthStateChanged(auth,u=>{if(u){$('authScreen').classList.add('hidden');$('appShell').classList.remove('hidden');load();}else{$('authScreen').classList.remove('hidden');$('appShell').classList.add('hidden');}});
