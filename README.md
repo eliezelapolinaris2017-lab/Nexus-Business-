@@ -25,7 +25,7 @@ Se añadió una versión móvil independiente para iPhone y iPad:
 
 Para instalar en iPhone/iPad: abrir `mobile.html` en Safari, compartir y seleccionar “Añadir a pantalla de inicio”.
 
-## v52 Nexus Mobile PWA
+## v53 Nexus Mobile PWA
 
 Esta versión convierte `mobile.html` en una PWA más completa para iPhone y iPad.
 
@@ -36,5 +36,5 @@ Esta versión convierte `mobile.html` en una PWA más completa para iPhone y iPa
 - Área de Seguimientos con mantenimiento estándar cada 6 meses.
 - Historial compartido de facturas, cobros, servicios y seguimientos.
 - Sync en tiempo real con `onSnapshot`.
-- Service worker v52 con cache controlado y auto actualización.
+- Service worker v53 con cache controlado y auto actualización.
 - Botón “Buscar actualización” en la pestaña Sync.

@@ -7,11 +7,11 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Nexus Mobile" />
   <meta name="format-detection" content="telephone=yes" />
-  <meta name="theme-color" content="#0f172a" />
+  <meta name="theme-color" content="#07111f" />
   <title>Nexus Mobile · Facturación y Seguimiento</title>
-  <link rel="manifest" href="manifest.webmanifest?v=52" />
+  <link rel="manifest" href="manifest.webmanifest?v=53" />
   <link rel="apple-touch-icon" href="assets/logo.png" />
-  <link rel="stylesheet" href="mobile.css?v=52" />
+  <link rel="stylesheet" href="mobile.css?v=53" />
 </head>
 <body>
   <section id="mobileAuth" class="mobile-auth">
@@ -33,6 +33,7 @@
       <div>
         <span id="mobileSync" class="sync-pill">Sincronizando…</span>
         <h1 id="mobileBusiness">Nexus Business</h1>
+        <p>Nueva factura móvil</p>
       </div>
       <button id="mobileLogout" type="button">Salir</button>
     </header>
@@ -41,7 +42,7 @@
       <div class="mobile-hero">
         <span>Dashboard de facturación</span>
         <h2 id="mMonthNet">$0.00</h2>
-        <p id="mMonthLabel">Neto del mes</p>
+        <p id="mMonthLabel">Cobrado del mes</p>
       </div>
       <div id="mBillingKpis" class="metric-grid"></div>
       <div class="mobile-card slim-card">
@@ -64,24 +65,63 @@
     </section>
 
     <section id="mInvoice" class="mobile-view">
-      <div class="mobile-card">
-        <div class="section-row"><h3>Nueva factura móvil</h3><span class="muted">misma data</span></div>
-        <form id="mInvoiceForm" class="mobile-form">
-          <label>Cliente<select id="mInvClient" required></select></label>
-          <label>Tipo de factura<select id="mInvType"><option>Servicio</option><option>Mantenimiento</option><option>Instalación</option><option>Diagnóstico</option><option>Cotización</option><option>Otro</option></select></label>
-          <label>Descripción<input id="mInvDesc" placeholder="Ej. Mantenimiento preventivo 6 meses" required /></label>
-          <div class="two-col">
-            <label>Cantidad<input id="mInvQty" type="number" min="1" step="1" value="1" /></label>
-            <label>Precio<input id="mInvPrice" type="number" min="0" step="0.01" placeholder="0.00" required /></label>
-          </div>
-          <div class="two-col">
-            <label>Fecha<input id="mInvDate" type="date" required /></label>
-            <label>Vence<input id="mInvDue" type="date" required /></label>
-          </div>
-          <label>Notas<input id="mInvNotes" placeholder="Notas internas o para cliente" /></label>
-          <button class="primary" type="submit">Guardar factura</button>
-        </form>
+      <div class="step-bar">
+        <span class="active">1 Información</span><span>2 Líneas</span><span>3 Resumen</span><span>4 Guardar</span>
       </div>
+
+      <form id="mInvoiceForm" class="mobile-form invoice-pro-form">
+        <div class="mobile-card">
+          <div class="section-row"><h3>Información general</h3><span class="muted">misma data</span></div>
+          <div class="two-col">
+            <label>Cliente *<select id="mInvClient" required></select></label>
+            <label>Número de documento<input id="mInvNumber" placeholder="Se generará automáticamente" /></label>
+          </div>
+          <div class="two-col">
+            <label>Tipo de factura *<select id="mInvType"><option>Servicio</option><option>Mantenimiento</option><option>Instalación</option><option>Diagnóstico</option><option>Cotización</option><option>Reparación</option><option>Otro</option></select></label>
+            <label>Método de pago<select id="mInvPaymentMethod"><option value="">Seleccionar método</option><option>ATH Móvil</option><option>Tarjeta</option><option>Efectivo</option><option>Cheque</option><option>Transferencia</option><option>Stripe</option><option>PayPal</option></select></label>
+          </div>
+          <div class="two-col">
+            <label>Fecha *<input id="mInvDate" type="date" required /></label>
+            <label>Vence *<input id="mInvDue" type="date" required /></label>
+          </div>
+          <label>Estado *</label>
+          <div class="status-toggle" role="group" aria-label="Estado de la factura">
+            <button id="mStatusPending" class="active" data-invoice-status="Pendiente" type="button">Pendiente</button>
+            <button id="mStatusPaid" data-invoice-status="Pagada" type="button">Pagada</button>
+          </div>
+          <input id="mInvStatus" type="hidden" value="Pendiente" />
+          <label>Notas<textarea id="mInvNotes" rows="3" maxlength="300" placeholder="Notas internas o para el cliente"></textarea></label>
+        </div>
+
+        <div class="mobile-card">
+          <div class="section-row"><h3>Líneas de factura</h3><button id="mAddLineTop" type="button">+ Línea</button></div>
+          <div id="mInvoiceLines" class="invoice-lines"></div>
+          <button id="mAddLine" class="ghost-btn" type="button">+ Añadir línea</button>
+        </div>
+
+        <div class="mobile-card summary-card">
+          <div>
+            <h3>Resumen</h3>
+            <div class="summary-row"><span>Subtotal</span><b id="mInvSubtotal">$0.00</b></div>
+            <div class="summary-row"><span>Descuento</span><b id="mInvDiscountTotal">$0.00</b></div>
+            <div class="summary-row"><span>IVU</span><b id="mInvTax">$0.00</b></div>
+            <div class="summary-row total"><span>Total</span><b id="mInvTotal">$0.00</b></div>
+          </div>
+          <div class="summary-side">
+            <span>Estado del pago</span>
+            <strong id="mInvStatusText">Pendiente</strong>
+            <small id="mInvBalanceText">Balance: $0.00</small>
+          </div>
+        </div>
+
+        <div class="action-strip">
+          <button id="mSaveDraft" type="button">Guardar borrador</button>
+          <button id="mPreviewInvoice" type="button">Vista previa</button>
+          <button id="mViewLastDoc" type="button">Ver documento</button>
+        </div>
+        <button class="primary big-save" type="submit">Guardar factura</button>
+      </form>
+
       <div class="mobile-card">
         <div class="section-row"><h3>Facturas recientes</h3><button id="mRefreshInvoices" type="button">Sync</button></div>
         <div id="mInvoiceList" class="mobile-list"></div>
@@ -139,6 +179,17 @@
       </div>
     </section>
 
+    <div id="mDocModal" class="doc-modal hidden" role="dialog" aria-modal="true">
+      <div class="doc-shell">
+        <div class="doc-actions">
+          <button id="mCloseDoc" type="button">Cerrar</button>
+          <button id="mShareDoc" type="button">Compartir</button>
+          <button id="mPrintDoc" type="button">Imprimir/PDF</button>
+        </div>
+        <div id="mDocPreview" class="doc-preview"></div>
+      </div>
+    </div>
+
     <nav class="mobile-tabs" aria-label="Navegación móvil">
       <button class="active" data-tab="mDashboard" type="button">Inicio</button>
       <button data-tab="mInvoice" type="button">Facturar</button>
@@ -149,10 +200,10 @@
     </nav>
   </main>
 
-  <script type="module" src="mobile.js?v=52"></script>
+  <script type="module" src="mobile.js?v=53"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=52').catch(()=>{}));
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=53').catch(()=>{}));
     }
   </script>
 </body>
