@@ -9,9 +9,9 @@
   <meta name="format-detection" content="telephone=yes" />
   <meta name="theme-color" content="#f3f6fb" />
   <title>Nexus Mobile · Facturación y Seguimiento</title>
-  <link rel="manifest" href="manifest.webmanifest?v=55" />
+  <link rel="manifest" href="manifest.webmanifest?v=56" />
   <link rel="apple-touch-icon" href="assets/logo.png" />
-  <link rel="stylesheet" href="mobile.css?v=55" />
+  <link rel="stylesheet" href="mobile.css?v=56" />
 </head>
 <body>
   <section id="mobileAuth" class="mobile-auth">
@@ -153,6 +153,27 @@
     </section>
 
     <section id="mClients" class="mobile-view">
+      <div class="mobile-card sticky-card">
+        <div class="section-row"><h3>Añadir cliente</h3><span class="muted">sync desktop</span></div>
+        <form id="mClientForm" class="mobile-form compact client-mobile-form">
+          <label>Nombre del cliente *<input id="mClientName" autocomplete="name" placeholder="Nombre o compañía" required /></label>
+          <div class="two-col">
+            <label>Teléfono / WhatsApp<input id="mClientPhone" inputmode="tel" autocomplete="tel" placeholder="787-000-0000" /></label>
+            <label>Email<input id="mClientEmail" type="email" autocomplete="email" placeholder="cliente@email.com" /></label>
+          </div>
+          <div class="two-col">
+            <label>Pueblo<input id="mClientCity" autocomplete="address-level2" placeholder="San Juan" /></label>
+            <label>Etiqueta<select id="mClientTag"><option value="">Sin etiqueta</option><option>VIP</option><option>Corporativo</option><option>Residencial</option><option>Garantía</option><option>Moroso</option><option>Mantenimiento</option></select></label>
+          </div>
+          <label>Dirección<textarea id="mClientAddress" rows="2" autocomplete="street-address" placeholder="Dirección física del servicio"></textarea></label>
+          <label>Notas<textarea id="mClientNotes" rows="2" placeholder="Notas administrativas, equipos, acceso, contacto alterno…"></textarea></label>
+          <div class="action-strip client-actions">
+            <button id="mClearClient" type="button">Limpiar</button>
+            <button class="primary" type="submit">Guardar cliente</button>
+          </div>
+        </form>
+      </div>
+
       <div class="mobile-card">
         <div class="section-row"><h3>Clientes</h3><span id="mClientCount" class="muted"></span></div>
         <input id="mClientSearch" class="search" type="search" placeholder="Buscar cliente, teléfono o email" />
@@ -200,10 +221,10 @@
     </nav>
   </main>
 
-  <script type="module" src="mobile.js?v=55"></script>
+  <script type="module" src="mobile.js?v=56"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=55').catch(()=>{}));
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=56').catch(()=>{}));
     }
   </script>
 </body>

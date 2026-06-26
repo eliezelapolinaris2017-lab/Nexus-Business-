@@ -220,3 +220,16 @@ select{
   .two-col,.three-col,.action-strip{grid-template-columns:1fr!important;}
   .mobile-app{padding-left:10px!important;padding-right:10px!important;}
 }
+
+
+/* v56 Mobile Client Create */
+.client-mobile-form{gap:14px!important;}
+.client-mobile-form textarea{min-height:72px!important;resize:vertical!important;}
+.client-actions{grid-template-columns:1fr 1fr!important;}
+#mClientForm .primary{min-height:48px!important;}
+#mClientList .actions button[data-new-invoice-client]{
+  background:#ecfdf5!important;
+  border:1px solid #bbf7d0!important;
+  color:#15803d!important;
+}
+@media(max-width:430px){.client-actions{grid-template-columns:1fr!important;}}

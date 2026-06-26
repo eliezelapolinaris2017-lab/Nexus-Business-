@@ -3,7 +3,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from
 import { getFirestore, collection, doc, getDoc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
-const APP_VERSION = 'v54';
+const APP_VERSION = 'v56';
 let deferredInstallPrompt = null;
 let updateWaiting = null;
 let currentFilter = 'all';
@@ -78,6 +78,8 @@ function switchTab(id){
 
 document.addEventListener('click', async e => {
   const tab = e.target.closest('[data-tab]'); if(tab){ switchTab(tab.dataset.tab); return; }
+  const invClient = e.target.closest('[data-new-invoice-client]'); if(invClient){ startInvoiceForClient(invClient.dataset.newInvoiceClient); return; }
+  if(e.target.closest('#mClearClient')){ $('mClientForm')?.reset(); return; }
   const f = e.target.closest('[data-follow-filter]'); if(f){ currentFilter = f.dataset.followFilter; document.querySelectorAll('[data-follow-filter]').forEach(b => b.classList.toggle('active', b === f)); renderFollowups(); return; }
   const complete = e.target.closest('[data-complete-follow]'); if(complete){ await completeFollowup(complete.dataset.completeFollow); return; }
   const del = e.target.closest('[data-delete-follow]'); if(del && confirm('¿Borrar seguimiento?')){ await deleteDoc(docRef('followups', del.dataset.deleteFollow)); return; }
@@ -117,6 +119,7 @@ $('mForceReload')?.addEventListener('click', async () => {
   location.reload();
 });
 $('mClientSearch')?.addEventListener('input', renderClients);
+$('mClientForm')?.addEventListener('submit', saveMobileClient);
 $('mHistorySearch')?.addEventListener('input', renderHistory);
 $('mRefreshInvoices')?.addEventListener('click', () => renderAll());
 $('mInstallBtn')?.addEventListener('click', async () => {
@@ -151,6 +154,34 @@ function renderSelects(){
   if($('mInvDate') && !$('mInvDate').value) $('mInvDate').value = today();
   if($('mInvDue') && !$('mInvDue').value) $('mInvDue').value = plusDays(15);
   if($('mFollowDue') && !$('mFollowDue').value) $('mFollowDue').value = plusMonths(today(), 6);
+}
+async function saveMobileClient(e){
+  e.preventDefault();
+  const name = $('mClientName')?.value?.trim();
+  if(!name) return alert('Escribe el nombre del cliente.');
+  const tag = $('mClientTag')?.value || '';
+  const payload = {
+    name,
+    phone: $('mClientPhone')?.value?.trim() || '',
+    email: $('mClientEmail')?.value?.trim() || '',
+    city: $('mClientCity')?.value?.trim() || '',
+    address: $('mClientAddress')?.value?.trim() || '',
+    tags: tag ? [tag] : [],
+    notes: $('mClientNotes')?.value?.trim() || '',
+    sourceType: 'mobile',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  };
+  const ref = await addDoc(colRef('clients'), payload);
+  e.target.reset();
+  setSync('Cliente guardado · sincronizando');
+  switchTab('mInvoice');
+  setTimeout(() => { const sel = $('mInvClient'); if(sel){ sel.value = ref.id; } }, 500);
+}
+function startInvoiceForClient(clientId){
+  switchTab('mInvoice');
+  const sel = $('mInvClient');
+  if(sel) sel.value = clientId || '';
 }
 function setInvoiceStatus(status){
   $('mInvStatus').value = status;
@@ -236,7 +267,7 @@ function renderClients(){
   const q = String($('mClientSearch')?.value || '').toLowerCase();
   const rows = state.clients.filter(c => [c.name,c.phone,c.email,c.address].join(' ').toLowerCase().includes(q)).slice(0,60);
   $('mClientCount').textContent = `${state.clients.length} clientes`;
-  $('mClientList').innerHTML = rows.length ? rows.map(c => { const invs = state.invoices.filter(i => i.clientId === c.id), fol = state.followups.filter(f => f.clientId === c.id); return `<div class="row-card"><div class="top"><div><h4>${esc(c.name || 'Cliente')}</h4><p>${esc(c.phone || '')} ${c.email ? '· ' + esc(c.email) : ''}</p></div><span class="badge">${invs.length} fac.</span></div><p>${esc(c.address || c.city || '')}</p><div class="actions"><button data-tab="mHistory" type="button">Historial</button>${phoneLink(c) ? `<a href="${phoneLink(c)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}<span class="badge">${fol.length} seg.</span></div></div>`; }).join('') : '<div class="empty">Sin clientes.</div>';
+  $('mClientList').innerHTML = rows.length ? rows.map(c => { const invs = state.invoices.filter(i => i.clientId === c.id), fol = state.followups.filter(f => f.clientId === c.id); return `<div class="row-card"><div class="top"><div><h4>${esc(c.name || 'Cliente')}</h4><p>${esc(c.phone || '')} ${c.email ? '· ' + esc(c.email) : ''}</p></div><span class="badge">${invs.length} fac.</span></div><p>${esc(c.address || c.city || '')}</p><div class="actions"><button data-new-invoice-client="${esc(c.id)}" type="button">Facturar</button><button data-tab="mHistory" type="button">Historial</button>${phoneLink(c) ? `<a href="${phoneLink(c)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}<span class="badge">${fol.length} seg.</span></div></div>`; }).join('') : '<div class="empty">Sin clientes.</div>';
 }
 function renderHistory(){
   const q = String($('mHistorySearch')?.value || '').toLowerCase();

@@ -52,3 +52,9 @@ Esta versión convierte `mobile.html` en una PWA más completa para iPhone y iPa
 - Se elimina conflicto CSS entre `.invoice-line` del editor móvil y el separador del PDF.
 - Formularios optimizados para Safari en iPhone/iPad.
 - PWA cache actualizado a v55.
+
+
+## v56 Mobile Client Create
+- Añadir cliente desde móvil.
+- Cliente nuevo queda disponible para facturas, seguimientos e historial.
+- PWA cache v56.
