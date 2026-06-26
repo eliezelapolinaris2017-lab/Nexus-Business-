@@ -3,7 +3,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from
 import { getFirestore, collection, doc, getDoc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
-const APP_VERSION = 'v53';
+const APP_VERSION = 'v54';
 let deferredInstallPrompt = null;
 let updateWaiting = null;
 let currentFilter = 'all';
@@ -285,11 +285,47 @@ function buildInvoicePreviewObject(number='Vista previa'){
   const c = clientBy($('mInvClient')?.value); const calc = invoiceCalc();
   return { number, date:$('mInvDate')?.value || today(), dueDate:$('mInvDue')?.value || plusDays(15), clientName:c.name || 'Cliente', invoiceType:$('mInvType')?.value || 'Servicio', items:invoiceLines.map(l => ({ description:l.description, qty:l.qty, price:l.price, discount:l.discount, taxable:l.taxable, total:lineNet(l) })), subtotal:calc.subtotal, discount:calc.discount, ivu:calc.ivu, taxPercent:Number(state.profile?.tax || 11.5), total:calc.total, status:$('mInvStatus')?.value || 'Pendiente', notes:$('mInvNotes')?.value || '' };
 }
+
+function niceDate(v){
+  if(!v) return '';
+  const parts = String(v).split('-');
+  if(parts.length === 3){
+    const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    return d.toLocaleDateString('es-PR', { year:'numeric', month:'long', day:'numeric' });
+  }
+  return String(v);
+}
+function invoiceTotalsDoc(inv){
+  const itemsSubtotal = Array.isArray(inv.items) && inv.items.length ? inv.items.reduce((a,it)=>a + (Number(it.qty || 1) * Number(it.price || 0)), 0) : 0;
+  const subtotal = Number(inv.subtotal ?? (itemsSubtotal || Number(inv.total || 0)));
+  const ivu = Number(inv.ivu ?? inv.tax ?? 0);
+  const total = Number(inv.total ?? (subtotal + ivu));
+  return { subtotal, ivu, total, taxPercent:Number(inv.taxPercent ?? state.profile?.tax ?? 0) };
+}
+function invoiceDocFooter(){
+  const p = state.profile || {};
+  return `</div><div class="invoice-thanks">¡Gracias por su preferencia!</div><div class="invoice-footer"><span>${esc(p.businessName || 'Empresa')}</span><span>Gracias por su preferencia</span></div></div>`;
+}
+function buildDesktopInvoiceDocument(inv){
+  const p = state.profile || {};
+  const c = clientBy(inv.clientId);
+  const totals = invoiceTotalsDoc(inv);
+  const existing = currentDocId ? state.invoices.find(i => i.id === currentDocId) : null;
+  const paid = existing ? invoicePaid(existing) : (String(inv.status || '') === 'Pagada' ? totals.total : 0);
+  const bal = existing ? invoiceBalance(existing) : Math.max(0, totals.total - paid);
+  const status = existing ? invoiceStatus(existing) : (bal <= 0 || String(inv.status || '') === 'Pagada' ? 'Pagada' : (String(inv.status || '') || 'Pendiente'));
+  const logo = p.logoPdf || p.logoDashboard;
+  const itemList = Array.isArray(inv.items) && inv.items.length ? inv.items : [{ description:inv.serviceTitle || inv.invoiceType || 'Servicio', qty:1, price:totals.subtotal }];
+  const rows = itemList.map(it => `<tr><td>${esc(it.description || 'Servicio')}</td><td>${esc(it.qty || 1)}</td><td>${money(it.price || 0)}</td><td>${money(Number(it.qty || 1) * Number(it.price || 0))}</td></tr>`).join('');
+  const note = esc(inv.notes || 'Gracias por confiar en nuestros servicios.');
+  const terms = esc(inv.terms || inv.conditions || 'Pago a través del método acordado.');
+  return `<div class="doc-page invoice-pro"><div class="doc-body"><div class="invoice-top"><div class="invoice-brand">${logo ? `<img class="invoice-logo" src="${logo}">` : ''}<div><h1>${esc(p.businessName || 'Empresa')}</h1>${p.email ? `<p>${esc(p.email)}</p>` : ''}</div></div><div class="invoice-contact"><p>${esc(p.address || '')}</p>${p.phone ? `<p>${esc(p.phone)}</p>` : ''}${p.email ? `<p>${esc(p.email)}</p>` : ''}${p.web ? `<p>${esc(p.web)}</p>` : ''}</div></div><div class="invoice-title-row"><div class="invoice-number"><p><b>No. de Factura:</b> ${esc(inv.number || 'Factura')}</p><p><b>Fecha:</b> ${esc(niceDate(inv.date))}</p><p><b>Vence:</b> ${esc(inv.dueDate ? niceDate(inv.dueDate) : '—')}</p></div><h2>FACTURA</h2><div class="status-card"><b>ESTADO</b><span>${esc(status).toUpperCase()}</span></div></div><div class="invoice-line"></div><div class="invoice-client-grid"><div class="invoice-box"><b>CLIENTE</b><p>${esc(inv.clientName || c.name || '')}</p></div><div class="invoice-box"><p><b>Teléfono:</b> ${esc(c.phone || '—')}</p><p><b>Dirección:</b> ${esc(c.address || c.city || '—')}</p></div></div><table class="doc-table invoice-items"><tr><th>Descripción</th><th>Cant.</th><th>Precio Unit.</th><th>Total</th></tr>${rows}</table><div class="invoice-lower"><div><div class="invoice-box note-box"><b>NOTAS</b><p>${note}</p></div><div class="invoice-box note-box"><b>CONDICIONES</b><p>${terms}</p></div>${p.signature ? `<div class="invoice-sign"><img src="${p.signature}"><br>Firma autorizada</div>` : ''}</div><div class="invoice-totals"><div><b>SUBTOTAL</b><span>${money(totals.subtotal)}</span></div><div><b>IVU (${totals.taxPercent}%)</b><span>${money(totals.ivu)}</span></div><div class="total-row"><b>TOTAL</b><span>${money(totals.total)}</span></div><div><b>PAGADO</b><span>${money(paid)}</span></div><div class="balance-row"><b>BALANCE</b><span>${money(bal)}</span></div></div></div>` + invoiceDocFooter();
+}
 function openInvoiceDoc(id, supplied=null){
-  const inv = supplied || state.invoices.find(i => i.id === id); if(!inv) return;
+  const inv = supplied || state.invoices.find(i => i.id === id);
+  if(!inv) return;
   currentDocId = inv.id || id || null;
-  const items = Array.isArray(inv.items) ? inv.items : [{ description:inv.serviceTitle || inv.invoiceType || 'Servicio', qty:1, price:inv.subtotal || inv.total || 0, total:inv.subtotal || inv.total || 0 }];
-  $('mDocPreview').innerHTML = `<div class="paper-doc"><div class="paper-head"><div><h2>${esc(state.profile?.businessName || 'Nexus Business')}</h2><p>${esc(state.profile?.phone || '')} ${state.profile?.email ? '· ' + esc(state.profile.email) : ''}</p></div><strong>${esc(inv.number || 'Factura')}</strong></div><div class="paper-meta"><span>Cliente<br><b>${esc(inv.clientName || 'Cliente')}</b></span><span>Fecha<br><b>${esc(inv.date || '')}</b></span><span>Vence<br><b>${esc(inv.dueDate || '')}</b></span><span>Estado<br><b>${esc(invoiceStatus(inv))}</b></span></div><table><thead><tr><th>Descripción</th><th>Cant.</th><th>Precio</th><th>Total</th></tr></thead><tbody>${items.map(it => `<tr><td>${esc(it.description || '')}</td><td>${esc(it.qty || 1)}</td><td>${money(it.price || 0)}</td><td>${money(it.total ?? (Number(it.qty || 1) * Number(it.price || 0)))}</td></tr>`).join('')}</tbody></table><div class="paper-totals"><p>Subtotal <b>${money(inv.subtotal || 0)}</b></p><p>Descuento <b>${money(inv.discount || 0)}</b></p><p>IVU ${esc(inv.taxPercent || state.profile?.tax || 11.5)}% <b>${money(inv.ivu || inv.tax || 0)}</b></p><h3>Total <b>${money(inv.total || 0)}</b></h3><p>Balance <b>${money(currentDocId ? invoiceBalance(inv) : (inv.status === 'Pagada' ? 0 : inv.total))}</b></p></div>${inv.notes ? `<div class="paper-notes"><b>Notas:</b><br>${esc(inv.notes)}</div>` : ''}</div>`;
+  $('mDocPreview').innerHTML = buildDesktopInvoiceDocument(inv);
   $('mDocModal').classList.remove('hidden');
 }
 function closeDoc(){ $('mDocModal').classList.add('hidden'); }

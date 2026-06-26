@@ -38,3 +38,9 @@ Esta versión convierte `mobile.html` en una PWA más completa para iPhone y iPa
 - Sync en tiempo real con `onSnapshot`.
 - Service worker v53 con cache controlado y auto actualización.
 - Botón “Buscar actualización” en la pestaña Sync.
+
+
+## v54 Mobile PDF Desktop Match
+- La vista móvil ahora genera el documento de factura con el mismo HTML/CSS del PDF premium de escritorio.
+- Ver documento, Vista previa e Imprimir/PDF usan el diseño corporativo idéntico: logo, estado, cliente, tabla, totales, pagado y balance.
+- Service Worker actualizado a `v54` para forzar actualización en iPhone/iPad.
