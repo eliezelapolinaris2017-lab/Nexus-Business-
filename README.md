@@ -58,3 +58,9 @@ Esta versión convierte `mobile.html` en una PWA más completa para iPhone y iPa
 - Añadir cliente desde móvil.
 - Cliente nuevo queda disponible para facturas, seguimientos e historial.
 - PWA cache v56.
+
+
+## v57 Mobile PDF Share Fix
+- El botón Compartir en móvil ahora genera y adjunta el PDF real de la factura.
+- Mantiene fallback: si iOS/Safari no permite adjuntar archivos, descarga el PDF y muestra aviso.
+- Usa el mismo diseño de factura de escritorio.

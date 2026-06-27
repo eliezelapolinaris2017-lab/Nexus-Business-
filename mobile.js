@@ -3,7 +3,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from
 import { getFirestore, collection, doc, getDoc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
-const APP_VERSION = 'v56';
+const APP_VERSION = 'v57';
 let deferredInstallPrompt = null;
 let updateWaiting = null;
 let currentFilter = 'all';
@@ -294,7 +294,7 @@ async function saveInvoice(forcedStatus){
   const calc = invoiceCalc();
   const status = forcedStatus || $('mInvStatus').value || 'Pendiente';
   const number = $('mInvNumber').value || 'INV-M-' + String(Date.now()).slice(-7);
-  const payload = { number, date:$('mInvDate').value, dueDate:$('mInvDue').value, clientId:c.id, clientName:c.name || '', invoiceType:$('mInvType').value, serviceTitle:validLines[0]?.description || $('mInvType').value, items:validLines.map(l => ({ description:l.description, qty:Number(l.qty||1), price:Number(l.price||0), discount:Number(l.discount||0), taxable:l.taxable !== false, total:lineNet(l) })), subtotal:calc.subtotal, discount:calc.discount, ivu:calc.ivu, tax:calc.ivu, taxPercent:Number(state.profile?.tax || 11.5), total:calc.total, status, notes:$('mInvNotes').value, terms:'Pago según acuerdo.', sourceType:'mobile-v55', paymentMethod:$('mInvPaymentMethod').value || '', updatedAt:serverTimestamp(), createdAt:serverTimestamp() };
+  const payload = { number, date:$('mInvDate').value, dueDate:$('mInvDue').value, clientId:c.id, clientName:c.name || '', invoiceType:$('mInvType').value, serviceTitle:validLines[0]?.description || $('mInvType').value, items:validLines.map(l => ({ description:l.description, qty:Number(l.qty||1), price:Number(l.price||0), discount:Number(l.discount||0), taxable:l.taxable !== false, total:lineNet(l) })), subtotal:calc.subtotal, discount:calc.discount, ivu:calc.ivu, tax:calc.ivu, taxPercent:Number(state.profile?.tax || 11.5), total:calc.total, status, notes:$('mInvNotes').value, terms:'Pago según acuerdo.', sourceType:'mobile-v57', paymentMethod:$('mInvPaymentMethod').value || '', updatedAt:serverTimestamp(), createdAt:serverTimestamp() };
   const ref = await addDoc(colRef('invoices'), payload);
   lastCreatedInvoiceId = ref.id;
   if(status === 'Pagada'){
@@ -310,7 +310,61 @@ async function completeFollowup(id){
   }
 }
 async function markInvoicePaid(id){ const inv = state.invoices.find(i => i.id === id); if(!inv) return; const bal = invoiceBalance(inv); if(bal <= 0) return; await addDoc(colRef('payments'), { invoiceId:inv.id, invoiceNumber:inv.number, date:today(), method:'Móvil', amount:bal, note:'Pago registrado desde Nexus Mobile', createdAt:serverTimestamp() }); await updateDoc(docRef('invoices', id), { status:'Pagada', updatedAt:serverTimestamp() }); }
-function shareInvoice(id){ const inv = state.invoices.find(i => i.id === id); if(!inv) return; const text = invoiceShareText(inv); if(navigator.share) navigator.share({ title:`Factura ${inv.number}`, text }).catch(()=>{}); else navigator.clipboard?.writeText(text).then(()=>alert('Factura copiada.')); }
+async function buildInvoicePdfFile(inv, filename){
+  if(!window.jspdf?.jsPDF) throw new Error('Motor PDF no disponible.');
+  const { jsPDF } = window.jspdf;
+  const docp = new jsPDF({ unit:'pt', format:'a4' });
+  const html = buildDesktopInvoiceDocument(inv);
+  const wrapper = document.createElement('div');
+  wrapper.className = 'pdf-render-host';
+  wrapper.style.position = 'fixed';
+  wrapper.style.left = '-10000px';
+  wrapper.style.top = '0';
+  wrapper.style.width = '900px';
+  wrapper.innerHTML = html;
+  document.body.appendChild(wrapper);
+  try{
+    await new Promise((resolve, reject) => {
+      docp.html(wrapper, {
+        callback: () => resolve(),
+        x:18,
+        y:18,
+        width:559,
+        windowWidth:900,
+        autoPaging:'text'
+      });
+    });
+    const blob = docp.output('blob');
+    return new File([blob], filename || `Factura-${inv.number || 'Nexus'}.pdf`, { type:'application/pdf' });
+  } finally {
+    wrapper.remove();
+  }
+}
+async function shareInvoice(id){
+  const inv = state.invoices.find(i => i.id === id);
+  if(!inv) return;
+  const filename = `Factura-${String(inv.number || id).replace(/[^a-z0-9_-]+/gi,'-')}.pdf`;
+  try{
+    const file = await buildInvoicePdfFile(inv, filename);
+    const data = { title:`Factura ${inv.number || ''}`, text: invoiceShareText(inv), files:[file] };
+    if(navigator.canShare?.({ files:[file] }) && navigator.share){
+      await navigator.share(data);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+    alert('El PDF se descargó. Luego puedes enviarlo por WhatsApp, Mail o Mensajes.');
+  }catch(err){
+    console.error(err);
+    const text = invoiceShareText(inv);
+    if(navigator.share) navigator.share({ title:`Factura ${inv.number || ''}`, text }).catch(()=>{});
+    else navigator.clipboard?.writeText(text).then(()=>alert('No se pudo adjuntar el PDF. Se copió la información de la factura.'));
+  }
+}
 function invoiceShareText(inv){ return `${state.profile?.businessName || 'Nexus Business'}\nFactura: ${inv.number}\nCliente: ${inv.clientName}\nTotal: ${money(inv.total)}\nEstado: ${invoiceStatus(inv)}\nBalance: ${money(invoiceBalance(inv))}`; }
 function buildInvoicePreviewObject(number='Vista previa'){
   const c = clientBy($('mInvClient')?.value); const calc = invoiceCalc();
@@ -360,4 +414,4 @@ function openInvoiceDoc(id, supplied=null){
   $('mDocModal').classList.remove('hidden');
 }
 function closeDoc(){ $('mDocModal').classList.add('hidden'); }
-function shareCurrentDoc(){ if(currentDocId) return shareInvoice(currentDocId); const text = $('mDocPreview')?.innerText || 'Factura'; if(navigator.share) navigator.share({ title:'Factura', text }).catch(()=>{}); else navigator.clipboard?.writeText(text).then(()=>alert('Documento copiado.')); }
+async function shareCurrentDoc(){ if(currentDocId) return shareInvoice(currentDocId); const preview = buildInvoicePreviewObject('Vista previa'); try{ const file = await buildInvoicePdfFile(preview, 'Factura-Vista-Previa.pdf'); if(navigator.canShare?.({ files:[file] }) && navigator.share){ await navigator.share({ title:'Factura', text:'Factura adjunta en PDF.', files:[file] }); return; } const url = URL.createObjectURL(file); const a = document.createElement('a'); a.href=url; a.download='Factura-Vista-Previa.pdf'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),5000); }catch(err){ console.error(err); const text = $('mDocPreview')?.innerText || 'Factura'; if(navigator.share) navigator.share({ title:'Factura', text }).catch(()=>{}); else navigator.clipboard?.writeText(text).then(()=>alert('No se pudo adjuntar el PDF. Se copió el documento.')); } }

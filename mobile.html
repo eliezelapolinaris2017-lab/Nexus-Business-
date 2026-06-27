@@ -221,10 +221,11 @@
     </nav>
   </main>
 
-  <script type="module" src="mobile.js?v=56"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script type="module" src="mobile.js?v=57"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=56').catch(()=>{}));
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=57').catch(()=>{}));
     }
   </script>
 </body>
