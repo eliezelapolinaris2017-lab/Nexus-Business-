@@ -64,3 +64,9 @@ Esta versión convierte `mobile.html` en una PWA más completa para iPhone y iPa
 - El botón Compartir en móvil ahora genera y adjunta el PDF real de la factura.
 - Mantiene fallback: si iOS/Safari no permite adjuntar archivos, descarga el PDF y muestra aviso.
 - Usa el mismo diseño de factura de escritorio.
+
+
+## v58 Mobile Buttons + PDF Share Fix
+- Corrige contraste de botones Ver documento, Compartir y Pagada en móvil blanco.
+- Compartir ya no cae a texto: intenta adjuntar PDF real y, si iOS/Safari bloquea el share sheet, descarga el PDF.
+- Actualiza cache PWA a v58.

@@ -3,7 +3,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from
 import { getFirestore, collection, doc, getDoc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
-const APP_VERSION = 'v57';
+const APP_VERSION = 'v58';
 let deferredInstallPrompt = null;
 let updateWaiting = null;
 let currentFilter = 'all';
@@ -294,7 +294,7 @@ async function saveInvoice(forcedStatus){
   const calc = invoiceCalc();
   const status = forcedStatus || $('mInvStatus').value || 'Pendiente';
   const number = $('mInvNumber').value || 'INV-M-' + String(Date.now()).slice(-7);
-  const payload = { number, date:$('mInvDate').value, dueDate:$('mInvDue').value, clientId:c.id, clientName:c.name || '', invoiceType:$('mInvType').value, serviceTitle:validLines[0]?.description || $('mInvType').value, items:validLines.map(l => ({ description:l.description, qty:Number(l.qty||1), price:Number(l.price||0), discount:Number(l.discount||0), taxable:l.taxable !== false, total:lineNet(l) })), subtotal:calc.subtotal, discount:calc.discount, ivu:calc.ivu, tax:calc.ivu, taxPercent:Number(state.profile?.tax || 11.5), total:calc.total, status, notes:$('mInvNotes').value, terms:'Pago según acuerdo.', sourceType:'mobile-v57', paymentMethod:$('mInvPaymentMethod').value || '', updatedAt:serverTimestamp(), createdAt:serverTimestamp() };
+  const payload = { number, date:$('mInvDate').value, dueDate:$('mInvDue').value, clientId:c.id, clientName:c.name || '', invoiceType:$('mInvType').value, serviceTitle:validLines[0]?.description || $('mInvType').value, items:validLines.map(l => ({ description:l.description, qty:Number(l.qty||1), price:Number(l.price||0), discount:Number(l.discount||0), taxable:l.taxable !== false, total:lineNet(l) })), subtotal:calc.subtotal, discount:calc.discount, ivu:calc.ivu, tax:calc.ivu, taxPercent:Number(state.profile?.tax || 11.5), total:calc.total, status, notes:$('mInvNotes').value, terms:'Pago según acuerdo.', sourceType:'mobile-v58', paymentMethod:$('mInvPaymentMethod').value || '', updatedAt:serverTimestamp(), createdAt:serverTimestamp() };
   const ref = await addDoc(colRef('invoices'), payload);
   lastCreatedInvoiceId = ref.id;
   if(status === 'Pagada'){
@@ -344,26 +344,42 @@ async function shareInvoice(id){
   const inv = state.invoices.find(i => i.id === id);
   if(!inv) return;
   const filename = `Factura-${String(inv.number || id).replace(/[^a-z0-9_-]+/gi,'-')}.pdf`;
+  let file = null;
   try{
-    const file = await buildInvoicePdfFile(inv, filename);
-    const data = { title:`Factura ${inv.number || ''}`, text: invoiceShareText(inv), files:[file] };
-    if(navigator.canShare?.({ files:[file] }) && navigator.share){
-      await navigator.share(data);
-      return;
+    file = await buildInvoicePdfFile(inv, filename);
+    const shareData = {
+      title:`Factura ${inv.number || ''}`,
+      text:'Factura adjunta en PDF.',
+      files:[file]
+    };
+    if(navigator.share){
+      const canShareFiles = navigator.canShare ? navigator.canShare({ files:[file] }) : true;
+      if(canShareFiles){
+        await navigator.share(shareData);
+        return;
+      }
     }
-    const url = URL.createObjectURL(file);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    setTimeout(()=>URL.revokeObjectURL(url), 5000);
-    alert('El PDF se descargó. Luego puedes enviarlo por WhatsApp, Mail o Mensajes.');
+    downloadPdfFile(file, filename);
+    alert('El PDF se descargó. Usa Compartir desde Archivos o Safari para enviarlo.');
   }catch(err){
     console.error(err);
-    const text = invoiceShareText(inv);
-    if(navigator.share) navigator.share({ title:`Factura ${inv.number || ''}`, text }).catch(()=>{});
-    else navigator.clipboard?.writeText(text).then(()=>alert('No se pudo adjuntar el PDF. Se copió la información de la factura.'));
+    if(file){
+      downloadPdfFile(file, filename);
+      alert('No se pudo abrir el menú de compartir, pero el PDF se descargó.');
+    }else{
+      alert('No se pudo generar el PDF. Abre Ver documento y vuelve a intentar.');
+    }
   }
+}
+function downloadPdfFile(file, filename){
+  const url = URL.createObjectURL(file);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename || file.name || 'Factura.pdf';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 5000);
 }
 function invoiceShareText(inv){ return `${state.profile?.businessName || 'Nexus Business'}\nFactura: ${inv.number}\nCliente: ${inv.clientName}\nTotal: ${money(inv.total)}\nEstado: ${invoiceStatus(inv)}\nBalance: ${money(invoiceBalance(inv))}`; }
 function buildInvoicePreviewObject(number='Vista previa'){
@@ -414,4 +430,24 @@ function openInvoiceDoc(id, supplied=null){
   $('mDocModal').classList.remove('hidden');
 }
 function closeDoc(){ $('mDocModal').classList.add('hidden'); }
-async function shareCurrentDoc(){ if(currentDocId) return shareInvoice(currentDocId); const preview = buildInvoicePreviewObject('Vista previa'); try{ const file = await buildInvoicePdfFile(preview, 'Factura-Vista-Previa.pdf'); if(navigator.canShare?.({ files:[file] }) && navigator.share){ await navigator.share({ title:'Factura', text:'Factura adjunta en PDF.', files:[file] }); return; } const url = URL.createObjectURL(file); const a = document.createElement('a'); a.href=url; a.download='Factura-Vista-Previa.pdf'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),5000); }catch(err){ console.error(err); const text = $('mDocPreview')?.innerText || 'Factura'; if(navigator.share) navigator.share({ title:'Factura', text }).catch(()=>{}); else navigator.clipboard?.writeText(text).then(()=>alert('No se pudo adjuntar el PDF. Se copió el documento.')); } }
+async function shareCurrentDoc(){
+  if(currentDocId) return shareInvoice(currentDocId);
+  const preview = buildInvoicePreviewObject('Vista previa');
+  const filename = 'Factura-Vista-Previa.pdf';
+  let file = null;
+  try{
+    file = await buildInvoicePdfFile(preview, filename);
+    if(navigator.share){
+      const canShareFiles = navigator.canShare ? navigator.canShare({ files:[file] }) : true;
+      if(canShareFiles){
+        await navigator.share({ title:'Factura', text:'Factura adjunta en PDF.', files:[file] });
+        return;
+      }
+    }
+    downloadPdfFile(file, filename);
+  }catch(err){
+    console.error(err);
+    if(file) downloadPdfFile(file, filename);
+    else alert('No se pudo generar el PDF.');
+  }
+}

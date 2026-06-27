@@ -233,3 +233,51 @@ select{
   color:#15803d!important;
 }
 @media(max-width:430px){.client-actions{grid-template-columns:1fr!important;}}
+
+
+/* v58 Mobile Action Buttons + PDF Share Fix */
+:root{--mobile-action-blue:#1d4ed8;--mobile-action-border:#cfe0f2;--mobile-ok-bg:#dcfce7;--mobile-ok-text:#166534;}
+.badge.ok,
+.row-card .badge.ok{
+  background:var(--mobile-ok-bg)!important;
+  color:var(--mobile-ok-text)!important;
+  border:1px solid #bbf7d0!important;
+  font-weight:900!important;
+  opacity:1!important;
+}
+.row-card .actions button,
+.row-card .actions a{
+  min-height:44px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:8px!important;
+  border-radius:14px!important;
+  font-weight:900!important;
+  opacity:1!important;
+  filter:none!important;
+  text-decoration:none!important;
+}
+.row-card .actions button[data-view-invoice],
+.row-card .actions button[data-share-invoice]{
+  background:#ffffff!important;
+  color:var(--mobile-action-blue)!important;
+  border:1px solid var(--mobile-action-border)!important;
+  box-shadow:0 4px 12px rgba(15,23,42,.05)!important;
+}
+.row-card .actions button[data-view-invoice]::before{content:'📄';font-size:16px;line-height:1;}
+.row-card .actions button[data-share-invoice]::before{content:'↗';font-size:18px;line-height:1;}
+.row-card .actions button[data-mark-paid]{
+  background:#fff7ed!important;
+  color:#b45309!important;
+  border:1px solid #fed7aa!important;
+}
+.row-card .actions button:disabled,
+.row-card .actions a:disabled{
+  opacity:.65!important;
+}
+@media(max-width:430px){
+  .row-card .actions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:10px!important;}
+  .row-card .actions button,
+  .row-card .actions a{width:100%!important;}
+}
