@@ -3,7 +3,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from
 import { getFirestore, collection, doc, getDoc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
-const APP_VERSION = 'v59';
+const APP_VERSION = 'v60';
 let deferredInstallPrompt = null;
 let updateWaiting = null;
 let currentFilter = 'all';
@@ -297,7 +297,7 @@ async function saveInvoice(forcedStatus){
   const calc = invoiceCalc();
   const status = forcedStatus || $('mInvStatus').value || 'Pendiente';
   const number = $('mInvNumber').value || 'INV-M-' + String(Date.now()).slice(-7);
-  const payload = { number, date:$('mInvDate').value, dueDate:$('mInvDue').value, clientId:c.id, clientName:c.name || '', invoiceType:$('mInvType').value, serviceTitle:validLines[0]?.description || $('mInvType').value, items:validLines.map(l => ({ description:l.description, qty:Number(l.qty||1), price:Number(l.price||0), discount:Number(l.discount||0), taxable:l.taxable !== false, total:lineNet(l) })), subtotal:calc.subtotal, discount:calc.discount, ivu:calc.ivu, tax:calc.ivu, taxPercent:Number(state.profile?.tax || 11.5), total:calc.total, status, notes:$('mInvNotes').value, terms:'Pago según acuerdo.', sourceType:'mobile-v59', paymentMethod:$('mInvPaymentMethod').value || '', updatedAt:serverTimestamp(), createdAt:serverTimestamp() };
+  const payload = { number, date:$('mInvDate').value, dueDate:$('mInvDue').value, clientId:c.id, clientName:c.name || '', invoiceType:$('mInvType').value, serviceTitle:validLines[0]?.description || $('mInvType').value, items:validLines.map(l => ({ description:l.description, qty:Number(l.qty||1), price:Number(l.price||0), discount:Number(l.discount||0), taxable:l.taxable !== false, total:lineNet(l) })), subtotal:calc.subtotal, discount:calc.discount, ivu:calc.ivu, tax:calc.ivu, taxPercent:Number(state.profile?.tax || 11.5), total:calc.total, status, notes:$('mInvNotes').value, terms:'Pago según acuerdo.', sourceType:'mobile-v60', paymentMethod:$('mInvPaymentMethod').value || '', updatedAt:serverTimestamp(), createdAt:serverTimestamp() };
   const ref = await addDoc(colRef('invoices'), payload);
   lastCreatedInvoiceId = ref.id;
   if(status === 'Pagada'){
@@ -349,17 +349,21 @@ async function shareInvoice(id){
   const filename = `Factura-${String(inv.number || id).replace(/[^a-z0-9_-]+/gi,'-')}.pdf`;
   const btn = document.querySelector(`[data-share-invoice="${CSS.escape(id)}"]`);
   const oldText = btn ? btn.textContent : '';
+  let iosPdfWindow = null;
   try{
     if(btn){ btn.disabled = true; btn.textContent = 'Preparando PDF…'; }
-    await sleep(30);
 
-    // iOS PWA se congela con navigator.share(files) y render HTML pesado.
-    // Para estabilidad usamos generador liviano y evitamos el share nativo con archivo en PWA.
-    const file = await buildInvoicePdfFileFallback(inv, filename);
+    // iOS PWA no maneja bien navigator.share({ files }) con PDF pesado.
+    // La salida correcta es generar el MISMO PDF premium y abrirlo en visor PDF.
+    // Desde ese visor el usuario comparte por WhatsApp, Mail, Mensajes o Archivos sin congelar Nexus.
+    if(isIOSPWA()) iosPdfWindow = window.open('', '_blank');
+
+    await sleep(40);
+    const file = await buildInvoicePdfFile(inv, filename);
 
     if(isIOSPWA()){
-      downloadPdfFile(file, filename);
-      alert('PDF preparado sin congelar la app. En iPhone/iPad PWA se descarga primero; compártelo desde Archivos, WhatsApp, Mail o Mensajes.');
+      openPdfFile(file, filename, iosPdfWindow);
+      alert('PDF premium preparado. Se abrió en el visor; comparte desde el botón de compartir de iPhone/iPad.');
       return;
     }
 
@@ -369,11 +373,12 @@ async function shareInvoice(id){
       return;
     }
 
-    downloadPdfFile(file, filename);
-    alert('El PDF se descargó. Luego puedes compartirlo por WhatsApp, Mail o Mensajes.');
+    openPdfFile(file, filename);
+    alert('PDF premium abierto. Puedes descargarlo o compartirlo desde el visor.');
   }catch(err){
-    console.error('PDF share failed', err);
-    alert('No se pudo compartir directo. Se evitó congelar la app; usa Ver documento → Imprimir/PDF.');
+    console.error('Premium PDF share failed', err);
+    if(iosPdfWindow && !iosPdfWindow.closed) iosPdfWindow.close();
+    alert('No se pudo preparar el PDF premium. Abre Ver documento y usa Imprimir/PDF.');
   }finally{
     if(btn){ btn.disabled = false; btn.textContent = oldText || 'Compartir'; }
   }
@@ -386,7 +391,17 @@ function downloadPdfFile(file, filename){
   document.body.appendChild(a);
   a.click();
   a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url), 8000);
+  setTimeout(()=>URL.revokeObjectURL(url), 15000);
+}
+function openPdfFile(file, filename, targetWindow=null){
+  const url = URL.createObjectURL(file);
+  if(targetWindow && !targetWindow.closed){
+    targetWindow.location = url;
+  }else{
+    const opened = window.open(url, '_blank');
+    if(!opened) downloadPdfFile(file, filename);
+  }
+  setTimeout(()=>URL.revokeObjectURL(url), 60000);
 }
 async function buildInvoicePdfFileFallback(inv, filename){
   if(!window.jspdf?.jsPDF) throw new Error('Motor PDF no disponible.');
@@ -479,22 +494,24 @@ function closeDoc(){ $('mDocModal').classList.add('hidden'); }
 async function shareCurrentDoc(){
   if(currentDocId) return shareInvoice(currentDocId);
   const preview = buildInvoicePreviewObject('Vista previa');
+  let iosPdfWindow = null;
   try{
-    await sleep(30);
-    const file = await buildInvoicePdfFileFallback(preview, 'Factura-Vista-Previa.pdf');
+    if(isIOSPWA()) iosPdfWindow = window.open('', '_blank');
+    await sleep(40);
+    const file = await buildInvoicePdfFile(preview, 'Factura-Vista-Previa.pdf');
     if(isIOSPWA()){
-      downloadPdfFile(file, 'Factura-Vista-Previa.pdf');
-      alert('PDF preparado sin congelar la app. En iPhone/iPad PWA se descarga primero.');
+      openPdfFile(file, 'Factura-Vista-Previa.pdf', iosPdfWindow);
+      alert('PDF premium preparado. Se abrió en el visor; comparte desde iPhone/iPad.');
       return;
     }
     if(navigator.share && navigator.canShare && navigator.canShare({ files:[file] })){
       await navigator.share({ title:'Factura', text:'Factura adjunta en PDF.', files:[file] });
       return;
     }
-    downloadPdfFile(file, 'Factura-Vista-Previa.pdf');
-    alert('El PDF se descargó para compartirlo.');
+    openPdfFile(file, 'Factura-Vista-Previa.pdf');
   }catch(err){
     console.error(err);
-    alert('No se pudo compartir directo. Usa Imprimir/PDF desde Ver documento.');
+    if(iosPdfWindow && !iosPdfWindow.closed) iosPdfWindow.close();
+    alert('No se pudo preparar el PDF premium. Usa Imprimir/PDF desde Ver documento.');
   }
 }

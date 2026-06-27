@@ -75,3 +75,9 @@ Esta versión convierte `mobile.html` en una PWA más completa para iPhone y iPa
 ## v59 Mobile iOS PWA Share Freeze Fix
 
 Corrige congelamiento del botón Compartir en iPhone/iPad PWA y mejora contraste de botones.
+
+
+## v60 Mobile Premium PDF Share
+- Compartir mantiene el PDF premium igual al desktop.
+- En iOS PWA se evita el congelamiento abriendo el PDF premium en visor nativo.
+- Cache PWA actualizado a v60.
