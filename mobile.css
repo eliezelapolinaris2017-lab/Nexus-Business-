@@ -281,3 +281,10 @@ select{
   .row-card .actions button,
   .row-card .actions a{width:100%!important;}
 }
+
+
+/* v59 iOS PWA Share Freeze + Readability Fix */
+.row-card .badge.ok, .badge.ok{background:#dcfce7!important;color:#166534!important;border:1px solid #86efac!important;font-weight:900!important;opacity:1!important;}
+.row-card .actions button[data-view-invoice], .row-card .actions button[data-share-invoice]{background:#fff!important;color:#1d4ed8!important;border:1.5px solid #bfdbfe!important;opacity:1!important;font-weight:900!important;box-shadow:0 3px 10px rgba(15,23,42,.06)!important;}
+.row-card .actions button[data-share-invoice]:disabled{background:#e0f2fe!important;color:#075985!important;cursor:wait!important;}
+.row-card .actions button[data-view-invoice]:disabled{background:#eef2ff!important;color:#334155!important;}

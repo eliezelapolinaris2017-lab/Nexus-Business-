@@ -3,7 +3,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from
 import { getFirestore, collection, doc, getDoc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
-const APP_VERSION = 'v58';
+const APP_VERSION = 'v59';
 let deferredInstallPrompt = null;
 let updateWaiting = null;
 let currentFilter = 'all';
@@ -36,6 +36,9 @@ function statusBadge(status){ const s = String(status || 'Pendiente'); const cls
 function sorted(arr, key='date'){ return [...(arr || [])].sort((a,b) => String(b[key] || '').localeCompare(String(a[key] || ''))); }
 function phoneLink(c){ const raw = String(c.phone || c.whatsapp || '').replace(/\D/g, ''); if(!raw) return ''; const normalized = raw.length === 10 ? '1' + raw : raw.replace(/^1?/, '1'); return `https://wa.me/${normalized}`; }
 function isStandalone(){ return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; }
+function isIOS(){ return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+function isIOSPWA(){ return isIOS() && isStandalone(); }
+function sleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
 function setSync(text){ const el = $('mobileSync'); if(el) el.textContent = text; }
 
 function newLine(description='', qty=1, price=0, discount=0, taxable=true){ return { id:'ln_' + Date.now() + '_' + Math.random().toString(16).slice(2), description, qty:Number(qty||1), price:Number(price||0), discount:Number(discount||0), taxable }; }
@@ -294,7 +297,7 @@ async function saveInvoice(forcedStatus){
   const calc = invoiceCalc();
   const status = forcedStatus || $('mInvStatus').value || 'Pendiente';
   const number = $('mInvNumber').value || 'INV-M-' + String(Date.now()).slice(-7);
-  const payload = { number, date:$('mInvDate').value, dueDate:$('mInvDue').value, clientId:c.id, clientName:c.name || '', invoiceType:$('mInvType').value, serviceTitle:validLines[0]?.description || $('mInvType').value, items:validLines.map(l => ({ description:l.description, qty:Number(l.qty||1), price:Number(l.price||0), discount:Number(l.discount||0), taxable:l.taxable !== false, total:lineNet(l) })), subtotal:calc.subtotal, discount:calc.discount, ivu:calc.ivu, tax:calc.ivu, taxPercent:Number(state.profile?.tax || 11.5), total:calc.total, status, notes:$('mInvNotes').value, terms:'Pago según acuerdo.', sourceType:'mobile-v58', paymentMethod:$('mInvPaymentMethod').value || '', updatedAt:serverTimestamp(), createdAt:serverTimestamp() };
+  const payload = { number, date:$('mInvDate').value, dueDate:$('mInvDue').value, clientId:c.id, clientName:c.name || '', invoiceType:$('mInvType').value, serviceTitle:validLines[0]?.description || $('mInvType').value, items:validLines.map(l => ({ description:l.description, qty:Number(l.qty||1), price:Number(l.price||0), discount:Number(l.discount||0), taxable:l.taxable !== false, total:lineNet(l) })), subtotal:calc.subtotal, discount:calc.discount, ivu:calc.ivu, tax:calc.ivu, taxPercent:Number(state.profile?.tax || 11.5), total:calc.total, status, notes:$('mInvNotes').value, terms:'Pago según acuerdo.', sourceType:'mobile-v59', paymentMethod:$('mInvPaymentMethod').value || '', updatedAt:serverTimestamp(), createdAt:serverTimestamp() };
   const ref = await addDoc(colRef('invoices'), payload);
   lastCreatedInvoiceId = ref.id;
   if(status === 'Pagada'){
@@ -344,31 +347,35 @@ async function shareInvoice(id){
   const inv = state.invoices.find(i => i.id === id);
   if(!inv) return;
   const filename = `Factura-${String(inv.number || id).replace(/[^a-z0-9_-]+/gi,'-')}.pdf`;
-  let file = null;
+  const btn = document.querySelector(`[data-share-invoice="${CSS.escape(id)}"]`);
+  const oldText = btn ? btn.textContent : '';
   try{
-    file = await buildInvoicePdfFile(inv, filename);
-    const shareData = {
-      title:`Factura ${inv.number || ''}`,
-      text:'Factura adjunta en PDF.',
-      files:[file]
-    };
-    if(navigator.share){
-      const canShareFiles = navigator.canShare ? navigator.canShare({ files:[file] }) : true;
-      if(canShareFiles){
-        await navigator.share(shareData);
-        return;
-      }
-    }
-    downloadPdfFile(file, filename);
-    alert('El PDF se descargó. Usa Compartir desde Archivos o Safari para enviarlo.');
-  }catch(err){
-    console.error(err);
-    if(file){
+    if(btn){ btn.disabled = true; btn.textContent = 'Preparando PDF…'; }
+    await sleep(30);
+
+    // iOS PWA se congela con navigator.share(files) y render HTML pesado.
+    // Para estabilidad usamos generador liviano y evitamos el share nativo con archivo en PWA.
+    const file = await buildInvoicePdfFileFallback(inv, filename);
+
+    if(isIOSPWA()){
       downloadPdfFile(file, filename);
-      alert('No se pudo abrir el menú de compartir, pero el PDF se descargó.');
-    }else{
-      alert('No se pudo generar el PDF. Abre Ver documento y vuelve a intentar.');
+      alert('PDF preparado sin congelar la app. En iPhone/iPad PWA se descarga primero; compártelo desde Archivos, WhatsApp, Mail o Mensajes.');
+      return;
     }
+
+    if(navigator.share && navigator.canShare && navigator.canShare({ files:[file] })){
+      if(btn) btn.textContent = 'Compartiendo…';
+      await navigator.share({ title:`Factura ${inv.number || ''}`, text:'Factura adjunta en PDF.', files:[file] });
+      return;
+    }
+
+    downloadPdfFile(file, filename);
+    alert('El PDF se descargó. Luego puedes compartirlo por WhatsApp, Mail o Mensajes.');
+  }catch(err){
+    console.error('PDF share failed', err);
+    alert('No se pudo compartir directo. Se evitó congelar la app; usa Ver documento → Imprimir/PDF.');
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = oldText || 'Compartir'; }
   }
 }
 function downloadPdfFile(file, filename){
@@ -379,7 +386,46 @@ function downloadPdfFile(file, filename){
   document.body.appendChild(a);
   a.click();
   a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url), 5000);
+  setTimeout(()=>URL.revokeObjectURL(url), 8000);
+}
+async function buildInvoicePdfFileFallback(inv, filename){
+  if(!window.jspdf?.jsPDF) throw new Error('Motor PDF no disponible.');
+  const { jsPDF } = window.jspdf;
+  const docp = new jsPDF({ unit:'pt', format:'a4' });
+  const p = state.profile || {};
+  const c = clientBy(inv.clientId);
+  const totals = invoiceTotalsDoc(inv);
+  const status = invoiceStatus(inv);
+  let y = 42;
+  docp.setFont('helvetica','bold'); docp.setFontSize(18); docp.text(p.businessName || 'Nexus Business', 42, y);
+  y += 24; docp.setFontSize(28); docp.text('FACTURA', 42, y);
+  y += 26; docp.setFont('helvetica','normal'); docp.setFontSize(11);
+  docp.text(`No.: ${inv.number || ''}`, 42, y); docp.text(`Estado: ${status}`, 360, y); y += 16;
+  docp.text(`Fecha: ${niceDate(inv.date)}`, 42, y); docp.text(`Vence: ${niceDate(inv.dueDate)}`, 360, y); y += 24;
+  docp.setFont('helvetica','bold'); docp.text('Cliente', 42, y); y += 15;
+  docp.setFont('helvetica','normal'); docp.text(String(inv.clientName || c.name || ''), 42, y); y += 14;
+  if(c.phone) { docp.text(`Tel: ${c.phone}`, 42, y); y += 14; }
+  if(c.address || c.city) { docp.text(`Dirección: ${c.address || c.city}`, 42, y, { maxWidth:500 }); y += 24; }
+  y += 8; docp.setFont('helvetica','bold');
+  docp.text('Descripción', 42, y); docp.text('Cant.', 330, y); docp.text('Precio', 400, y); docp.text('Total', 500, y); y += 12;
+  docp.line(42, y, 552, y); y += 18; docp.setFont('helvetica','normal');
+  const items = Array.isArray(inv.items) && inv.items.length ? inv.items : [{description:inv.serviceTitle||inv.invoiceType||'Servicio', qty:1, price:totals.subtotal}];
+  items.forEach(it=>{
+    const desc = String(it.description || 'Servicio');
+    docp.text(desc, 42, y, { maxWidth:260 });
+    docp.text(String(it.qty || 1), 340, y, { align:'right' });
+    docp.text(money(it.price || 0), 455, y, { align:'right' });
+    docp.text(money(Number(it.qty || 1) * Number(it.price || 0)), 552, y, { align:'right' });
+    y += Math.max(20, Math.ceil(desc.length/38)*14);
+    if(y > 720){ docp.addPage(); y = 42; }
+  });
+  y += 12; docp.line(340, y, 552, y); y += 18;
+  docp.text('Subtotal', 380, y); docp.text(money(totals.subtotal), 552, y, { align:'right' }); y += 16;
+  docp.text(`IVU (${totals.taxPercent}%)`, 380, y); docp.text(money(totals.ivu), 552, y, { align:'right' }); y += 20;
+  docp.setFont('helvetica','bold'); docp.setFontSize(14); docp.text('TOTAL', 380, y); docp.text(money(totals.total), 552, y, { align:'right' }); y += 22;
+  docp.setFontSize(11); docp.text('Balance', 380, y); docp.text(money(invoiceBalance(inv)), 552, y, { align:'right' });
+  const blob = docp.output('blob');
+  return new File([blob], filename || `Factura-${inv.number || 'Nexus'}.pdf`, { type:'application/pdf' });
 }
 function invoiceShareText(inv){ return `${state.profile?.businessName || 'Nexus Business'}\nFactura: ${inv.number}\nCliente: ${inv.clientName}\nTotal: ${money(inv.total)}\nEstado: ${invoiceStatus(inv)}\nBalance: ${money(invoiceBalance(inv))}`; }
 function buildInvoicePreviewObject(number='Vista previa'){
@@ -433,21 +479,22 @@ function closeDoc(){ $('mDocModal').classList.add('hidden'); }
 async function shareCurrentDoc(){
   if(currentDocId) return shareInvoice(currentDocId);
   const preview = buildInvoicePreviewObject('Vista previa');
-  const filename = 'Factura-Vista-Previa.pdf';
-  let file = null;
   try{
-    file = await buildInvoicePdfFile(preview, filename);
-    if(navigator.share){
-      const canShareFiles = navigator.canShare ? navigator.canShare({ files:[file] }) : true;
-      if(canShareFiles){
-        await navigator.share({ title:'Factura', text:'Factura adjunta en PDF.', files:[file] });
-        return;
-      }
+    await sleep(30);
+    const file = await buildInvoicePdfFileFallback(preview, 'Factura-Vista-Previa.pdf');
+    if(isIOSPWA()){
+      downloadPdfFile(file, 'Factura-Vista-Previa.pdf');
+      alert('PDF preparado sin congelar la app. En iPhone/iPad PWA se descarga primero.');
+      return;
     }
-    downloadPdfFile(file, filename);
+    if(navigator.share && navigator.canShare && navigator.canShare({ files:[file] })){
+      await navigator.share({ title:'Factura', text:'Factura adjunta en PDF.', files:[file] });
+      return;
+    }
+    downloadPdfFile(file, 'Factura-Vista-Previa.pdf');
+    alert('El PDF se descargó para compartirlo.');
   }catch(err){
     console.error(err);
-    if(file) downloadPdfFile(file, filename);
-    else alert('No se pudo generar el PDF.');
+    alert('No se pudo compartir directo. Usa Imprimir/PDF desde Ver documento.');
   }
 }

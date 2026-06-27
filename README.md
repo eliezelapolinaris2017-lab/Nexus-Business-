@@ -1,4 +1,4 @@
-# Nexus Business PR
+# Nexus Business PR — v58 Mobile Share Buttons Fix
 
 Plataforma SaaS empresarial para servicios, cotizaciones, facturación, cobros, reportes y seguimiento postventa.
 
@@ -70,3 +70,8 @@ Esta versión convierte `mobile.html` en una PWA más completa para iPhone y iPa
 - Corrige contraste de botones Ver documento, Compartir y Pagada en móvil blanco.
 - Compartir ya no cae a texto: intenta adjuntar PDF real y, si iOS/Safari bloquea el share sheet, descarga el PDF.
 - Actualiza cache PWA a v58.
+
+
+## v59 Mobile iOS PWA Share Freeze Fix
+
+Corrige congelamiento del botón Compartir en iPhone/iPad PWA y mejora contraste de botones.
