@@ -3,7 +3,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from
 import { getFirestore, collection, doc, getDoc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
-const APP_VERSION = 'v61';
+const APP_VERSION = 'v62';
 let deferredInstallPrompt = null;
 let updateWaiting = null;
 let currentFilter = 'all';
@@ -297,7 +297,7 @@ async function saveInvoice(forcedStatus){
   const calc = invoiceCalc();
   const status = forcedStatus || $('mInvStatus').value || 'Pendiente';
   const number = $('mInvNumber').value || 'INV-M-' + String(Date.now()).slice(-7);
-  const payload = { number, date:$('mInvDate').value, dueDate:$('mInvDue').value, clientId:c.id, clientName:c.name || '', invoiceType:$('mInvType').value, serviceTitle:validLines[0]?.description || $('mInvType').value, items:validLines.map(l => ({ description:l.description, qty:Number(l.qty||1), price:Number(l.price||0), discount:Number(l.discount||0), taxable:l.taxable !== false, total:lineNet(l) })), subtotal:calc.subtotal, discount:calc.discount, ivu:calc.ivu, tax:calc.ivu, taxPercent:Number(state.profile?.tax || 11.5), total:calc.total, status, notes:$('mInvNotes').value, terms:'Pago según acuerdo.', sourceType:'mobile-v61', paymentMethod:$('mInvPaymentMethod').value || '', updatedAt:serverTimestamp(), createdAt:serverTimestamp() };
+  const payload = { number, date:$('mInvDate').value, dueDate:$('mInvDue').value, clientId:c.id, clientName:c.name || '', invoiceType:$('mInvType').value, serviceTitle:validLines[0]?.description || $('mInvType').value, items:validLines.map(l => ({ description:l.description, qty:Number(l.qty||1), price:Number(l.price||0), discount:Number(l.discount||0), taxable:l.taxable !== false, total:lineNet(l) })), subtotal:calc.subtotal, discount:calc.discount, ivu:calc.ivu, tax:calc.ivu, taxPercent:Number(state.profile?.tax || 11.5), total:calc.total, status, notes:$('mInvNotes').value, terms:'Pago según acuerdo.', sourceType:'mobile-v62', paymentMethod:$('mInvPaymentMethod').value || '', updatedAt:serverTimestamp(), createdAt:serverTimestamp() };
   const ref = await addDoc(colRef('invoices'), payload);
   lastCreatedInvoiceId = ref.id;
   if(status === 'Pagada'){
@@ -313,35 +313,152 @@ async function completeFollowup(id){
   }
 }
 async function markInvoicePaid(id){ const inv = state.invoices.find(i => i.id === id); if(!inv) return; const bal = invoiceBalance(inv); if(bal <= 0) return; await addDoc(colRef('payments'), { invoiceId:inv.id, invoiceNumber:inv.number, date:today(), method:'Móvil', amount:bal, note:'Pago registrado desde Nexus Mobile', createdAt:serverTimestamp() }); await updateDoc(docRef('invoices', id), { status:'Pagada', updatedAt:serverTimestamp() }); }
+async function imageToDataUrl(src){
+  if(!src) return '';
+  try{
+    if(String(src).startsWith('data:image')) return src;
+    const res = await fetch(src, { cache:'force-cache' });
+    if(!res.ok) throw new Error('Logo no disponible');
+    const blob = await res.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(reader.error || new Error('No se pudo leer logo'));
+      reader.readAsDataURL(blob);
+    });
+  }catch(err){
+    return '';
+  }
+}
+async function getPdfLogoDataUrl(){
+  const p = state.profile || {};
+  const candidates = [p.logoPdf, p.logoDashboard, p.logo, './assets/logo.png', 'assets/logo.png'];
+  for(const src of candidates){
+    const data = await imageToDataUrl(src);
+    if(data) return data;
+  }
+  return '';
+}
+function fitText(docp, text, x, y, maxWidth, lineHeight=11, maxLines=3){
+  const lines = docp.splitTextToSize(String(text || ''), maxWidth).slice(0, maxLines);
+  lines.forEach((line, idx) => docp.text(line, x, y + (idx * lineHeight)));
+  return y + Math.max(1, lines.length) * lineHeight;
+}
+function drawLabelBox(docp, x, y, w, h, label, value, opts={}){
+  docp.setDrawColor(70,70,70); docp.setLineWidth(.8); docp.roundedRect(x, y, w, h, 4, 4);
+  docp.setTextColor(20,20,20); docp.setFont('helvetica','bold'); docp.setFontSize(8);
+  docp.text(String(label || '').toUpperCase(), x+8, y+12);
+  docp.setFont('helvetica', opts.bold ? 'bold' : 'normal'); docp.setFontSize(opts.size || 9);
+  if(opts.center){ docp.text(String(value || ''), x+w/2, y+h/2+5, { align:'center' }); }
+  else { fitText(docp, value, x+8, y+28, w-16, 11, opts.lines || 3); }
+}
+function addPdfFooter(docp, pageNo=1){
+  const p = state.profile || {};
+  docp.setFont('helvetica','italic'); docp.setFontSize(10); docp.setTextColor(30,30,30);
+  docp.text('¡Gracias por confiar en nosotros!', 297.5, 805, { align:'center' });
+  docp.setFont('helvetica','bold'); docp.setFontSize(8);
+  docp.text(String(p.businessName || 'Oasis Air Cleaner Services LLC'), 297.5, 820, { align:'center' });
+  docp.setFont('helvetica','normal'); docp.text(String(pageNo), 540, 820, { align:'right' });
+}
 async function buildInvoicePdfFile(inv, filename){
   if(!window.jspdf?.jsPDF) throw new Error('Motor PDF no disponible.');
   const { jsPDF } = window.jspdf;
-  const docp = new jsPDF({ unit:'pt', format:'a4' });
-  const html = buildDesktopInvoiceDocument(inv);
-  const wrapper = document.createElement('div');
-  wrapper.className = 'pdf-render-host';
-  wrapper.style.position = 'fixed';
-  wrapper.style.left = '-10000px';
-  wrapper.style.top = '0';
-  wrapper.style.width = '900px';
-  wrapper.innerHTML = html;
-  document.body.appendChild(wrapper);
-  try{
-    await new Promise((resolve, reject) => {
-      docp.html(wrapper, {
-        callback: () => resolve(),
-        x:18,
-        y:18,
-        width:559,
-        windowWidth:900,
-        autoPaging:'text'
-      });
-    });
-    const blob = docp.output('blob');
-    return new File([blob], filename || `Factura-${inv.number || 'Nexus'}.pdf`, { type:'application/pdf' });
-  } finally {
-    wrapper.remove();
-  }
+  const docp = new jsPDF({ unit:'pt', format:'a4', compress:true });
+  const p = state.profile || {};
+  const c = clientBy(inv.clientId);
+  const totals = invoiceTotalsDoc(inv);
+  const existing = inv.id ? state.invoices.find(i => i.id === inv.id) : null;
+  const paid = existing ? invoicePaid(existing) : (String(inv.status || '') === 'Pagada' ? totals.total : Number(inv.paid || 0));
+  const bal = existing ? invoiceBalance(existing) : Math.max(0, totals.total - paid);
+  const status = existing ? invoiceStatus(existing) : (bal <= 0 || String(inv.status || '') === 'Pagada' ? 'Pagada' : (String(inv.status || '') || 'Pendiente'));
+  const logo = await getPdfLogoDataUrl();
+  const items = Array.isArray(inv.items) && inv.items.length ? inv.items : [{ description:inv.serviceTitle || inv.invoiceType || 'Servicio', qty:1, price:totals.subtotal, discount:0 }];
+  const pageW = 595.28, pageH = 841.89, m = 36;
+  let pageNo = 1;
+  const newPage = () => { addPdfFooter(docp, pageNo++); docp.addPage(); drawHeader(false); };
+  const drawHeader = (first=true) => {
+    docp.setFillColor(255,255,255); docp.rect(0,0,pageW,pageH,'F');
+    docp.setTextColor(0,0,0);
+    if(first){
+      if(logo){ try{ docp.addImage(logo, 'PNG', 245, 32, 105, 62, undefined, 'FAST'); }catch(e){} }
+      docp.setFont('helvetica','bold'); docp.setFontSize(8);
+      docp.text(String(p.businessName || 'OASIS AIR CLEANER SERVICES LLC').toUpperCase(), m, 118);
+      docp.setFont('helvetica','normal'); docp.setFontSize(7.5);
+      const bizLines = [p.address || 'Trujillo Alto, PR 00976', p.phone || '787-664-3079', p.email || 'oasisairconditioner@icloud.com'].filter(Boolean);
+      bizLines.forEach((line,i)=>docp.text(String(line), m, 131 + i*11));
+      docp.setDrawColor(40,40,40); docp.roundedRect(445, 45, 105, 48, 2, 2);
+      docp.setFont('helvetica','bold'); docp.setFontSize(12); docp.text('FACTURA', 497.5, 64, { align:'center' });
+      docp.setFontSize(8); docp.text(String(inv.number || 'Factura'), 497.5, 80, { align:'center' });
+      drawLabelBox(docp, 445, 104, 105, 48, 'Fecha', niceDate(inv.date || today()), { center:true, size:8 });
+    }else{
+      docp.setFont('helvetica','bold'); docp.setFontSize(10); docp.text(String(inv.number || 'Factura'), m, 40);
+    }
+  };
+  drawHeader(true);
+  drawLabelBox(docp, m, 170, 260, 58, 'Cliente', [inv.clientName || c.name || '', c.phone || '', c.address || c.city || ''].filter(Boolean).join('\n'), { lines:3 });
+  drawLabelBox(docp, 310, 170, 240, 58, 'Estado', String(status).toUpperCase(), { center:true, bold:true, size:14 });
+
+  let y = 248;
+  const tableX = m, tableW = pageW - (m*2);
+  const cols = { desc: tableX, qty: tableX+285, price: tableX+355, total: tableX+440 };
+  const drawTableHeader = () => {
+    docp.setFillColor(245,247,250); docp.rect(tableX, y, tableW, 26, 'F');
+    docp.setDrawColor(45,45,45); docp.rect(tableX, y, tableW, 26);
+    docp.line(cols.qty-8, y, cols.qty-8, y+26); docp.line(cols.price-8, y, cols.price-8, y+26); docp.line(cols.total-8, y, cols.total-8, y+26);
+    docp.setFont('helvetica','bold'); docp.setFontSize(8); docp.setTextColor(0,0,0);
+    docp.text('Descripción', tableX+8, y+17);
+    docp.text('Cantidad', cols.qty+28, y+17, { align:'center' });
+    docp.text('Precio', cols.price+35, y+17, { align:'center' });
+    docp.text('Total', cols.total+55, y+17, { align:'center' });
+    y += 26;
+  };
+  drawTableHeader();
+  docp.setFont('helvetica','normal'); docp.setFontSize(8);
+  items.forEach((it)=>{
+    const desc = String(it.description || 'Servicio');
+    const descLines = docp.splitTextToSize(desc, 260);
+    const rowH = Math.max(34, descLines.length * 11 + 14);
+    if(y + rowH > 650){ newPage(); y = 62; drawTableHeader(); }
+    docp.setDrawColor(80,80,80); docp.rect(tableX, y, tableW, rowH);
+    docp.line(cols.qty-8, y, cols.qty-8, y+rowH); docp.line(cols.price-8, y, cols.price-8, y+rowH); docp.line(cols.total-8, y, cols.total-8, y+rowH);
+    docp.setTextColor(0,0,0); docp.setFont('helvetica','normal'); docp.setFontSize(8);
+    descLines.forEach((line, idx)=>docp.text(line, tableX+8, y+16+(idx*11)));
+    const qty = Number(it.qty || 1), price = Number(it.price || 0), discount = Number(it.discount || 0);
+    const lineTotal = Math.max(0, qty * price - discount);
+    docp.text(qty.toFixed(2), cols.qty+28, y+18, { align:'center' });
+    docp.text(money(price), cols.price+70, y+18, { align:'right' });
+    docp.text(money(lineTotal), cols.total+95, y+18, { align:'right' });
+    y += rowH;
+  });
+
+  y += 18;
+  const notesTop = y;
+  drawLabelBox(docp, m, notesTop, 260, 94, 'Notas', inv.notes || 'Gracias por su preferencia.', { lines:5 });
+  drawLabelBox(docp, m, notesTop+108, 510, 74, 'Condiciones y términos', inv.terms || inv.conditions || 'Pago al momento de la firma. No nos hacemos responsables por daños eléctricos. Cualquier balance pendiente tendrá cargo adicional según acuerdo.', { lines:5 });
+
+  const tx = 330, tw = 220, rh = 24;
+  const totalRows = [
+    ['Subtotal', totals.subtotal],
+    ['Descuento', totals.discount || 0],
+    [`IVU (${totals.taxPercent}%)`, totals.ivu],
+    ['TOTAL', totals.total],
+    ['Pagado', paid],
+    ['Balance', bal]
+  ];
+  let ty = notesTop;
+  totalRows.forEach(([label,val], idx)=>{
+    if(label === 'TOTAL') docp.setFillColor(224,239,255);
+    else if(label === 'Balance') docp.setFillColor(220,252,231);
+    else docp.setFillColor(255,255,255);
+    docp.setDrawColor(70,70,70); docp.rect(tx, ty, tw, rh, 'FD'); docp.line(tx+120, ty, tx+120, ty+rh);
+    docp.setTextColor(0,0,0); docp.setFont('helvetica', ['TOTAL','Balance'].includes(label) ? 'bold':'normal'); docp.setFontSize(8.5);
+    docp.text(label, tx+112, ty+16, { align:'right' });
+    docp.text(money(val), tx+210, ty+16, { align:'right' });
+    ty += rh;
+  });
+  addPdfFooter(docp, pageNo);
+  const blob = docp.output('blob');
+  return new File([blob], filename || `Factura-${inv.number || 'Nexus'}.pdf`, { type:'application/pdf' });
 }
 async function shareInvoice(id){
   const inv = state.invoices.find(i => i.id === id);
@@ -349,36 +466,24 @@ async function shareInvoice(id){
   const filename = `Factura-${String(inv.number || id).replace(/[^a-z0-9_-]+/gi,'-')}.pdf`;
   const btn = document.querySelector(`[data-share-invoice="${CSS.escape(id)}"]`);
   const oldText = btn ? btn.textContent : '';
-  let iosPdfWindow = null;
   try{
-    if(btn){ btn.disabled = true; btn.textContent = 'Preparando PDF…'; }
-
-    // iOS PWA no maneja bien navigator.share({ files }) con PDF pesado.
-    // La salida correcta es generar el MISMO PDF premium y abrirlo en visor PDF.
-    // Desde ese visor el usuario comparte por WhatsApp, Mail, Mensajes o Archivos sin congelar Nexus.
-    if(isIOSPWA()) iosPdfWindow = window.open('', '_blank');
-
-    await sleep(40);
+    if(btn){ btn.disabled = true; btn.textContent = 'Generando PDF…'; }
+    await sleep(30);
     const file = await buildInvoicePdfFile(inv, filename);
-
-    if(isIOSPWA()){
-      openPdfFile(file, filename, iosPdfWindow);
-      alert('PDF premium listo. Si iOS no muestra el visor, toca Descargar y comparte desde Archivos/Vista previa.');
-      return;
-    }
-
+    if(!file || file.size < 10000) throw new Error('PDF vacío o inválido.');
     if(navigator.share && navigator.canShare && navigator.canShare({ files:[file] })){
       if(btn) btn.textContent = 'Compartiendo…';
       await navigator.share({ title:`Factura ${inv.number || ''}`, text:'Factura adjunta en PDF.', files:[file] });
       return;
     }
-
-    openPdfFile(file, filename);
-    alert('PDF premium abierto. Puedes descargarlo o compartirlo desde el visor.');
+    await openPdfFile(file, filename);
   }catch(err){
-    console.error('Premium PDF share failed', err);
-    if(iosPdfWindow && !iosPdfWindow.closed) iosPdfWindow.close();
-    alert('No se pudo preparar el PDF premium. Abre Ver documento y usa Imprimir/PDF.');
+    console.error('PDF share failed', err);
+    alert('No se pudo compartir directamente. Se abrirá/descargará el PDF para compartirlo desde Archivos.');
+    try{
+      const file = await buildInvoicePdfFile(inv, filename);
+      downloadPdfFile(file, filename);
+    }catch(e){ console.error(e); }
   }finally{
     if(btn){ btn.disabled = false; btn.textContent = oldText || 'Compartir'; }
   }
@@ -487,10 +592,12 @@ function niceDate(v){
 }
 function invoiceTotalsDoc(inv){
   const itemsSubtotal = Array.isArray(inv.items) && inv.items.length ? inv.items.reduce((a,it)=>a + (Number(it.qty || 1) * Number(it.price || 0)), 0) : 0;
+  const itemsDiscount = Array.isArray(inv.items) && inv.items.length ? inv.items.reduce((a,it)=>a + Number(it.discount || 0), 0) : 0;
   const subtotal = Number(inv.subtotal ?? (itemsSubtotal || Number(inv.total || 0)));
+  const discount = Number(inv.discount ?? itemsDiscount ?? 0);
   const ivu = Number(inv.ivu ?? inv.tax ?? 0);
-  const total = Number(inv.total ?? (subtotal + ivu));
-  return { subtotal, ivu, total, taxPercent:Number(inv.taxPercent ?? state.profile?.tax ?? 0) };
+  const total = Number(inv.total ?? (subtotal - discount + ivu));
+  return { subtotal, discount, ivu, total, taxPercent:Number(inv.taxPercent ?? state.profile?.tax ?? 0) };
 }
 function invoiceDocFooter(){
   const p = state.profile || {};
@@ -522,24 +629,18 @@ function closeDoc(){ $('mDocModal').classList.add('hidden'); }
 async function shareCurrentDoc(){
   if(currentDocId) return shareInvoice(currentDocId);
   const preview = buildInvoicePreviewObject('Vista previa');
-  let iosPdfWindow = null;
+  const filename = 'Factura-Vista-Previa.pdf';
   try{
-    if(isIOSPWA()) iosPdfWindow = window.open('', '_blank');
-    await sleep(40);
-    const file = await buildInvoicePdfFile(preview, 'Factura-Vista-Previa.pdf');
-    if(isIOSPWA()){
-      openPdfFile(file, 'Factura-Vista-Previa.pdf', iosPdfWindow);
-      alert('PDF premium listo. Si iOS no muestra el visor, toca Descargar y comparte desde Archivos/Vista previa.');
-      return;
-    }
+    const file = await buildInvoicePdfFile(preview, filename);
+    if(!file || file.size < 10000) throw new Error('PDF vacío o inválido.');
     if(navigator.share && navigator.canShare && navigator.canShare({ files:[file] })){
       await navigator.share({ title:'Factura', text:'Factura adjunta en PDF.', files:[file] });
       return;
     }
-    openPdfFile(file, 'Factura-Vista-Previa.pdf');
+    await openPdfFile(file, filename);
   }catch(err){
     console.error(err);
-    if(iosPdfWindow && !iosPdfWindow.closed) iosPdfWindow.close();
-    alert('No se pudo preparar el PDF premium. Usa Imprimir/PDF desde Ver documento.');
+    alert('No se pudo preparar el PDF. Se intentará descargarlo.');
+    try{ downloadPdfFile(await buildInvoicePdfFile(preview, filename), filename); }catch(e){ console.error(e); }
   }
 }

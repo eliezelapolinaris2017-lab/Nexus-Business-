@@ -88,3 +88,10 @@ Corrige congelamiento del botón Compartir en iPhone/iPad PWA y mejora contraste
 - Mantiene PDF premium igual al desktop.
 - Usa visor HTML seguro con descarga integrada para iPhone/iPad.
 - Cache PWA actualizado a v61.
+
+
+## v62 Mobile PDF Final Fix
+- Se elimina la generación PDF por HTML oculto/html2canvas/jsPDF.html en móvil.
+- El PDF móvil ahora se dibuja directamente con jsPDF, evitando páginas blancas en iPhone/iPad PWA.
+- Compartir usa un archivo PDF real con contenido corporativo, no captura de pantalla ni PDF plano sin formato.
+- Cache PWA actualizado a v62.
