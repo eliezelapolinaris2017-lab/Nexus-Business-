@@ -81,3 +81,10 @@ Corrige congelamiento del botón Compartir en iPhone/iPad PWA y mejora contraste
 - Compartir mantiene el PDF premium igual al desktop.
 - En iOS PWA se evita el congelamiento abriendo el PDF premium en visor nativo.
 - Cache PWA actualizado a v60.
+
+
+## v61 Mobile iOS PDF Viewer Fix
+- Corrige about:blank en iOS PWA.
+- Mantiene PDF premium igual al desktop.
+- Usa visor HTML seguro con descarga integrada para iPhone/iPad.
+- Cache PWA actualizado a v61.

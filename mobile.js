@@ -3,7 +3,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from
 import { getFirestore, collection, doc, getDoc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
-const APP_VERSION = 'v60';
+const APP_VERSION = 'v61';
 let deferredInstallPrompt = null;
 let updateWaiting = null;
 let currentFilter = 'all';
@@ -297,7 +297,7 @@ async function saveInvoice(forcedStatus){
   const calc = invoiceCalc();
   const status = forcedStatus || $('mInvStatus').value || 'Pendiente';
   const number = $('mInvNumber').value || 'INV-M-' + String(Date.now()).slice(-7);
-  const payload = { number, date:$('mInvDate').value, dueDate:$('mInvDue').value, clientId:c.id, clientName:c.name || '', invoiceType:$('mInvType').value, serviceTitle:validLines[0]?.description || $('mInvType').value, items:validLines.map(l => ({ description:l.description, qty:Number(l.qty||1), price:Number(l.price||0), discount:Number(l.discount||0), taxable:l.taxable !== false, total:lineNet(l) })), subtotal:calc.subtotal, discount:calc.discount, ivu:calc.ivu, tax:calc.ivu, taxPercent:Number(state.profile?.tax || 11.5), total:calc.total, status, notes:$('mInvNotes').value, terms:'Pago según acuerdo.', sourceType:'mobile-v60', paymentMethod:$('mInvPaymentMethod').value || '', updatedAt:serverTimestamp(), createdAt:serverTimestamp() };
+  const payload = { number, date:$('mInvDate').value, dueDate:$('mInvDue').value, clientId:c.id, clientName:c.name || '', invoiceType:$('mInvType').value, serviceTitle:validLines[0]?.description || $('mInvType').value, items:validLines.map(l => ({ description:l.description, qty:Number(l.qty||1), price:Number(l.price||0), discount:Number(l.discount||0), taxable:l.taxable !== false, total:lineNet(l) })), subtotal:calc.subtotal, discount:calc.discount, ivu:calc.ivu, tax:calc.ivu, taxPercent:Number(state.profile?.tax || 11.5), total:calc.total, status, notes:$('mInvNotes').value, terms:'Pago según acuerdo.', sourceType:'mobile-v61', paymentMethod:$('mInvPaymentMethod').value || '', updatedAt:serverTimestamp(), createdAt:serverTimestamp() };
   const ref = await addDoc(colRef('invoices'), payload);
   lastCreatedInvoiceId = ref.id;
   if(status === 'Pagada'){
@@ -363,7 +363,7 @@ async function shareInvoice(id){
 
     if(isIOSPWA()){
       openPdfFile(file, filename, iosPdfWindow);
-      alert('PDF premium preparado. Se abrió en el visor; comparte desde el botón de compartir de iPhone/iPad.');
+      alert('PDF premium listo. Si iOS no muestra el visor, toca Descargar y comparte desde Archivos/Vista previa.');
       return;
     }
 
@@ -393,15 +393,43 @@ function downloadPdfFile(file, filename){
   a.remove();
   setTimeout(()=>URL.revokeObjectURL(url), 15000);
 }
-function openPdfFile(file, filename, targetWindow=null){
+function fileToDataUrl(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error || new Error('No se pudo leer el PDF.'));
+    reader.readAsDataURL(file);
+  });
+}
+async function openPdfFile(file, filename, targetWindow=null){
+  // iOS PWA: blob URLs suelen abrir como about:blank.
+  // Solución: crear un visor HTML real y embeber el PDF como data URL.
+  if(isIOSPWA()){
+    await openPdfInIOSViewer(file, filename, targetWindow);
+    return;
+  }
   const url = URL.createObjectURL(file);
   if(targetWindow && !targetWindow.closed){
-    targetWindow.location = url;
+    targetWindow.location.href = url;
   }else{
     const opened = window.open(url, '_blank');
     if(!opened) downloadPdfFile(file, filename);
   }
-  setTimeout(()=>URL.revokeObjectURL(url), 60000);
+  setTimeout(()=>URL.revokeObjectURL(url), 120000);
+}
+async function openPdfInIOSViewer(file, filename, targetWindow=null){
+  const safeName = filename || file.name || 'Factura.pdf';
+  const dataUrl = await fileToDataUrl(file);
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>${safeName}</title><style>body{margin:0;background:#f8fafc;color:#0f172a;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif}.bar{position:sticky;top:0;z-index:5;background:rgba(255,255,255,.96);backdrop-filter:blur(16px);padding:14px 16px;border-bottom:1px solid #e2e8f0;display:flex;gap:10px;align-items:center;justify-content:space-between}.bar b{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.actions{display:flex;gap:8px}a,button{border:1px solid #bfdbfe;background:#fff;color:#1d4ed8;border-radius:12px;padding:10px 12px;font-weight:800;text-decoration:none;font-size:14px}.primary{background:#2563eb;color:white;border-color:#2563eb}.note{padding:10px 16px;color:#475569;font-size:13px}.viewer{height:calc(100vh - 112px);width:100%;border:0;background:#fff}object,iframe{width:100%;height:100%;border:0}.fallback{padding:24px;text-align:center}</style></head><body><div class="bar"><b>${safeName}</b><div class="actions"><a class="primary" href="${dataUrl}" download="${safeName}">Descargar</a><button onclick="window.print()">Imprimir</button></div></div><div class="note">Para compartir: toca Descargar y luego usa el botón de compartir de iPhone/iPad desde Archivos o Vista previa.</div><div class="viewer"><object data="${dataUrl}" type="application/pdf"><iframe src="${dataUrl}"></iframe><div class="fallback"><p>Tu iPhone no mostró el PDF incrustado.</p><p><a class="primary" href="${dataUrl}" download="${safeName}">Descargar PDF</a></p></div></object></div></body></html>`;
+  let w = targetWindow && !targetWindow.closed ? targetWindow : null;
+  if(!w) w = window.open('', '_blank');
+  if(w && !w.closed){
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+  }else{
+    downloadPdfFile(file, safeName);
+  }
 }
 async function buildInvoicePdfFileFallback(inv, filename){
   if(!window.jspdf?.jsPDF) throw new Error('Motor PDF no disponible.');
@@ -501,7 +529,7 @@ async function shareCurrentDoc(){
     const file = await buildInvoicePdfFile(preview, 'Factura-Vista-Previa.pdf');
     if(isIOSPWA()){
       openPdfFile(file, 'Factura-Vista-Previa.pdf', iosPdfWindow);
-      alert('PDF premium preparado. Se abrió en el visor; comparte desde iPhone/iPad.');
+      alert('PDF premium listo. Si iOS no muestra el visor, toca Descargar y comparte desde Archivos/Vista previa.');
       return;
     }
     if(navigator.share && navigator.canShare && navigator.canShare({ files:[file] })){
