@@ -9,9 +9,9 @@
   <meta name="format-detection" content="telephone=yes" />
   <meta name="theme-color" content="#f3f6fb" />
   <title>Nexus Mobile · Facturación y Seguimiento</title>
-  <link rel="manifest" href="manifest.webmanifest?v=59" />
+  <link rel="manifest" href="manifest.webmanifest?v=63" />
   <link rel="apple-touch-icon" href="assets/logo.png" />
-  <link rel="stylesheet" href="mobile.css?v=62" />
+  <link rel="stylesheet" href="mobile.css?v=63" />
 </head>
 <body>
   <section id="mobileAuth" class="mobile-auth">
@@ -221,12 +221,11 @@
     </nav>
   </main>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script type="module" src="mobile.js?v=62"></script>
+  <script type="module" src="mobile.js?v=63"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=61').catch(()=>{}));
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=63').catch(()=>{}));
     }
   </script>
 </body>

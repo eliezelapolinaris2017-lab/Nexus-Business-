@@ -95,3 +95,8 @@ Corrige congelamiento del botón Compartir en iPhone/iPad PWA y mejora contraste
 - El PDF móvil ahora se dibuja directamente con jsPDF, evitando páginas blancas en iPhone/iPad PWA.
 - Compartir usa un archivo PDF real con contenido corporativo, no captura de pantalla ni PDF plano sin formato.
 - Cache PWA actualizado a v62.
+
+
+## v63 Mobile PDF One Engine Fix
+
+La versión móvil usa un solo motor PDF directo con jsPDF para vista previa, ver documento, compartir e imprimir/PDF. Se eliminó html2canvas para evitar PDF blanco en iOS PWA.

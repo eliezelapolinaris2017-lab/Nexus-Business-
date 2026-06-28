@@ -3,7 +3,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from
 import { getFirestore, collection, doc, getDoc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
-const APP_VERSION = 'v62';
+const APP_VERSION = 'v63';
 let deferredInstallPrompt = null;
 let updateWaiting = null;
 let currentFilter = 'all';
@@ -373,90 +373,141 @@ async function buildInvoicePdfFile(inv, filename){
   const status = existing ? invoiceStatus(existing) : (bal <= 0 || String(inv.status || '') === 'Pagada' ? 'Pagada' : (String(inv.status || '') || 'Pendiente'));
   const logo = await getPdfLogoDataUrl();
   const items = Array.isArray(inv.items) && inv.items.length ? inv.items : [{ description:inv.serviceTitle || inv.invoiceType || 'Servicio', qty:1, price:totals.subtotal, discount:0 }];
-  const pageW = 595.28, pageH = 841.89, m = 36;
-  let pageNo = 1;
-  const newPage = () => { addPdfFooter(docp, pageNo++); docp.addPage(); drawHeader(false); };
-  const drawHeader = (first=true) => {
-    docp.setFillColor(255,255,255); docp.rect(0,0,pageW,pageH,'F');
-    docp.setTextColor(0,0,0);
-    if(first){
-      if(logo){ try{ docp.addImage(logo, 'PNG', 245, 32, 105, 62, undefined, 'FAST'); }catch(e){} }
-      docp.setFont('helvetica','bold'); docp.setFontSize(8);
-      docp.text(String(p.businessName || 'OASIS AIR CLEANER SERVICES LLC').toUpperCase(), m, 118);
-      docp.setFont('helvetica','normal'); docp.setFontSize(7.5);
-      const bizLines = [p.address || 'Trujillo Alto, PR 00976', p.phone || '787-664-3079', p.email || 'oasisairconditioner@icloud.com'].filter(Boolean);
-      bizLines.forEach((line,i)=>docp.text(String(line), m, 131 + i*11));
-      docp.setDrawColor(40,40,40); docp.roundedRect(445, 45, 105, 48, 2, 2);
-      docp.setFont('helvetica','bold'); docp.setFontSize(12); docp.text('FACTURA', 497.5, 64, { align:'center' });
-      docp.setFontSize(8); docp.text(String(inv.number || 'Factura'), 497.5, 80, { align:'center' });
-      drawLabelBox(docp, 445, 104, 105, 48, 'Fecha', niceDate(inv.date || today()), { center:true, size:8 });
-    }else{
-      docp.setFont('helvetica','bold'); docp.setFontSize(10); docp.text(String(inv.number || 'Factura'), m, 40);
-    }
-  };
-  drawHeader(true);
-  drawLabelBox(docp, m, 170, 260, 58, 'Cliente', [inv.clientName || c.name || '', c.phone || '', c.address || c.city || ''].filter(Boolean).join('\n'), { lines:3 });
-  drawLabelBox(docp, 310, 170, 240, 58, 'Estado', String(status).toUpperCase(), { center:true, bold:true, size:14 });
 
-  let y = 248;
-  const tableX = m, tableW = pageW - (m*2);
-  const cols = { desc: tableX, qty: tableX+285, price: tableX+355, total: tableX+440 };
-  const drawTableHeader = () => {
-    docp.setFillColor(245,247,250); docp.rect(tableX, y, tableW, 26, 'F');
-    docp.setDrawColor(45,45,45); docp.rect(tableX, y, tableW, 26);
-    docp.line(cols.qty-8, y, cols.qty-8, y+26); docp.line(cols.price-8, y, cols.price-8, y+26); docp.line(cols.total-8, y, cols.total-8, y+26);
-    docp.setFont('helvetica','bold'); docp.setFontSize(8); docp.setTextColor(0,0,0);
-    docp.text('Descripción', tableX+8, y+17);
-    docp.text('Cantidad', cols.qty+28, y+17, { align:'center' });
-    docp.text('Precio', cols.price+35, y+17, { align:'center' });
-    docp.text('Total', cols.total+55, y+17, { align:'center' });
+  const W = docp.internal.pageSize.getWidth();
+  const H = docp.internal.pageSize.getHeight();
+  const M = 54;
+  const navy = [9, 42, 82];
+  const blue = [17, 72, 132];
+  const line = [212, 221, 232];
+  const light = [245, 248, 252];
+  let pageNo = 1;
+
+  const txt = (text, x, y, opts={}) => {
+    docp.setFont('helvetica', opts.bold ? 'bold' : (opts.italic ? 'italic' : 'normal'));
+    docp.setFontSize(opts.size || 9);
+    if(opts.color) docp.setTextColor(...opts.color); else docp.setTextColor(16,24,40);
+    docp.text(String(text ?? ''), x, y, opts.align ? { align:opts.align, maxWidth:opts.maxWidth } : (opts.maxWidth ? { maxWidth:opts.maxWidth } : undefined));
+  };
+  const moneyText = n => money(n).replace(/\u00a0/g,' ');
+  const box = (x,y,w,h, opts={}) => {
+    docp.setDrawColor(...(opts.stroke || line));
+    docp.setLineWidth(opts.lineWidth || .8);
+    if(opts.fill){ docp.setFillColor(...opts.fill); docp.roundedRect(x,y,w,h,opts.r||4,opts.r||4,'FD'); }
+    else docp.roundedRect(x,y,w,h,opts.r||4,opts.r||4,'S');
+  };
+  const wrap = (text, width) => docp.splitTextToSize(String(text || ''), width);
+  const addFooter = () => {
+    txt('¡Gracias por su preferencia!', W/2, H-82, { size:12, italic:true, color:blue, align:'center' });
+    docp.setDrawColor(...line); docp.line(M, H-58, W-M, H-58);
+    txt(String(p.businessName || 'Oasis Air Cleaner Services LLC').toUpperCase(), W/2-34, H-38, { size:7, bold:true, color:[100,116,139], align:'right' });
+    txt('|', W/2, H-38, { size:7, color:[100,116,139], align:'center' });
+    txt('Gracias por su preferencia', W/2+34, H-38, { size:7, color:[100,116,139] });
+    txt(String(pageNo), W-M, H-38, { size:7, color:[100,116,139], align:'right' });
+  };
+  const newPage = () => { addFooter(); docp.addPage(); pageNo += 1; y = M; };
+
+  // Header igual al documento corporativo de escritorio: logo/empresa izquierda, contacto derecha, título al centro.
+  if(logo){
+    try{ docp.addImage(logo, 'PNG', M, 42, 64, 48, undefined, 'FAST'); }catch(e){}
+  }
+  txt(String(p.businessName || 'Oasis Air Cleaner Services LLC').toUpperCase(), M + (logo ? 76 : 0), 56, { size:18, bold:true, color:navy, maxWidth:260 });
+  if(p.email) txt(p.email, M + (logo ? 76 : 0), 82, { size:8, color:[71,85,105] });
+
+  const contactX = W - M;
+  const contactLines = [p.address || 'TRUJILLO ALTO, PR. 00976', p.phone || '787-664-3079', p.email || 'oasisairconditioner@icloud.com', p.web || p.website || ''].filter(Boolean);
+  contactLines.forEach((l,i)=>txt(l, contactX, 52 + i*12, { size:8, bold:i===0, color:[71,85,105], align:'right' }));
+  docp.setDrawColor(...line); docp.line(W-162, 45, W-162, 98);
+
+  txt('FACTURA', W/2, 140, { size:22, bold:true, color:navy, align:'center' });
+  txt(`No. de Factura: ${inv.number || 'Factura'}`, M, 128, { size:8.5, bold:true });
+  txt(`Fecha: ${niceDate(inv.date || today())}`, M, 146, { size:8.5, bold:true });
+  txt(`Vence: ${inv.dueDate ? niceDate(inv.dueDate) : '—'}`, M, 164, { size:8.5, bold:true });
+
+  box(W-154, 116, 100, 54, { stroke:line, fill:[255,255,255] });
+  docp.setFillColor(...navy); docp.roundedRect(W-154, 116, 100, 22, 4, 4, 'F');
+  txt('ESTADO', W-104, 131, { size:7.5, bold:true, color:[255,255,255], align:'center' });
+  txt(String(status).toUpperCase(), W-104, 157, { size:10, bold:true, color: status === 'Pagada' ? [22,101,52] : navy, align:'center' });
+
+  docp.setDrawColor(...line); docp.line(M, 190, W-M, 190);
+
+  // Cliente
+  const cardY = 214;
+  box(M, cardY, 235, 82, { stroke:line, fill:[255,255,255] });
+  box(M+250, cardY, W-M-(M+250), 82, { stroke:line, fill:[255,255,255] });
+  txt('CLIENTE', M+12, cardY+18, { size:7.5, bold:true, color:blue });
+  const cName = inv.clientName || c.name || '';
+  txt(cName, M+12, cardY+38, { size:9, bold:true, maxWidth:210 });
+  txt('Teléfono:', M+262, cardY+20, { size:7.5, bold:true, color:blue });
+  txt(c.phone || inv.clientPhone || '—', M+262, cardY+38, { size:8.5 });
+  txt('Dirección:', M+262, cardY+56, { size:7.5, bold:true, color:blue });
+  wrap(c.address || inv.address || c.city || '—', W-M-(M+274)).slice(0,2).forEach((l,i)=>txt(l, M+262, cardY+72+i*10, { size:8 }));
+
+  // Tabla de partidas
+  let y = 328;
+  const tableX = M, tableW = W - M*2;
+  const colDescW = 285, colQtyW = 68, colPriceW = 105, colTotalW = tableW - colDescW - colQtyW - colPriceW;
+  const drawItemsHeader = () => {
+    docp.setFillColor(...navy); docp.roundedRect(tableX, y, tableW, 26, 3, 3, 'F');
+    txt('DESCRIPCIÓN', tableX+10, y+17, { size:7.5, bold:true, color:[255,255,255] });
+    txt('CANT.', tableX+colDescW+colQtyW/2, y+17, { size:7.5, bold:true, color:[255,255,255], align:'center' });
+    txt('PRECIO UNIT.', tableX+colDescW+colQtyW+colPriceW/2, y+17, { size:7.5, bold:true, color:[255,255,255], align:'center' });
+    txt('TOTAL', tableX+tableW-10, y+17, { size:7.5, bold:true, color:[255,255,255], align:'right' });
     y += 26;
   };
-  drawTableHeader();
-  docp.setFont('helvetica','normal'); docp.setFontSize(8);
+  drawItemsHeader();
   items.forEach((it)=>{
     const desc = String(it.description || 'Servicio');
-    const descLines = docp.splitTextToSize(desc, 260);
-    const rowH = Math.max(34, descLines.length * 11 + 14);
-    if(y + rowH > 650){ newPage(); y = 62; drawTableHeader(); }
-    docp.setDrawColor(80,80,80); docp.rect(tableX, y, tableW, rowH);
-    docp.line(cols.qty-8, y, cols.qty-8, y+rowH); docp.line(cols.price-8, y, cols.price-8, y+rowH); docp.line(cols.total-8, y, cols.total-8, y+rowH);
-    docp.setTextColor(0,0,0); docp.setFont('helvetica','normal'); docp.setFontSize(8);
-    descLines.forEach((line, idx)=>docp.text(line, tableX+8, y+16+(idx*11)));
-    const qty = Number(it.qty || 1), price = Number(it.price || 0), discount = Number(it.discount || 0);
-    const lineTotal = Math.max(0, qty * price - discount);
-    docp.text(qty.toFixed(2), cols.qty+28, y+18, { align:'center' });
-    docp.text(money(price), cols.price+70, y+18, { align:'right' });
-    docp.text(money(lineTotal), cols.total+95, y+18, { align:'right' });
+    const qty = Number(it.qty || 1);
+    const price = Number(it.price || 0);
+    const discount = Number(it.discount || 0);
+    const total = Math.max(0, (qty * price) - discount);
+    const lines = wrap(desc, colDescW-18);
+    const rowH = Math.max(42, 18 + lines.length * 12);
+    if(y + rowH > 628){ newPage(); drawItemsHeader(); }
+    docp.setDrawColor(...line); docp.setFillColor(255,255,255); docp.rect(tableX, y, tableW, rowH, 'FD');
+    docp.line(tableX+colDescW, y, tableX+colDescW, y+rowH);
+    docp.line(tableX+colDescW+colQtyW, y, tableX+colDescW+colQtyW, y+rowH);
+    docp.line(tableX+colDescW+colQtyW+colPriceW, y, tableX+colDescW+colQtyW+colPriceW, y+rowH);
+    lines.slice(0,4).forEach((l,i)=>txt(l, tableX+10, y+19+i*12, { size:8.2, bold:i===0 }));
+    txt(qty.toFixed(2), tableX+colDescW+colQtyW/2, y+22, { size:8, align:'center' });
+    txt(moneyText(price), tableX+colDescW+colQtyW+colPriceW-10, y+22, { size:8, align:'right' });
+    txt(moneyText(total), tableX+tableW-10, y+22, { size:8, bold:true, align:'right' });
     y += rowH;
   });
 
-  y += 18;
-  const notesTop = y;
-  drawLabelBox(docp, m, notesTop, 260, 94, 'Notas', inv.notes || 'Gracias por su preferencia.', { lines:5 });
-  drawLabelBox(docp, m, notesTop+108, 510, 74, 'Condiciones y términos', inv.terms || inv.conditions || 'Pago al momento de la firma. No nos hacemos responsables por daños eléctricos. Cualquier balance pendiente tendrá cargo adicional según acuerdo.', { lines:5 });
+  // Bloques inferiores y totales
+  y += 28;
+  if(y > 610){ newPage(); }
+  const lowerY = y;
+  box(M, lowerY, 240, 76, { stroke:line, fill:[255,255,255] });
+  txt('NOTAS', M+12, lowerY+18, { size:7.5, bold:true, color:blue });
+  wrap(inv.notes || 'Gracias por su preferencia.', 216).slice(0,4).forEach((l,i)=>txt(l, M+12, lowerY+38+i*11, { size:8 }));
 
-  const tx = 330, tw = 220, rh = 24;
+  box(M, lowerY+92, 240, 76, { stroke:line, fill:[255,255,255] });
+  txt('CONDICIONES', M+12, lowerY+110, { size:7.5, bold:true, color:blue });
+  wrap(inv.terms || inv.conditions || 'Pago según acuerdo.', 216).slice(0,4).forEach((l,i)=>txt(l, M+12, lowerY+130+i*11, { size:8 }));
+
+  const tx = W - M - 210;
+  const tw = 210;
+  const rh = 26;
   const totalRows = [
-    ['Subtotal', totals.subtotal],
-    ['Descuento', totals.discount || 0],
-    [`IVU (${totals.taxPercent}%)`, totals.ivu],
-    ['TOTAL', totals.total],
-    ['Pagado', paid],
-    ['Balance', bal]
+    ['SUBTOTAL', totals.subtotal, false, [255,255,255]],
+    [`IVU (${totals.taxPercent}%)`, totals.ivu, false, [255,255,255]],
+    ['TOTAL', totals.total, true, [239,246,255]],
+    ['PAGADO', paid, false, [255,255,255]],
+    ['BALANCE', bal, true, [219,245,226]]
   ];
-  let ty = notesTop;
-  totalRows.forEach(([label,val], idx)=>{
-    if(label === 'TOTAL') docp.setFillColor(224,239,255);
-    else if(label === 'Balance') docp.setFillColor(220,252,231);
-    else docp.setFillColor(255,255,255);
-    docp.setDrawColor(70,70,70); docp.rect(tx, ty, tw, rh, 'FD'); docp.line(tx+120, ty, tx+120, ty+rh);
-    docp.setTextColor(0,0,0); docp.setFont('helvetica', ['TOTAL','Balance'].includes(label) ? 'bold':'normal'); docp.setFontSize(8.5);
-    docp.text(label, tx+112, ty+16, { align:'right' });
-    docp.text(money(val), tx+210, ty+16, { align:'right' });
+  let ty = lowerY;
+  totalRows.forEach(([label,val,bold,fill])=>{
+    docp.setFillColor(...fill); docp.setDrawColor(...line); docp.rect(tx, ty, tw, rh, 'FD');
+    docp.line(tx+118, ty, tx+118, ty+rh);
+    txt(label, tx+108, ty+17, { size:8.5, bold:!!bold, align:'right', color:navy });
+    txt(moneyText(val), tx+200, ty+17, { size:8.5, bold:!!bold, align:'right', color:navy });
     ty += rh;
   });
-  addPdfFooter(docp, pageNo);
+
+  addFooter();
   const blob = docp.output('blob');
   return new File([blob], filename || `Factura-${inv.number || 'Nexus'}.pdf`, { type:'application/pdf' });
 }
