@@ -3,7 +3,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from
 import { getFirestore, collection, doc, getDoc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
-const APP_VERSION = 'v63';
+const APP_VERSION = 'v64';
 let deferredInstallPrompt = null;
 let updateWaiting = null;
 let currentFilter = 'all';
@@ -40,11 +40,28 @@ function isIOS(){ return /iPad|iPhone|iPod/.test(navigator.userAgent) || (naviga
 function isIOSPWA(){ return isIOS() && isStandalone(); }
 function sleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
 function setSync(text){ const el = $('mobileSync'); if(el) el.textContent = text; }
+function showMobileNotice(message, type='info'){
+  let box = document.querySelector('.mobile-notice');
+  if(!box){ box = document.createElement('div'); box.className = 'mobile-notice'; document.body.appendChild(box); }
+  box.className = 'mobile-notice ' + type;
+  box.textContent = message;
+  clearTimeout(showMobileNotice._t);
+  showMobileNotice._t = setTimeout(() => { box?.remove(); }, 4200);
+}
+function firebaseMessage(err){
+  const code = String(err?.code || '');
+  if(code.includes('permission-denied')) return 'Firebase bloqueó el guardado. Publica firestore.rules actualizado y vuelve a intentar.';
+  if(code.includes('unavailable')) return 'Sin conexión estable. Revisa internet y sincroniza nuevamente.';
+  return err?.message || 'No se pudo guardar.';
+}
 
 function newLine(description='', qty=1, price=0, discount=0, taxable=true){ return { id:'ln_' + Date.now() + '_' + Math.random().toString(16).slice(2), description, qty:Number(qty||1), price:Number(price||0), discount:Number(discount||0), taxable }; }
 function ensureLines(){ if(!invoiceLines.length) invoiceLines = [newLine('Mantenimiento preventivo 6 meses', 1, 75)]; }
 function lineNet(l){ return Math.max(0, (Number(l.qty||0) * Number(l.price||0)) - Number(l.discount||0)); }
 function invoiceCalc(){ const subtotal = invoiceLines.reduce((a,l)=>a + Number(l.qty||0)*Number(l.price||0), 0); const discount = invoiceLines.reduce((a,l)=>a + Number(l.discount||0), 0); const taxableBase = invoiceLines.filter(l=>l.taxable !== false).reduce((a,l)=>a + lineNet(l), 0); const ivu = taxableBase * taxRate(); const total = Math.max(0, subtotal - discount + ivu); return { subtotal, discount, ivu, total }; }
+function cleanPayload(obj){
+  return Object.fromEntries(Object.entries(obj).filter(([,v]) => v !== undefined));
+}
 
 function setupPwaInstall(){
   window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstallPrompt = e; renderSyncDetails(); });
@@ -130,11 +147,61 @@ $('mInstallBtn')?.addEventListener('click', async () => {
   alert('En iPhone/iPad: abre Safari, toca Compartir y selecciona Añadir a pantalla de inicio.');
 });
 $('mInvoiceForm')?.addEventListener('submit', async e => { e.preventDefault(); await saveInvoice($('mInvStatus')?.value || 'Pendiente'); });
-$('mFollowupForm')?.addEventListener('submit', async e => {
-  e.preventDefault(); const c = clientBy($('mFollowClient').value); if(!c.id) return alert('Selecciona cliente.');
-  await addDoc(colRef('followups'), { clientId:c.id, clientName:c.name || '', type:$('mFollowType').value, title:$('mFollowTitle').value, dueDate:$('mFollowDue').value, intervalMonths:Number($('mFollowInterval').value || 6), status:'Programado', priority:$('mFollowPriority').value, channel:'WhatsApp', sourceType:'mobile', sourceId:'', createdAt:serverTimestamp(), updatedAt:serverTimestamp() });
-  e.target.reset(); renderSelects();
-});
+$('mFollowupForm')?.addEventListener('submit', saveMobileFollowup);
+
+async function saveMobileFollowup(e){
+  e.preventDefault();
+  const form = e.currentTarget || e.target;
+  const btn = form.querySelector('button[type="submit"]');
+  const clientId = $('mFollowClient')?.value || '';
+  const c = clientBy(clientId);
+  if(!c.id){ showMobileNotice('Selecciona un cliente antes de guardar el seguimiento.', 'warn'); alert('Selecciona cliente.'); return; }
+  const title = String($('mFollowTitle')?.value || '').trim();
+  if(!title){ showMobileNotice('Escribe el asunto del seguimiento.', 'warn'); return; }
+  const dueDate = $('mFollowDue')?.value || plusMonths(today(), 6);
+  const intervalMonths = Math.max(0, Number($('mFollowInterval')?.value || 6));
+  const payload = cleanPayload({
+    clientId:c.id,
+    clientName:c.name || '',
+    clientPhone:c.phone || c.whatsapp || '',
+    type:$('mFollowType')?.value || 'Mantenimiento',
+    title,
+    date:dueDate,
+    dueDate,
+    nextDate:dueDate,
+    intervalMonths,
+    status:'Programado',
+    priority:$('mFollowPriority')?.value || 'Normal',
+    channel:'WhatsApp',
+    note:'',
+    sourceType:'mobile',
+    sourceId:'',
+    createdByUid:uid(),
+    createdAt:serverTimestamp(),
+    updatedAt:serverTimestamp()
+  });
+  try{
+    if(btn){ btn.disabled = true; btn.textContent = 'Guardando…'; }
+    const ref = await addDoc(colRef('followups'), payload);
+    state.followups = [{ id:ref.id, ...payload }, ...state.followups.filter(x => x.id !== ref.id)];
+    form.reset();
+    renderSelects();
+    renderFollowups();
+    renderDashboard();
+    renderHistory();
+    renderSyncDetails();
+    setSync('Seguimiento guardado · sincronizando');
+    showMobileNotice('Seguimiento guardado correctamente.', 'ok');
+  }catch(err){
+    console.error('Error guardando seguimiento móvil:', err);
+    setSync('Error al guardar seguimiento');
+    showMobileNotice(firebaseMessage(err), 'danger');
+    alert(firebaseMessage(err));
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = 'Guardar seguimiento'; }
+  }
+}
+
 
 setupPwaInstall();
 onAuthStateChanged(auth, async user => {
@@ -303,13 +370,49 @@ async function saveInvoice(forcedStatus){
   if(status === 'Pagada'){
     await addDoc(colRef('payments'), { invoiceId:ref.id, invoiceNumber:number, date:$('mInvDate').value || today(), method:$('mInvPaymentMethod').value || 'Móvil', amount:calc.total, note:'Pago registrado al crear factura móvil', createdAt:serverTimestamp() });
   }
+  await createAutoFollowupFromInvoice(ref.id, payload).catch(err => console.warn('No se pudo crear seguimiento automático:', err));
   $('mInvoiceForm').reset(); invoiceLines = [newLine('Mantenimiento preventivo 6 meses', 1, 75)]; renderSelects(); renderInvoiceLines(); setInvoiceStatus('Pendiente'); openInvoiceDoc(null, { id:ref.id, ...payload });
+}
+async function createAutoFollowupFromInvoice(invoiceId, inv){
+  const type = String(inv.invoiceType || inv.type || '').toLowerCase();
+  const shouldCreate = type.includes('mant') || type.includes('instal');
+  if(!shouldCreate || !inv.clientId) return;
+  const dueDate = plusMonths(inv.date || today(), 6);
+  const followType = type.includes('instal') ? 'Instalación' : 'Mantenimiento';
+  await addDoc(colRef('followups'), cleanPayload({
+    clientId:inv.clientId,
+    clientName:inv.clientName || '',
+    clientPhone:clientBy(inv.clientId).phone || clientBy(inv.clientId).whatsapp || '',
+    type:followType,
+    title:followType === 'Instalación' ? 'Seguimiento post-instalación / mantenimiento 6 meses' : 'Mantenimiento preventivo 6 meses',
+    date:dueDate,
+    dueDate,
+    nextDate:dueDate,
+    intervalMonths:6,
+    status:'Programado',
+    priority:'Normal',
+    channel:'WhatsApp',
+    note:'Creado automáticamente desde factura móvil.',
+    sourceType:'invoice-mobile',
+    sourceId:invoiceId,
+    createdByUid:uid(),
+    createdAt:serverTimestamp(),
+    updatedAt:serverTimestamp()
+  }));
 }
 async function completeFollowup(id){
   const f = state.followups.find(x => x.id === id); if(!f) return;
-  await updateDoc(docRef('followups', id), { status:'Completado', completedAt:today(), updatedAt:serverTimestamp() });
-  if(String(f.type || '').toLowerCase().includes('mant')){
-    await addDoc(colRef('followups'), { clientId:f.clientId || '', clientName:f.clientName || '', assetId:f.assetId || '', assetName:f.assetName || '', type:'Mantenimiento', title:f.title || 'Mantenimiento preventivo 6 meses', dueDate:plusMonths(today(), Number(f.intervalMonths || 6)), intervalMonths:Number(f.intervalMonths || 6), status:'Programado', priority:f.priority || 'Normal', channel:f.channel || 'WhatsApp', sourceType:'recurring-mobile', sourceId:id, createdAt:serverTimestamp(), updatedAt:serverTimestamp() });
+  try{
+    await updateDoc(docRef('followups', id), { status:'Completado', completedAt:today(), updatedAt:serverTimestamp() });
+    if(String(f.type || '').toLowerCase().includes('mant')){
+      const dueDate = plusMonths(today(), Number(f.intervalMonths || 6));
+      await addDoc(colRef('followups'), cleanPayload({ clientId:f.clientId || '', clientName:f.clientName || '', clientPhone:f.clientPhone || '', assetId:f.assetId || '', assetName:f.assetName || '', type:'Mantenimiento', title:f.title || 'Mantenimiento preventivo 6 meses', date:dueDate, dueDate, nextDate:dueDate, intervalMonths:Number(f.intervalMonths || 6), status:'Programado', priority:f.priority || 'Normal', channel:f.channel || 'WhatsApp', sourceType:'recurring-mobile', sourceId:id, createdByUid:uid(), createdAt:serverTimestamp(), updatedAt:serverTimestamp() }));
+    }
+    showMobileNotice('Seguimiento completado.', 'ok');
+  }catch(err){
+    console.error('Error completando seguimiento:', err);
+    showMobileNotice(firebaseMessage(err), 'danger');
+    alert(firebaseMessage(err));
   }
 }
 async function markInvoicePaid(id){ const inv = state.invoices.find(i => i.id === id); if(!inv) return; const bal = invoiceBalance(inv); if(bal <= 0) return; await addDoc(colRef('payments'), { invoiceId:inv.id, invoiceNumber:inv.number, date:today(), method:'Móvil', amount:bal, note:'Pago registrado desde Nexus Mobile', createdAt:serverTimestamp() }); await updateDoc(docRef('invoices', id), { status:'Pagada', updatedAt:serverTimestamp() }); }

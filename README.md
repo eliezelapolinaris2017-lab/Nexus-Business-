@@ -100,3 +100,9 @@ Corrige congelamiento del botón Compartir en iPhone/iPad PWA y mejora contraste
 ## v63 Mobile PDF One Engine Fix
 
 La versión móvil usa un solo motor PDF directo con jsPDF para vista previa, ver documento, compartir e imprimir/PDF. Se eliminó html2canvas para evitar PDF blanco en iOS PWA.
+
+
+## v64 Mobile Seguimiento Save Fix
+- Corrección de guardado de Seguimiento móvil.
+- Seguimiento automático desde factura de mantenimiento/instalación.
+- Cache PWA v64.
