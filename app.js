@@ -1910,3 +1910,171 @@ add=async function(c,data){
 function authUI(){$('authIndustry').innerHTML=Object.entries(INDUSTRIES).map(([id,x])=>`<option value="${id}">${T(x.name)}</option>`).join('');$('showLogin').onclick=()=>{mode='login';document.querySelectorAll('.register-only').forEach(x=>x.classList.add('hidden'));$('authSubmit').textContent=T('Entrar');$('showLogin').classList.add('active');$('showRegister').classList.remove('active');};$('showRegister').onclick=()=>{mode='register';document.querySelectorAll('.register-only').forEach(x=>x.classList.remove('hidden'));$('authSubmit').textContent=T('Crear cuenta');$('showRegister').classList.add('active');$('showLogin').classList.remove('active');};$('authForm').onsubmit=async e=>{e.preventDefault();$('authMsg').textContent=T('Procesando...');try{if(mode==='register'){const cred=await createUserWithEmailAndPassword(auth,$('authEmail').value,$('authPassword').value);await setDoc(doc(db,'users',cred.user.uid),{...defaultProfile(),businessName:$('authBusiness').value||'Mi Negocio',industry:$('authIndustry').value,email:$('authEmail').value});}else await signInWithEmailAndPassword(auth,$('authEmail').value,$('authPassword').value);$('authMsg').textContent='';}catch(err){$('authMsg').textContent=err.message;}};}
 async function load(){unsub.forEach(x=>x());unsub=[];const snap=await getDoc(profRef());if(!snap.exists())await setDoc(profRef(),defaultProfile());unsub.push(onSnapshot(profRef(),s=>{state.profile=s.data()||defaultProfile();render();}));COLS.forEach(c=>unsub.push(onSnapshot(colPath(c),s=>{state[c]=s.docs.map(d=>({id:d.id,...d.data()}));$('syncStatus').textContent=T('Sincronizado');render();},e=>{$('syncStatus').textContent=T('Firebase bloqueado');console.error(e);})));}
 authUI();bindForms();onAuthStateChanged(auth,u=>{if(u){$('authScreen').classList.add('hidden');$('appShell').classList.remove('hidden');load();}else{$('authScreen').classList.remove('hidden');$('appShell').classList.add('hidden');}});
+
+/* V66 — Search Center por módulo
+   Añade buscadores propios sin eliminar funciones existentes. */
+state.moduleFilters = state.moduleFilters || {};
+function v66Filter(module){
+  state.moduleFilters = state.moduleFilters || {};
+  state.moduleFilters[module] = state.moduleFilters[module] || {q:'',from:'',to:'',status:'all'};
+  return state.moduleFilters[module];
+}
+function v66DateValue(row,module){
+  const value = module==='followups' ? (row.dueDate||row.date) :
+    module==='quotes' ? (row.date||row.validUntil) :
+    module==='billing' ? (row.date||row.dueDate) :
+    module==='purchases' ? (row.date||row.dueDate) :
+    module==='team' ? (row.startDate||row.date) :
+    (row.date||row.dueDate||row.createdAt?.seconds||'');
+  if(typeof value === 'number') return new Date(value*1000).toISOString().slice(0,10);
+  return String(value||'').slice(0,10);
+}
+function v66Status(row,module){
+  try{
+    if(module==='billing') return invoiceStatus(row);
+    if(module==='quotes') return quoteStatus(row);
+    if(module==='followups') return followupStatus(row);
+    if(module==='purchases') return purchaseStatus(row);
+    if(module==='assets') return assetStatus(row);
+  }catch(e){}
+  return String(row.status||row.type||'').trim();
+}
+function v66SearchText(row,module){
+  const safe = v => String(v ?? '');
+  const base = [
+    row.number,row.reference,row.invoiceNumber,row.quoteNumber,row.clientName,row.name,row.title,row.concept,row.serviceTitle,
+    row.serviceType,row.assetName,row.teamName,row.supplierName,row.phone,row.email,row.city,row.address,row.status,
+    row.note,row.notes,row.terms,row.method,row.category,row.location,row.role,row.personalId,row.driverLicense
+  ];
+  if(Array.isArray(row.tags)) base.push(row.tags.join(' '));
+  if(Array.isArray(row.fields)) base.push(row.fields.join(' '));
+  if(Array.isArray(row.items)) base.push(row.items.map(i=>[i.description,i.name,i.qty,i.price,i.total].join(' ')).join(' '));
+  if(row.route) base.push([row.route.origin,row.route.destination,row.route.miles].join(' '));
+  base.push(v66Status(row,module));
+  return base.map(safe).join(' ').toLowerCase();
+}
+function v66ApplyModuleFilter(rows,module){
+  const f=v66Filter(module);
+  const q=String(f.q||'').toLowerCase().trim();
+  return [...(rows||[])].filter(row=>{
+    if(q && !v66SearchText(row,module).includes(q)) return false;
+    const d=v66DateValue(row,module);
+    if(f.from && (!d || d<f.from)) return false;
+    if(f.to && (!d || d>f.to)) return false;
+    if(f.status && f.status!=='all'){
+      const st=v66Status(row,module).toLowerCase();
+      if(st!==String(f.status).toLowerCase()) return false;
+    }
+    return true;
+  });
+}
+function v66UniqueStatuses(rows,module){
+  return [...new Set((rows||[]).map(r=>v66Status(r,module)).filter(Boolean))].sort();
+}
+function v66Toolbar(module,label,placeholder,rows,{dates=true,status=true}={}){
+  const f=v66Filter(module);
+  const statuses=v66UniqueStatuses(rows,module);
+  return `<div class="module-search-bar" data-module-search="${esc(module)}">
+    <div class="module-search-title"><b>${esc(label)}</b><small>${rows.length} registros</small></div>
+    <input id="${module}Search" type="search" value="${esc(f.q)}" placeholder="${esc(placeholder)}">
+    ${dates?`<input id="${module}From" type="date" value="${esc(f.from)}"><input id="${module}To" type="date" value="${esc(f.to)}">`:''}
+    ${status&&statuses.length?`<select id="${module}Status"><option value="all">Todos los estados</option>${statuses.map(s=>`<option value="${esc(s)}" ${String(f.status)===String(s)?'selected':''}>${esc(s)}</option>`).join('')}</select>`:''}
+    <button type="button" data-clear-module-filter="${esc(module)}">Limpiar</button>
+  </div>`;
+}
+function v66BindToolbar(module){
+  const bind=(id,key)=>{const el=$(id); if(!el) return; el.oninput=el.onchange=()=>{v66Filter(module)[key]=el.value; tables(); setTimeout(()=>{$(id)?.focus();},0);};};
+  bind(module+'Search','q'); bind(module+'From','from'); bind(module+'To','to'); bind(module+'Status','status');
+  document.querySelectorAll(`[data-clear-module-filter="${module}"]`).forEach(b=>b.onclick=()=>{state.moduleFilters[module]={q:'',from:'',to:'',status:'all'};tables();});
+}
+function v66RenderClients(){
+  const box=$('clientsTable'); if(!box) return;
+  const rows=v66ApplyModuleFilter(state.clients,'clients');
+  box.innerHTML=v66Toolbar('clients','Buscar clientes','Nombre, teléfono, email, dirección, ciudad o etiqueta...',state.clients,{dates:false,status:false})+
+    table(['Cliente','Contacto','Etiquetas','Historial','Acción'],rows.map(c=>{const cs=clientSummary(c);return `<tr><td><b>${esc(c.name)}</b><br><span class="muted">${esc(c.email)} · ${esc(c.city)}</span><br>${clientTagHtml(c)}</td><td>${esc(c.phone)}<br><span class="muted">${esc(c.altName||'')} ${c.altPhone?'· '+esc(c.altPhone):''}</span></td><td>${clientTagHtml(c)||'<span class="muted">Sin etiquetas</span>'}</td><td><b>${cs.assets}</b> activos · <b>${cs.services}</b> servicios<br><span class="muted">Balance ${money(cs.balance)}</span></td><td><div class="actions"><button data-client-summary="${c.id}" type="button">Ver historial</button>${action('clients',c.id)}</div></td></tr>`;}));
+  v66BindToolbar('clients');
+}
+function v66RenderServices(){
+  const box=$('servicesTable'); if(!box) return; const i=industry();
+  const rows=v66ApplyModuleFilter(state.services,'services');
+  box.innerHTML=v66Toolbar('services','Buscar servicios','Cliente, servicio, activo, estado, técnico, fecha...',state.services,{dates:true,status:true})+
+    table(['Fecha',i.client,'Activo','Servicio','Estado','Monto','Factura','Acción'],rows.map(s=>{const inv=state.invoices.find(x=>x.serviceId===s.id),amount=serviceAmount(s);return `<tr><td>${esc(s.date)}<br><span class="tag">${esc(s.priority||'Normal')}</span></td><td>${esc(s.clientName)}</td><td>${esc(s.assetName||'')}</td><td><b>${esc(serviceTitle(s))}</b><br><span class="muted">${esc((s.fields||[]).filter(Boolean).slice(0,3).join(' · '))}</span></td><td><span class="status-chip">${esc(s.status||'Pendiente')}</span></td><td>${money(amount)}</td><td>${inv?esc(inv.number):`<button data-invoice="${s.id}" type="button">Facturar</button>`}</td><td><div class="actions"><button data-dup-service="${s.id}" type="button">Duplicar</button>${action('services',s.id)}</div></td></tr>`;}));
+  v66BindToolbar('services');
+}
+function v66RenderQuotes(){
+  const box=$('quotesTable'); if(!box) return;
+  const rows=v66ApplyModuleFilter(state.quotes,'quotes');
+  box.innerHTML=v66Toolbar('quotes','Buscar cotizaciones','Número COT, cliente, servicio, estado, fecha, monto...',state.quotes,{dates:true,status:true})+
+    table(['Fecha','Número','Cliente','Cotización','Estado','Total','Acciones'],rows.map(q=>{const totals=quoteTotals(q), st=quoteStatus(q);return `<tr><td>${esc(q.date||'')}<br><span class="muted">Válida: ${esc(q.validUntil||'')}</span></td><td><b>${esc(q.number||'')}</b></td><td>${esc(q.clientName||'')}<br><span class="muted">${esc(q.assetName||'')}</span></td><td><b>${esc(q.title||q.serviceType||'Cotización')}</b><br><span class="muted">${esc(q.serviceType||'')}</span></td><td>${statusChip(st)}</td><td><b>${money(totals.total)}</b></td><td><div class="actions"><button data-preview-quote="${q.id}" type="button">Ver</button>${st==='Aprobada'||st==='Enviada'?`<button data-quote-invoice="${q.id}" type="button">Convertir a factura</button>`:''}${action('quotes',q.id)}</div></td></tr>`;}));
+  v66BindToolbar('quotes');
+}
+function v66RenderBilling(){
+  const box=$('invoiceTable'); if(!box) return;
+  const base=state.invoices.filter(inv=>{
+    const st=invoiceStatus(inv), bal=invoiceBalance(inv);
+    if(state.billingFilter==='receivable' && bal<=0) return false;
+    if(state.billingFilter==='overdue' && st!=='Vencida') return false;
+    if(state.billingFilter==='pending' && st!=='Pendiente') return false;
+    if(state.billingFilter==='partial' && st!=='Parcial') return false;
+    if(state.billingFilter==='paid' && st!=='Pagada') return false;
+    if(state.billingFilter==='canceled' && st!=='Cancelada') return false;
+    return true;
+  });
+  const rows=v66ApplyModuleFilter(base,'billing');
+  box.innerHTML=v66Toolbar('billing','Buscar facturas','Cliente, número de factura, servicio, estado, fecha, balance...',base,{dates:true,status:true})+
+    `<div class="module-filter-chips"><button type="button" onclick="clearBillingFilter()">Todas</button><button type="button" onclick="openBilling('receivable','')">Por cobrar</button><button type="button" onclick="openBilling('overdue','')">Vencidas</button><button type="button" onclick="openBilling('pending','')">Pendientes</button><button type="button" onclick="openBilling('partial','')">Parciales</button><button type="button" onclick="openBilling('paid','')">Pagadas</button></div>`+
+    table(['Fecha','Número','Cliente','Servicio','Estado','Total','Pagado','Balance','Acción'],rows.map(inv=>`<tr><td>${esc(inv.date||'')}<br><span class="muted">Vence: ${esc(inv.dueDate||'')}</span></td><td><b>${esc(inv.number||'')}</b></td><td>${esc(inv.clientName||'')}</td><td>${esc(inv.serviceTitle||inv.serviceType||'')}</td><td>${statusChip(invoiceStatus(inv))}</td><td>${money(inv.total)}</td><td>${money(invoicePaid(inv.id))}</td><td><b>${money(invoiceBalance(inv))}</b></td><td><div class="actions"><button data-preview-invoice="${inv.id}" type="button">Ver</button><button data-dup-invoice="${inv.id}" type="button">Duplicar</button>${action('invoices',inv.id)}</div></td></tr>`));
+  v66BindToolbar('billing');
+}
+function v66RenderSimpleTables(){
+  const render=(boxId,module,label,placeholder,head,rowFn,rows,opts)=>{const box=$(boxId); if(!box)return; const filtered=v66ApplyModuleFilter(rows,module); box.innerHTML=v66Toolbar(module,label,placeholder,rows,opts)+table(head,filtered.map(rowFn)); v66BindToolbar(module);};
+  render('assetsTable','assets','Buscar activos','Cliente, activo, categoría, ubicación, estado...', ['Cliente','Activo','Categoría','Ubicación','Estado','Valor','Acción'], a=>`<tr><td>${esc(a.clientName||'')}</td><td><b>${esc(assetName(a))}</b></td><td>${esc(assetCategory(a))}</td><td>${esc(assetLocation(a))}</td><td>${statusChip(assetStatus(a))}</td><td>${money(a.value)}</td><td>${action('assets',a.id)}</td></tr>`, state.assets,{dates:true,status:true});
+  render('teamTable','team','Buscar equipo','Nombre, teléfono, email, rol, licencia, últimos 4...', ['Nombre','Contacto','Rol','Estado','Asignado','Acción'], t=>`<tr><td><b>${esc(t.name)}</b><br><span class="muted">${esc(t.personalId||'')} ${maskSSN(t.ssn)?'· '+esc(maskSSN(t.ssn)):''}</span></td><td>${esc(t.phone)}<br>${esc(t.email)}</td><td>${esc(t.role)}</td><td>${esc(t.status||'Activo')}</td><td>${esc(t.assignedVehicleName||'')}</td><td>${action('team',t.id)}</td></tr>`, state.team,{dates:true,status:true});
+  render('suppliersTable','suppliers','Buscar suplidores','Nombre, contacto, teléfono, categoría...', ['Suplidor','Contacto','Categoría','Crédito','Balance','Acción'], s=>`<tr><td><b>${esc(s.name)}</b><br><span class="muted">${esc(s.email||'')}</span></td><td>${esc(s.phone)}<br>${esc(s.contact||'')}</td><td>${esc(s.category||'')}</td><td>${money(s.creditLimit)}</td><td><b>${money(supplierBalance(s.id))}</b></td><td>${action('suppliers',s.id)}</td></tr>`, state.suppliers,{dates:false,status:false});
+  render('purchasesTable','purchases','Buscar compras / CxP','Suplidor, referencia, concepto, estado, fecha...', ['Fecha','Suplidor','Concepto','Vence','Total','Pagado','Balance','Estado','Acción'], p=>`<tr><td>${esc(p.date)}</td><td>${esc(p.supplierName)}</td><td><b>${esc(p.number||p.reference||'')}</b><br><span class="muted">${esc(p.concept)}</span></td><td>${esc(p.dueDate||'—')}</td><td>${money(p.total)}</td><td>${money(purchasePaid(p.id))}</td><td><b>${money(purchaseBalance(p))}</b></td><td>${statusChip(purchaseStatus(p))}</td><td>${action('purchases',p.id)}</td></tr>`, state.purchases,{dates:true,status:true});
+  render('paymentsTable','payments','Buscar cobros','Factura, método, nota, fecha, monto...', ['Fecha','Factura','Método','Monto','Balance factura','Nota','Acción'], p=>{const inv=state.invoices.find(x=>x.id===p.invoiceId)||{};return `<tr><td>${esc(p.date)}</td><td>${esc(p.invoiceNumber)}</td><td>${esc(p.method)}</td><td>${money(p.amount)}</td><td>${inv.id?money(invoiceBalance(inv)):'—'}</td><td>${esc(p.note)}</td><td>${action('payments',p.id)}</td></tr>`;}, state.payments,{dates:true,status:false});
+  render('cashTable','cashflow','Buscar flujo de caja','Concepto, tipo, fecha, monto...', ['Fecha','Tipo','Concepto','Monto','Balance','Acción'], x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.type)}</td><td>${esc(x.concept)}</td><td>${money(x.amount)}</td><td>—</td><td>${action('cashflow',x.id)}</td></tr>`, state.cashflow,{dates:true,status:true});
+  render('supplierPaymentsTable','supplierPayments','Buscar pagos a suplidores','Suplidor, compra, método, fecha...', ['Fecha','Suplidor','Compra','Método','Monto','Nota','Acción'], p=>`<tr><td>${esc(p.date)}</td><td>${esc(p.supplierName)}</td><td>${esc(p.purchaseNumber||'General')}</td><td>${esc(p.method)}</td><td>${money(p.amount)}</td><td>${esc(p.note)}</td><td>${action('supplierPayments',p.id)}</td></tr>`, state.supplierPayments,{dates:true,status:false});
+  render('payrollTable','payroll','Buscar nómina','Empleado, periodo, método, fecha...', ['Fecha','Empleado','Periodo','Bruto','Deducciones','Neto','Acción'], p=>`<tr><td>${esc(p.date)}</td><td>${esc(p.teamName)}</td><td>${esc(p.period||'')}</td><td>${money(p.gross)}</td><td>${money(p.totalDeductions)}</td><td><b>${money(p.net)}</b></td><td><div class="actions"><button data-paystub="${p.id}" type="button">PDF</button>${action('payroll',p.id)}</div></td></tr>`, state.payroll,{dates:true,status:false});
+}
+function v66RenderFollowups(){
+  const box=$('followupsTable'); if(!box) return;
+  const rows=v66ApplyModuleFilter(state.followups,'followups').sort((a,b)=>String(a.dueDate||'').localeCompare(String(b.dueDate||'')));
+  box.innerHTML=v66Toolbar('followups','Buscar seguimientos','Cliente, tipo, asunto, activo, estado, fecha...',state.followups,{dates:true,status:true})+
+    table(['Fecha','Cliente','Activo','Seguimiento','Estado','Notas','Acción'],rows.map(f=>{const c=clientBy(f.clientId||''); const st=followupStatus(f); const phone=c.whatsapp||c.phone||'';return `<tr><td><b>${esc(f.dueDate||'')}</b><br><span class="tag">${esc(f.priority||'Normal')}</span></td><td>${esc(f.clientName||c.name||'')}<br><span class="muted">${esc(phone)}</span></td><td>${esc(f.assetName||'')}</td><td><b>${esc(f.title||f.type||'Seguimiento')}</b><br><span class="muted">${esc(f.type||'')}</span></td><td>${statusChip(st)}</td><td>${esc(f.note||'')}</td><td><div class="actions">${phone?`<button data-whatsapp-followup="${f.id}" type="button">WhatsApp</button>`:''}${st!=='Completado'?`<button data-complete-followup="${f.id}" type="button">Completar</button>`:''}${action('followups',f.id)}</div></td></tr>`;}));
+  v66BindToolbar('followups');
+}
+function v66BindDynamicActions(){
+  document.querySelectorAll('[data-invoice]').forEach(b=>b.onclick=()=>createInvoice(b.dataset.invoice));
+  document.querySelectorAll('[data-client-summary]').forEach(b=>b.onclick=()=>showClientSummary(b.dataset.clientSummary));
+  document.querySelectorAll('[data-dup-service]').forEach(b=>b.onclick=()=>duplicateService(b.dataset.dupService));
+  document.querySelectorAll('[data-preview-invoice]').forEach(b=>b.onclick=()=>previewInvoice(b.dataset.previewInvoice));
+  document.querySelectorAll('[data-dup-invoice]').forEach(b=>b.onclick=()=>duplicateInvoice(b.dataset.dupInvoice));
+  document.querySelectorAll('[data-preview-quote]').forEach(b=>b.onclick=()=>previewQuote(b.dataset.previewQuote));
+  document.querySelectorAll('[data-quote-invoice]').forEach(b=>b.onclick=()=>convertQuoteToInvoice(b.dataset.quoteInvoice));
+  document.querySelectorAll('[data-paystub]').forEach(b=>b.onclick=()=>previewPaystub(b.dataset.paystub));
+  document.querySelectorAll('[data-whatsapp-followup]').forEach(b=>b.onclick=()=>{const f=state.followups.find(x=>x.id===b.dataset.whatsappFollowup); if(f) open(followupWhatsappUrl(f),'_blank');});
+  document.querySelectorAll('[data-complete-followup]').forEach(b=>b.onclick=()=>completeFollowup(b.dataset.completeFollowup));
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>remove(...b.dataset.del.split(':')));
+  document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editRecord(...b.dataset.edit.split(':')));
+}
+const __v66Tables=tables;
+tables=function(){
+  __v66Tables();
+  v66RenderClients();
+  v66RenderServices();
+  v66RenderQuotes();
+  v66RenderBilling();
+  v66RenderSimpleTables();
+  v66RenderFollowups();
+  v66BindDynamicActions();
+};
+
+/* V66 Dashboard acciones precisas con filtros */
+const __v66OpenDashboardAction=openDashboardAction;
+openDashboardAction=function(view,filter=''){
+  if(view==='billing') return openBilling(filter||'all','');
+  if(view==='quotes') { v66Filter('quotes').status = filter==='approved'?'Aprobada':filter==='open'?'Enviada':'all'; return show('quotes'); }
+  if(view==='followups') { v66Filter('followups').status = filter==='overdue'?'Vencido':'all'; return show('followups'); }
+  return __v66OpenDashboardAction(view,filter);
+};

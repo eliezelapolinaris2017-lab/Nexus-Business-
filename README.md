@@ -116,3 +116,10 @@ La versión móvil usa un solo motor PDF directo con jsPDF para vista previa, ve
 - Dashboard con KPI accionables que llevan directo al módulo y filtro correcto.
 - No se eliminaron módulos ni funciones existentes.
 - Cache PWA v65.
+
+
+## V66 Module Search Center
+
+- Buscador propio en clientes, cotizaciones, facturación, servicios, seguimientos y módulos operacionales.
+- Filtros por fecha y estado donde aplica.
+- No se eliminaron funciones existentes.
