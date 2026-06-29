@@ -915,3 +915,15 @@ th{position:sticky;top:0;z-index:2;background:#f8fafc}td,th{padding:10px 11px}td
 #followupsTable .actions{display:flex;gap:6px;flex-wrap:wrap}
 
 .auth-mobile-link{margin:6px 0 16px;text-align:center}.auth-mobile-link a{color:#0ea5e9;font-weight:800;text-decoration:none}
+
+/* V65 Desktop Data & Actions Fix */
+.kpi.kpi-action{appearance:none;border:0;text-align:left;cursor:pointer;width:100%;}
+.kpi.kpi-action:hover{transform:translateY(-1px);box-shadow:0 12px 28px rgba(15,23,42,.10);}
+.billing-tools{margin:0 0 14px 0;padding:14px;border:1px solid #e5e7eb;border-radius:16px;background:#fff;}
+.billing-tools .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.billing-tools input[type="search"]{flex:1 1 260px;min-width:220px;}
+.data-settings,.danger-zone{border:1px solid #e5e7eb;border-radius:16px;padding:16px;background:#fff;}
+.danger-zone{border-color:#fecaca;background:#fff7f7;}
+.file-action{display:inline-flex;align-items:center;justify-content:center;border:1px solid #cbd5e1;border-radius:12px;padding:10px 14px;background:#fff;color:#0f172a;font-weight:700;cursor:pointer;}
+.file-action:hover{background:#f8fafc;}
+@media(max-width:720px){.billing-tools .toolbar{display:grid;grid-template-columns:1fr;}.billing-tools input[type="search"]{min-width:0;width:100%;}}

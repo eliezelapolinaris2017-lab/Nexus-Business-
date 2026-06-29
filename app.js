@@ -121,7 +121,7 @@ const PLANS = {
 
 const TITLES = {dashboard:'Home',clients:'Clientes',services:'Servicios',quotes:'Cotizaciones Pro',followups:'Seguimiento',team:'Equipo',payroll:'Nómina',assets:'Activos',suppliers:'Suplidores',supplierPayments:'Pagos suplidores',purchases:'Compras',billing:'Facturación',payments:'Cobros',cashflow:'Flujo de caja',reports:'Reportes',plans:'Planes',settings:'Configuración'};
 let mode = 'login', unsub = [];
-let state = {profile:null,clients:[],services:[],quotes:[],followups:[],team:[],assets:[],suppliers:[],supplierPayments:[],payroll:[],payrollRetentions:[],purchases:[],invoices:[],payments:[],cashflow:[],planRequests:[],previewHtml:'',activeView:'dashboard',editingServiceId:null,editingQuoteId:null};
+let state = {profile:null,clients:[],services:[],quotes:[],followups:[],team:[],assets:[],suppliers:[],supplierPayments:[],payroll:[],payrollRetentions:[],purchases:[],invoices:[],payments:[],cashflow:[],planRequests:[],previewHtml:'',activeView:'dashboard',editingServiceId:null,editingQuoteId:null,billingFilter:'all',billingSearch:''};
 
 function defaultProfile(){return {businessName:'Mi Negocio',industry:'hvac',language:'es',plan:'free',planStatus:'active',planChangeMode:'manual',pendingPlan:'',pendingPlanStatus:'none',phone:'',whatsapp:'',email:auth.currentUser?.email||'',address:'',web:'',tax:'11.5',merchant:'',representative:'',slogan:'',logoDashboard:'',logoPdf:'',favicon:'',signature:'',primaryColor:'#2563eb',secondaryColor:'#0f172a',customServices:{},transportRatePerMile:'2.50',transportBaseCharge:'0',dailyGoal:'1000',onboardingComplete:false,onboardingSkipped:false,createdAt:new Date().toISOString()};}
 function profile(){return state.profile || defaultProfile();}
@@ -268,7 +268,7 @@ function renderFinancialHub(){
       <div class="section-head mini"><h4>Próximas obligaciones</h4><span>${money(h.o.dueMonth)}</span></div>
       <div class="obligation-list">${next.length?next.map(x=>`<button type="button" class="obligation-row" data-obligation-view="${esc(x.view)}"><span><b>${esc(x.date||'—')}</b><small>${esc(x.type)} · ${esc(x.title)}</small></span><strong>${money(x.amount)}</strong></button>`).join(''):'<p class="muted">Sin obligaciones pendientes.</p>'}</div>
     </div>`;
-  document.querySelectorAll('[data-finance-view]').forEach(b=>b.onclick=()=>show(b.dataset.financeView));
+  document.querySelectorAll('[data-finance-view]').forEach(b=>b.onclick=()=>{const v=b.dataset.financeView;if(v==='billing') return openBilling('receivable','');show(v);});
   document.querySelectorAll('[data-obligation-view]').forEach(b=>b.onclick=()=>show(b.dataset.obligationView));
 }
 function imgOrText(data,text){return data?`<img src="${data}" alt="Logo" class="logo-img">`:esc(text);}
@@ -554,6 +554,22 @@ function controlCenter(){
 
 function enforceModuleView(){const active=state.activeView||'dashboard';document.querySelectorAll('.main > section.view').forEach(view=>{const ok=view.id===active;view.classList.toggle('active',ok);view.hidden=!ok;view.setAttribute('aria-hidden',ok?'false':'true');view.style.display=ok?'block':'none';view.style.visibility=ok?'visible':'hidden';view.style.height=ok?'auto':'0px';view.style.overflow=ok?'visible':'hidden';});}
 function show(v){state.activeView=lockedModule(v)?'plans':(v||'dashboard');render();if(innerWidth<921)document.querySelector('.sidebar')?.classList.remove('open');}
+function openBilling(filter='all', search=''){
+  state.billingFilter = filter || 'all';
+  state.billingSearch = search || '';
+  show('billing');
+  setTimeout(()=>{
+    const q=$('billingSearch'); if(q) q.value=state.billingSearch||'';
+    const f=$('billingFilter'); if(f) f.value=state.billingFilter||'all';
+  },50);
+}
+function clearBillingFilter(){state.billingFilter='all';state.billingSearch='';renderBillingTable();}
+function openDashboardAction(view, filter=''){
+  if(view==='billing') return openBilling(filter||'all','');
+  if(view==='quotes') state.quoteDashboardFilter=filter||'';
+  show(view||'dashboard');
+}
+
 function latestPlanRequest(){
   return [...(state.planRequests||[])]
     .filter(r => r.status === 'pending' && normalizePlanId(r.planId) !== currentPlanId())
@@ -1031,9 +1047,10 @@ function forms(){const i=industry();
   $('purchaseForm').innerHTML=select('Suplidor','puSupplier',state.suppliers.map(s=>({value:s.id,label:s.name})))+input('Fecha','puDate','date',today())+input('Vence','puDue','date',plusDays(15))+input('Concepto','puConcept')+input('Referencia / factura','puRef')+input('Subtotal','puSubtotal','number')+input('IVU / impuestos','puTax','number','0')+select('Estado','puStatus',['Pendiente','Parcial','Pagada','Vencida','Cancelada'].map(x=>({value:x,label:x})))+input('Notas','puNote','text','','wide')+'<button class="primary" type="submit">Registrar compra</button>';
   $('paymentForm').innerHTML=select('Factura','pInvoice',state.invoices.filter(inv=>invoiceStatus(inv)!=='Cancelada' && invoiceBalance(inv)>0).map(inv=>({value:inv.id,label:`${inv.number} · ${inv.clientName} · balance ${money(invoiceBalance(inv))}`})))+input('Fecha','pDate','date',today())+select('Método','pMethod',['ATH Móvil','Stripe','PayPal','Transferencia','Cheque','Efectivo','Tarjeta'].map(x=>({value:x,label:x})))+input('Monto','pAmount','number')+input('Nota','pNote','text','','wide')+'<button class="primary" type="submit">Registrar cobro</button>';
   $('cashForm').innerHTML=input('Fecha','xDate','date',today())+select('Tipo','xType',[{value:'Ingreso',label:'Ingreso'},{value:'Gasto',label:'Gasto'}])+input('Concepto','xConcept')+input('Monto','xAmount','number')+'<button class="primary" type="submit">Guardar movimiento</button>';
-  const p=profile();$('settingsForm').innerHTML=`<div><label>${T('Industria')}</label><select id="set_industry">${Object.entries(INDUSTRIES).map(([id,x])=>`<option value="${id}" ${p.industry===id?'selected':''}>${T(x.name)}</option>`).join('')}</select></div><div><label>${T('Idioma')}</label><select id="set_language"><option value="es" ${(p.language||'es')==='es'?'selected':''}>Español</option><option value="en" ${(p.language||'es')==='en'?'selected':''}>English</option></select></div><div><label>${T('Plan activo')}</label><input value="${esc(activePlanName())}" disabled></div><div><label>Estado</label><input value="${esc(planRequestStatusText())}" disabled></div><div class="wide"><label>Servicios de esta industria</label><textarea id="set_services" rows="5" placeholder="Un servicio por línea">${esc(serviceOptions().join('\n'))}</textarea></div>`+input('Nombre comercial','set_businessName','text',p.businessName)+input('Eslogan','set_slogan','text',p.slogan)+input('Teléfono','set_phone','text',p.phone)+input('WhatsApp','set_whatsapp','text',p.whatsapp)+input('Email','set_email','text',p.email)+input('Website','set_web','text',p.web)+input('Dirección','set_address','text',p.address,'wide')+input('Registro comerciante','set_merchant','text',p.merchant)+input('Representante','set_representative','text',p.representative)+input('IVU %','set_tax','number',p.tax)+input('Meta diaria','set_dailyGoal','number',p.dailyGoal||'1000')+(p.industry==='transport'?input('Tarifa por milla','set_transportRatePerMile','number',p.transportRatePerMile||'2.50')+input('Cargo base ruta','set_transportBaseCharge','number',p.transportBaseCharge||'0'):'')+input('Color primario','set_primaryColor','color',p.primaryColor)+input('Color secundario','set_secondaryColor','color',p.secondaryColor)+`<div><label>Logo Dashboard</label><input id="set_logoDashboard" type="file" accept="image/*"><small class="muted">Actual: ${p.logoDashboard?'cargado':'sin logo'}</small></div><div><label>Logo PDF</label><input id="set_logoPdf" type="file" accept="image/*"><small class="muted">Actual: ${p.logoPdf?'cargado':'sin logo'}</small></div><div><label>Favicon</label><input id="set_favicon" type="file" accept="image/*"><small class="muted">Actual: ${p.favicon?'cargado':'sin favicon'}</small></div><div><label>Firma digital</label><input id="set_signature" type="file" accept="image/*"><small class="muted">Actual: ${p.signature?'cargada':'sin firma'}</small></div><div class="wide demo-settings"><h3>Demo</h3><div class="demo-buttons"><button id="loadDemoBtn" type="button" class="primary">Cargar demo</button><button id="cleanDemoBtn" type="button" class="danger">Borrar demo</button></div></div>`;
+  const p=profile();$('settingsForm').innerHTML=`<div><label>${T('Industria')}</label><select id="set_industry">${Object.entries(INDUSTRIES).map(([id,x])=>`<option value="${id}" ${p.industry===id?'selected':''}>${T(x.name)}</option>`).join('')}</select></div><div><label>${T('Idioma')}</label><select id="set_language"><option value="es" ${(p.language||'es')==='es'?'selected':''}>Español</option><option value="en" ${(p.language||'es')==='en'?'selected':''}>English</option></select></div><div><label>${T('Plan activo')}</label><input value="${esc(activePlanName())}" disabled></div><div><label>Estado</label><input value="${esc(planRequestStatusText())}" disabled></div><div class="wide"><label>Servicios de esta industria</label><textarea id="set_services" rows="5" placeholder="Un servicio por línea">${esc(serviceOptions().join('\n'))}</textarea></div>`+input('Nombre comercial','set_businessName','text',p.businessName)+input('Eslogan','set_slogan','text',p.slogan)+input('Teléfono','set_phone','text',p.phone)+input('WhatsApp','set_whatsapp','text',p.whatsapp)+input('Email','set_email','text',p.email)+input('Website','set_web','text',p.web)+input('Dirección','set_address','text',p.address,'wide')+input('Registro comerciante','set_merchant','text',p.merchant)+input('Representante','set_representative','text',p.representative)+input('IVU %','set_tax','number',p.tax)+input('Meta diaria','set_dailyGoal','number',p.dailyGoal||'1000')+(p.industry==='transport'?input('Tarifa por milla','set_transportRatePerMile','number',p.transportRatePerMile||'2.50')+input('Cargo base ruta','set_transportBaseCharge','number',p.transportBaseCharge||'0'):'')+input('Color primario','set_primaryColor','color',p.primaryColor)+input('Color secundario','set_secondaryColor','color',p.secondaryColor)+`<div><label>Logo Dashboard</label><input id="set_logoDashboard" type="file" accept="image/*"><small class="muted">Actual: ${p.logoDashboard?'cargado':'sin logo'}</small></div><div><label>Logo PDF</label><input id="set_logoPdf" type="file" accept="image/*"><small class="muted">Actual: ${p.logoPdf?'cargado':'sin logo'}</small></div><div><label>Favicon</label><input id="set_favicon" type="file" accept="image/*"><small class="muted">Actual: ${p.favicon?'cargado':'sin favicon'}</small></div><div><label>Firma digital</label><input id="set_signature" type="file" accept="image/*"><small class="muted">Actual: ${p.signature?'cargada':'sin firma'}</small></div><div class="wide data-settings"><h3>Importar / Exportar</h3><p class="muted">Herramientas de respaldo, importación y mantenimiento de data. No elimina funciones del sistema.</p><div class="demo-buttons"><button id="exportBackupBtn" type="button">Exportar backup JSON</button><label class="file-action">Importar JSON<input id="importDataFile" type="file" accept="application/json,.json" hidden></label></div><small id="importDataStatus" class="muted"></small></div><div class="wide danger-zone"><h3>Zona peligrosa</h3><p class="muted">Borra toda la data de esta cuenta en Firebase. No borra el código ni la app publicada.</p><button id="wipeAllDataBtn" type="button" class="danger">Borrar toda la data de la app</button></div><div class="wide demo-settings"><h3>Demo</h3><div class="demo-buttons"><button id="loadDemoBtn" type="button" class="primary">Cargar demo</button><button id="cleanDemoBtn" type="button" class="danger">Borrar demo</button></div></div>`;
   limits();
   bindDemoSettings();
+  bindDataSettings();
 }
 
 function kpis(){
@@ -1043,25 +1060,83 @@ function kpis(){
   const completed=state.services.filter(s=>String(s.status||'').toLowerCase()==='completado').length;
   const ops=operationalSummary();
   const q=quoteSummary();
-  $('kpis').innerHTML=[
-    ['Clientes',state.clients.length],
-    ['Servicios hoy',todayServices],
-    ['Cotizaciones',q.total],
-    ['COT mes',q.month],
-    ['COT abiertas',q.open],
-    ['COT aprobadas',q.approved],
-    ['Potencial COT',money(q.openValue+q.approvedValue)],
-    ['Conversión COT',q.conversionRate+'%'],
-    ['Facturado',money(billed)],
-    ['Cobrado',money(collected)],
-    ['Balance por cobrar',money(balances)],
-    ['Caja neta',money(collected-expenses)]
-  ].map(([a,b])=>`<div class="kpi"><span>${T(a)}</span><strong>${b}</strong></div>`).join('');
+  const kpiCards=[
+    {a:'Clientes',b:state.clients.length,view:'clients'},
+    {a:'Servicios hoy',b:todayServices,view:'services'},
+    {a:'Cotizaciones',b:q.total,view:'quotes'},
+    {a:'COT mes',b:q.month,view:'quotes'},
+    {a:'COT abiertas',b:q.open,view:'quotes'},
+    {a:'COT aprobadas',b:q.approved,view:'quotes'},
+    {a:'Potencial COT',b:money(q.openValue+q.approvedValue),view:'quotes'},
+    {a:'Conversión COT',b:q.conversionRate+'%',view:'quotes'},
+    {a:'Facturado',b:money(billed),view:'billing',filter:'all'},
+    {a:'Cobrado',b:money(collected),view:'payments'},
+    {a:'Balance por cobrar',b:money(balances),view:'billing',filter:'receivable'},
+    {a:'Caja neta',b:money(collected-expenses),view:'cashflow'}
+  ];
+  $('kpis').innerHTML=kpiCards.map(x=>`<button type="button" class="kpi kpi-action" data-kpi-view="${esc(x.view)}" data-kpi-filter="${esc(x.filter||'')}"><span>${T(x.a)}</span><strong>${x.b}</strong><small>Ver acción</small></button>`).join('');
+  document.querySelectorAll('[data-kpi-view]').forEach(b=>b.onclick=()=>openDashboardAction(b.dataset.kpiView,b.dataset.kpiFilter||''));
   const alerts=dashboardAlerts();
   if($('alertList')) $('alertList').innerHTML=alerts.length?alerts.map(x=>`<div class="alert-item">${esc(x)}</div>`).join(''):'<p class="muted">Sin alertas.</p>';
   if($('planExperience')) $('planExperience').innerHTML=`<div class="experience"><b>${plan().badge}: ${plan().name}</b><span>${plan().features.map(T).join(' · ')}</span><div class="quota"><i style="width:${Math.min(100,(state.clients.length/(unlimited(limit('clients'))?Math.max(1,state.clients.length):limit('clients')))*100)}%"></i></div><button id="upgradeBtn" type="button">${T('Ver planes')}</button></div>`;
   $('upgradeBtn')&&($('upgradeBtn').onclick=()=>show('plans'));
   controlCenter();
+}
+
+
+function invoiceMatchesBillingFilter(inv){
+  const st=invoiceStatus(inv);
+  const bal=invoiceBalance(inv);
+  const filter=state.billingFilter||'all';
+  if(filter==='receivable') return bal>0 && st!=='Cancelada';
+  if(filter==='overdue') return st==='Vencida';
+  if(filter==='paid') return st==='Pagada';
+  if(filter==='pending') return ['Pendiente','Vencida','Parcial'].includes(st) && bal>0;
+  if(filter==='partial') return st==='Parcial';
+  if(filter==='cancelled') return st==='Cancelada';
+  return true;
+}
+function filteredBillingInvoices(){
+  const q=String(state.billingSearch||'').toLowerCase().trim();
+  return (state.invoices||[]).filter(inv=>{
+    if(!invoiceMatchesBillingFilter(inv)) return false;
+    if(!q) return true;
+    const hay=[inv.number,inv.clientName,inv.serviceTitle,inv.quoteNumber,inv.status,inv.dueDate,inv.date]
+      .map(x=>String(x||'').toLowerCase()).join(' ');
+    return hay.includes(q);
+  }).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')) || String(b.number||'').localeCompare(String(a.number||'')));
+}
+function renderBillingTable(){
+  const box=$('invoiceTable'); if(!box) return;
+  const rows=filteredBillingInvoices();
+  const allCount=(state.invoices||[]).length;
+  const receivableTotal=rows.reduce((a,inv)=>a+invoiceBalance(inv),0);
+  box.innerHTML=`<div class="billing-tools card-lite">
+    <div class="toolbar">
+      <input id="billingSearch" type="search" placeholder="Buscar por cliente, número de factura o servicio..." value="${esc(state.billingSearch||'')}">
+      <select id="billingFilter">
+        <option value="all" ${(state.billingFilter||'all')==='all'?'selected':''}>Todas</option>
+        <option value="receivable" ${state.billingFilter==='receivable'?'selected':''}>Por cobrar</option>
+        <option value="overdue" ${state.billingFilter==='overdue'?'selected':''}>Vencidas</option>
+        <option value="pending" ${state.billingFilter==='pending'?'selected':''}>Pendientes</option>
+        <option value="partial" ${state.billingFilter==='partial'?'selected':''}>Parciales</option>
+        <option value="paid" ${state.billingFilter==='paid'?'selected':''}>Pagadas</option>
+        <option value="cancelled" ${state.billingFilter==='cancelled'?'selected':''}>Canceladas</option>
+      </select>
+      <button id="clearBillingFilter" type="button">Limpiar</button>
+    </div>
+    <small class="muted">Mostrando ${rows.length} de ${allCount} facturas · Balance filtrado ${money(receivableTotal)}</small>
+  </div>`+
+  table(['Factura','Cliente','Vence','Total','Pagado','Balance','Estado','Acción'],rows.map(inv=>{const bal=invoiceBalance(inv),paid=invoicePaid(inv),st=invoiceStatus(inv);return `<tr><td><b>${esc(inv.number)}</b><br><span class="muted">${esc(inv.serviceTitle||'')}</span></td><td>${esc(inv.clientName)}</td><td>${esc(inv.dueDate||'—')}</td><td>${money(inv.total)}</td><td>${money(paid)}</td><td><b>${money(bal)}</b></td><td>${statusChip(st)}</td><td><div class="actions"><button data-prev-inv="${inv.id}" type="button">Preview</button><button data-dup-inv="${inv.id}" type="button">Duplicar</button>${st!=='Cancelada'?`<button class="danger" data-cancel-inv="${inv.id}" type="button">Cancelar</button>`:''}${action('invoices',inv.id)}</div></td></tr>`;}));
+  const q=$('billingSearch'), f=$('billingFilter'), c=$('clearBillingFilter');
+  if(q) q.oninput=()=>{state.billingSearch=q.value;renderBillingTable();setTimeout(()=>{$('billingSearch')?.focus(); const el=$('billingSearch'); if(el) el.setSelectionRange(el.value.length,el.value.length);},0);};
+  if(f) f.onchange=()=>{state.billingFilter=f.value;renderBillingTable();};
+  if(c) c.onclick=clearBillingFilter;
+  document.querySelectorAll('[data-prev-inv]').forEach(b=>b.onclick=()=>previewInvoice(b.dataset.prevInv));
+  document.querySelectorAll('[data-dup-inv]').forEach(b=>b.onclick=()=>duplicateInvoice(b.dataset.dupInv));
+  document.querySelectorAll('[data-cancel-inv]').forEach(b=>b.onclick=()=>cancelInvoice(b.dataset.cancelInv));
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>remove(...b.dataset.del.split(':')));
+  document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editRecord(...b.dataset.edit.split(':')));
 }
 
 
@@ -1147,10 +1222,7 @@ function tables(){const i=industry();
   document.querySelectorAll('[data-dup-service]').forEach(b=>b.onclick=()=>duplicateService(b.dataset.dupService));
   document.querySelectorAll('[data-paystub]').forEach(b=>b.onclick=()=>previewPaystub(b.dataset.paystub));
   document.querySelectorAll('[data-pay-retention]').forEach(b=>b.onclick=()=>markRetentionPaid(b.dataset.payRetention));
-  $('invoiceTable').innerHTML=table(['Factura','Cliente','Vence','Total','Pagado','Balance','Estado','Acción'],state.invoices.map(inv=>{const bal=invoiceBalance(inv),paid=invoicePaid(inv),st=invoiceStatus(inv);return `<tr><td><b>${esc(inv.number)}</b><br><span class="muted">${esc(inv.serviceTitle||'')}</span></td><td>${esc(inv.clientName)}</td><td>${esc(inv.dueDate||'—')}</td><td>${money(inv.total)}</td><td>${money(paid)}</td><td><b>${money(bal)}</b></td><td>${statusChip(st)}</td><td><div class="actions"><button data-prev-inv="${inv.id}" type="button">Preview</button><button data-dup-inv="${inv.id}" type="button">Duplicar</button>${st!=='Cancelada'?`<button class="danger" data-cancel-inv="${inv.id}" type="button">Cancelar</button>`:''}${action('invoices',inv.id)}</div></td></tr>`}));
-  document.querySelectorAll('[data-prev-inv]').forEach(b=>b.onclick=()=>previewInvoice(b.dataset.prevInv));
-  document.querySelectorAll('[data-dup-inv]').forEach(b=>b.onclick=()=>duplicateInvoice(b.dataset.dupInv));
-  document.querySelectorAll('[data-cancel-inv]').forEach(b=>b.onclick=()=>cancelInvoice(b.dataset.cancelInv));
+  renderBillingTable();
   $('paymentsTable').innerHTML=table(['Fecha','Factura','Método','Monto','Balance factura','Nota','Acción'],state.payments.map(p=>{const inv=state.invoices.find(x=>x.id===p.invoiceId)||{};return `<tr><td>${esc(p.date)}</td><td>${esc(p.invoiceNumber)}</td><td>${esc(p.method)}</td><td>${money(p.amount)}</td><td>${inv.id?money(invoiceBalance(inv)):'—'}</td><td>${esc(p.note)}</td><td>${action('payments',p.id)}</td></tr>`;}));
   let running=0;
   const cashRows=[...state.cashflow].sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))).map(x=>{running += (x.type==='Gasto'?-1:1)*Number(x.amount||0);return `<tr><td>${esc(x.date)}</td><td>${esc(x.type)}</td><td>${esc(x.concept)}</td><td>${money(x.amount)}</td><td><b>${money(running)}</b></td><td>${action('cashflow',x.id)}</td></tr>`;});
@@ -1512,6 +1584,73 @@ function previewPaystub(id){
 function preview(type){let title={executive:'REPORTE EJECUTIVO',finance:'REPORTE FINANCIERO',receivable:'CUENTAS POR COBRAR',invoices:'REPORTE DE FACTURAS',payments:'REPORTE DE COBROS',payroll:'REPORTE DE NÓMINA',retentions:'REPORTE DE RETENCIONES',suppliers:'REPORTE DE SUPLIDORES',services:'REPORTE DE SERVICIOS',quotes:'REPORTE DE COTIZACIONES',assetsClient:'ACTIVOS POR CLIENTE',assetsStatus:'ACTIVOS POR ESTADO',purchases:'COMPRAS Y CUENTAS POR PAGAR',ops:'REPORTE OPERACIONAL'}[type]||'REPORTE';let html=docHeader(title);if(type==='executive'){html+=`<table class="doc-table"><tr><th>Concepto</th><th>Total</th></tr><tr><td>Clientes</td><td>${state.clients.length}</td></tr><tr><td>Servicios</td><td>${state.services.length}</td></tr><tr><td>Facturado</td><td>${money(sum(state.invoices,'total'))}</td></tr><tr><td>Cobrado</td><td>${money(sum(state.payments,'amount'))}</td></tr><tr><td>Nómina pagada</td><td>${money(state.payroll.reduce((a,x)=>a+payrollNet(x),0))}</td></tr><tr><td>Suplidores pagados</td><td>${money(sum(state.supplierPayments,'amount'))}</td></tr></table>`;}else if(type==='finance'){const f=financialSummary();html+=`<table class="doc-table"><tr><th>Indicador</th><th>Total</th></tr><tr><td>Facturado</td><td>${money(f.invoiced)}</td></tr><tr><td>Cobrado</td><td>${money(f.paid)}</td></tr><tr><td>Por cobrar</td><td>${money(f.receivable)}</td></tr><tr><td>Vencido</td><td>${money(f.overdue)}</td></tr><tr><td>Gastos</td><td>${money(f.expenses)}</td></tr><tr><td>Caja neta</td><td>${money(f.net)}</td></tr><tr><td>Ingreso del mes</td><td>${money(f.monthIncome)}</td></tr><tr><td>Gasto del mes</td><td>${money(f.monthExpenses)}</td></tr><tr><td>Neto del mes</td><td>${money(f.monthNet)}</td></tr></table>`;}else if(type==='receivable'){const rows=state.invoices.filter(inv=>invoiceBalance(inv)>0 && invoiceStatus(inv)!=='Cancelada').map(inv=>`<tr><td>${esc(inv.number)}</td><td>${esc(inv.clientName)}</td><td>${esc(inv.dueDate||'—')}</td><td>${money(inv.total)}</td><td>${money(invoicePaid(inv))}</td><td>${money(invoiceBalance(inv))}</td><td>${esc(invoiceStatus(inv))}</td></tr>`).join('');html+=`<table class="doc-table"><tr><th>Factura</th><th>Cliente</th><th>Vence</th><th>Total</th><th>Pagado</th><th>Balance</th><th>Estado</th></tr>${rows}</table>`;}else if(type==='invoices'){html+=`<table class="doc-table"><tr><th>Factura</th><th>Cliente</th><th>Total</th><th>Pagado</th><th>Balance</th><th>Estado</th></tr>${state.invoices.map(x=>`<tr><td>${esc(x.number)}</td><td>${esc(x.clientName)}</td><td>${money(x.total)}</td><td>${money(invoicePaid(x))}</td><td>${money(invoiceBalance(x))}</td><td>${esc(invoiceStatus(x))}</td></tr>`).join('')}</table>`;}else if(type==='payments'){html+=`<table class="doc-table"><tr><th>Fecha</th><th>Factura</th><th>Método</th><th>Monto</th></tr>${state.payments.map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.invoiceNumber)}</td><td>${esc(x.method)}</td><td>${money(x.amount)}</td></tr>`).join('')}</table>`;}else if(type==='payroll'){const bruto=sum(state.payroll,'gross'), bonos=sum(state.payroll,'bonus'), ret=state.payroll.reduce((a,x)=>a+payrollRetention(x),0), adv=state.payroll.reduce((a,x)=>a+payrollAdvance(x),0), desc=state.payroll.reduce((a,x)=>a+payrollOtherDeductions(x),0), neto=state.payroll.reduce((a,x)=>a+payrollNet(x),0);html+=`<table class="doc-table"><tr><th>Resumen</th><th>Total</th></tr><tr><td>Bruto</td><td>${money(bruto)}</td></tr><tr><td>Bonos / comisiones</td><td>${money(bonos)}</td></tr><tr><td>Retenciones</td><td>${money(ret)}</td></tr><tr><td>Adelantos</td><td>${money(adv)}</td></tr><tr><td>Otros descuentos</td><td>${money(desc)}</td></tr><tr><td>Neto pagado</td><td><b>${money(neto)}</b></td></tr></table><br><table class="doc-table"><tr><th>Fecha</th><th>Empleado</th><th>Periodo</th><th>Bruto</th><th>Retenciones</th><th>Otros desc.</th><th>Neto</th></tr>${state.payroll.map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.teamName)}</td><td>${esc(x.period)}</td><td>${money(x.gross)}</td><td>${money(payrollRetention(x))}</td><td>${money(payrollAdvance(x)+payrollOtherDeductions(x))}</td><td>${money(payrollNet(x))}</td></tr>`).join('')}</table>`;}else if(type==='retentions'){const pending=retentionPendingAmount(), paid=retentionPaidAmount();html+=`<table class="doc-table"><tr><th>Resumen</th><th>Total</th></tr><tr><td>Retenciones pendientes</td><td>${money(pending)}</td></tr><tr><td>Retenciones pagadas</td><td>${money(paid)}</td></tr></table><br><table class="doc-table"><tr><th>Fecha</th><th>Empleado</th><th>Tipo</th><th>Destino</th><th>Monto</th><th>Estado</th><th>Fecha límite</th><th>Pagado</th></tr>${state.payrollRetentions.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(r.teamName)}</td><td>${esc(r.type)}</td><td>${esc(r.destination)}</td><td>${money(r.amount)}</td><td>${esc(retentionStatus(r))}</td><td>${esc(r.dueDate||'')}</td><td>${esc(r.paidAt||'')}</td></tr>`).join('')}</table>`;}else if(type==='retentions'){
     rows.push(['Fecha','Empleado','Tipo','Destino','Monto','Estado','Fecha límite','Pagado','Referencia']); state.payrollRetentions.forEach(r=>rows.push([r.date,r.teamName,r.type,r.destination,r.amount,retentionStatus(r),r.dueDate||'',r.paidAt||'',r.reference||'']));
   }else if(type==='suppliers'){html+=`<table class="doc-table"><tr><th>Suplidor</th><th>Compras</th><th>Pagado</th><th>Balance</th></tr>${state.suppliers.map(x=>`<tr><td>${esc(x.name)}</td><td>${money(supplierPurchasesTotal(x.id))}</td><td>${money(supplierPaid(x.id))}</td><td>${money(supplierBalance(x.id))}</td></tr>`).join('')}</table>`;}else if(type==='purchases'){html+=`<table class="doc-table"><tr><th>Fecha</th><th>Suplidor</th><th>Concepto</th><th>Total</th><th>Pagado</th><th>Balance</th><th>Estado</th></tr>${state.purchases.map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.supplierName)}</td><td>${esc(x.concept)}</td><td>${money(x.total)}</td><td>${money(purchasePaid(x.id))}</td><td>${money(purchaseBalance(x))}</td><td>${esc(purchaseStatus(x))}</td></tr>`).join('')}</table>`;}else if(type==='ops'){const o=operationalSummary();html+=`<table class="doc-table"><tr><th>Indicador</th><th>Total</th></tr><tr><td>Empleados activos</td><td>${o.employees}</td></tr><tr><td>Nómina pendiente</td><td>${money(o.payrollDue)}</td></tr><tr><td>Suplidores</td><td>${o.suppliers}</td></tr><tr><td>Compras registradas</td><td>${o.purchases}</td></tr><tr><td>Cuentas por pagar</td><td>${money(o.purchaseDebt)}</td></tr><tr><td>Compras vencidas</td><td>${money(o.overduePurchases)}</td></tr></table>`;}else if(type==='quotes'){const rows=state.quotes.map(q=>{const t=quoteTotals(q);return `<tr><td>${esc(q.number)}</td><td>${esc(q.clientName)}</td><td>${esc(q.validUntil||'—')}</td><td>${money(t.total)}</td><td>${esc(quoteStatus(q))}</td></tr>`;}).join('');html+=`<table class="doc-table"><tr><th>Cotización</th><th>Cliente</th><th>Válida</th><th>Total</th><th>Estado</th></tr>${rows}</table>`;}else if(type==='assetsClient'){html+=`<table class="doc-table"><tr><th>Cliente</th><th>Activo</th><th>Categoría</th><th>Ubicación</th><th>Estado</th></tr>${state.assets.map(a=>`<tr><td>${esc(a.clientName||'Sin cliente')}</td><td>${esc(assetName(a))}</td><td>${esc(assetCategory(a))}</td><td>${esc(assetLocation(a))}</td><td>${esc(assetStatus(a))}</td></tr>`).join('')}</table>`;}else if(type==='assetsStatus'){const groups={};state.assets.forEach(a=>{const st=assetStatus(a);groups[st]=(groups[st]||0)+1;});html+=`<table class="doc-table"><tr><th>Estado</th><th>Cantidad</th></tr>${Object.entries(groups).map(([st,c])=>`<tr><td>${esc(st)}</td><td>${c}</td></tr>`).join('')}</table>`;}else{html+=`<table class="doc-table"><tr><th>Fecha</th><th>Cliente</th><th>Activo</th><th>Servicio</th><th>Monto</th></tr>${state.services.map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.clientName)}</td><td>${esc(x.assetName||'')}</td><td>${esc(serviceTitle(x))}</td><td>${money(serviceAmount(x))}</td></tr>`).join('')}</table>`;}html+=docFooter();state.previewHtml=html;$('reportPreview').innerHTML=html;}
+
+function backupPayload(){
+  const payload={version:'v65',project:'Nexus Business PR',exportedAt:new Date().toISOString(),profile:profile(),data:{}};
+  COLS.forEach(c=>payload.data[c]=(state[c]||[]).map(({id,...rest})=>({id,...rest})));
+  return payload;
+}
+function downloadJsonFile(name,payload){
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function exportBackup(){
+  downloadJsonFile(`nexus-business-backup-${today()}.json`,backupPayload());
+}
+async function importDataPayload(payload){
+  const data=payload?.data || payload || {};
+  let imported=0;
+  if(payload?.profile && confirm('¿Importar también la configuración del negocio?')){
+    await setDoc(profRef(),{...payload.profile,updatedAt:serverTimestamp()},{merge:true});
+  }
+  for(const c of COLS){
+    const rows=Array.isArray(data[c])?data[c]:[];
+    for(const row of rows){
+      const clean={...row};
+      const id=clean.id; delete clean.id;
+      if(id) await setDoc(docPath(c,id),{...clean,updatedAt:serverTimestamp()},{merge:true});
+      else await addDoc(colPath(c),{...clean,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+      imported++;
+    }
+  }
+  return imported;
+}
+async function handleImportFile(input){
+  const file=input?.files?.[0]; if(!file) return;
+  const status=$('importDataStatus'); if(status) status.textContent='Leyendo archivo...';
+  try{
+    const text=await file.text();
+    const payload=JSON.parse(text);
+    const preview=COLS.map(c=>`${c}: ${Array.isArray((payload.data||payload)[c])?(payload.data||payload)[c].length:0}`).join('\n');
+    if(!confirm(`Vista previa de importación:\n${preview}\n\n¿Continuar?`)){ if(status) status.textContent='Importación cancelada.'; return; }
+    const count=await importDataPayload(payload);
+    if(status) status.textContent=`Importación completada: ${count} registros.`;
+    alert(`Importación completada: ${count} registros.`);
+  }catch(err){console.error(err); if(status) status.textContent='Error importando JSON.'; alert('No se pudo importar el archivo JSON.');}
+  finally{ if(input) input.value=''; }
+}
+async function wipeAllData(){
+  if(!confirm('Esta acción borrará TODA la data de esta cuenta: clientes, servicios, cotizaciones, facturas, cobros, seguimientos, compras, nómina y reportes. ¿Continuar?')) return;
+  const token=prompt('Para confirmar escribe exactamente: BORRAR');
+  if(token!=='BORRAR') return alert('Operación cancelada.');
+  if(!confirm('Última confirmación: esta acción no se puede deshacer. Se descargará un backup antes de borrar.')) return;
+  exportBackup();
+  for(const c of COLS){
+    const snap=await getDocs(colPath(c));
+    for(const d of snap.docs) await deleteDoc(docPath(c,d.id));
+  }
+  await setDoc(profRef(),{...defaultProfile(),email:auth.currentUser?.email||profile().email||'',businessName:profile().businessName||'Mi Negocio',industry:profile().industry||'hvac',language:profile().language||'es',plan:profile().plan||'free',planStatus:profile().planStatus||'active',dataWipedAt:serverTimestamp()},{merge:false});
+  state.billingFilter='all';state.billingSearch='';
+  alert('Data borrada. Se mantuvo la app, el usuario y la configuración base.');
+  show('dashboard');
+}
+function bindDataSettings(){
+  const exp=$('exportBackupBtn'); if(exp) exp.onclick=exportBackup;
+  const imp=$('importDataFile'); if(imp) imp.onchange=()=>handleImportFile(imp);
+  const wipe=$('wipeAllDataBtn'); if(wipe) wipe.onclick=wipeAllData;
+}
+
 function fileData(input){return new Promise(res=>{const f=input?.files?.[0];if(!f)return res('');const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(f);});}
 async function saveSettings(){const p={...profile()};['businessName','slogan','phone','whatsapp','email','web','address','merchant','representative','tax','transportRatePerMile','transportBaseCharge','dailyGoal','primaryColor','secondaryColor','language'].forEach(k=>p[k]=$('set_'+k)?.value||'');p.industry=$('set_industry').value;p.customServices={...(p.customServices||{})};p.customServices[p.industry]=($('set_services')?.value||'').split('\n').map(x=>x.trim()).filter(Boolean);for(const k of ['logoDashboard','logoPdf','favicon','signature']){const v=await fileData($('set_'+k));if(v)p[k]=v;}if(onboardingProgress()>=50) p.onboardingSkipped=false; await setDoc(profRef(),p,{merge:true});alert(T('Guardado.'));}
 

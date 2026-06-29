@@ -106,3 +106,13 @@ La versión móvil usa un solo motor PDF directo con jsPDF para vista previa, ve
 - Corrección de guardado de Seguimiento móvil.
 - Seguimiento automático desde factura de mantenimiento/instalación.
 - Cache PWA v64.
+
+
+## v65 Desktop Data & Actions Fix
+
+- Restaurado/añadido centro Importar / Exportar en Configuración.
+- Añadida Zona peligrosa para borrar toda la data con backup y doble confirmación.
+- Facturación Desktop ahora tiene buscador por cliente, número de factura, servicio, estado y fecha.
+- Dashboard con KPI accionables que llevan directo al módulo y filtro correcto.
+- No se eliminaron módulos ni funciones existentes.
+- Cache PWA v65.
